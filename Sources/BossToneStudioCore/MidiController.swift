@@ -3,10 +3,16 @@ import os
 
 /// What the controller needs from CoreMIDI; the real implementation lives in the app, so everything here is testable
 /// without a MIDI client. Implementations must be safe to call from any thread.
+///
+/// The controller holds its own lock while it calls `connectInput`, `disconnectInput`, `connectOutput`,
+/// `disconnectOutput` and `send`. So an implementation must never call the setup-changed handler or an `onMessage`
+/// callback synchronously from inside those calls, nor while it holds a lock that `sourceNames()` or
+/// `destinationNames()` need: the handler lists the ports and then takes the controller's lock.
 public protocol MidiBackend: AnyObject, Sendable {
     func sourceNames() -> [String]
     func destinationNames() -> [String]
-    /// Disconnecting without a connection is not an error.
+    /// `onMessage` gets each whole incoming message, from the backend's own thread. Disconnecting without a
+    /// connection is not an error; once `disconnectInput` has returned, `onMessage` is not called again.
     func connectInput(named name: String, onMessage: @escaping @Sendable ([UInt8]) -> Void) throws
     func disconnectInput()
     func connectOutput(named name: String) throws

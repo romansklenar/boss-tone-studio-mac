@@ -63,16 +63,16 @@ lock:
 		-o requirements-app.txt
 
 run:
-	@$(PYTHON) -m bts
+	@swift run -c debug $(SWIFT_FLAGS) BossToneStudio
 
 browser:
-	@$(PYTHON) -m bts --browser
+	@swift run -c debug $(SWIFT_FLAGS) BossToneStudio --browser
 
 trace:
-	@BTS_TRACE=1 $(PYTHON) -m bts
+	@BTS_TRACE=1 swift run -c debug $(SWIFT_FLAGS) BossToneStudio
 
 roland-import:
-	@$(PYTHON) -m bts --import-roland
+	@swift run -c debug $(SWIFT_FLAGS) BossToneStudio --import-roland
 
 roland-assets:
 	@packaging/fetch-roland-assets.sh build/roland

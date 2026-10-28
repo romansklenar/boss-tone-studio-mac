@@ -37,7 +37,7 @@ private func sysExWords(_ message: ArraySlice<UInt8>, group: UInt32) -> [UInt32]
 
 /// Turns incoming packets back into whole MIDI 1.0 messages. Words may arrive in any slices: a packet cut off at
 /// the end of one `feed` is completed by the next, and so is a SysEx.
-public struct UMPReassembler {
+public struct UMPReassembler: Sendable {
     private var unread: [UInt32] = []
     private var sysEx: [UInt8]?
 
