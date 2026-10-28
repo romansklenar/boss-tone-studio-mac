@@ -16,15 +16,9 @@ holds none of Roland's files, but the built app does — it is for personal use 
 - **Roland's editor is Intel-only.** BOSS TONE STUDIO for KATANA MkII 2.1.0, the current release on BOSS's site,
   ships only an `x86_64` binary; there is no Apple Silicon build for the MkII (Roland's Gen 3 editor, by contrast, is
   native). On Apple Silicon it runs only under Rosetta 2, which macOS does not include and installs on demand.
-- **Rosetta is going away.** Apple supports Rosetta fully only through macOS 27; from macOS 28 only a limited subset
-  is to remain, aimed at older, unmaintained games built on Intel frameworks
-  ([MacRumors, 2025-06-10](https://www.macrumors.com/2025/06/10/apple-to-phase-out-rosetta-2/), citing Apple's
-  developer documentation). An editor that talks to a USB amp is not that kind of app, so from macOS 28 Roland's
-  editor can be expected not to run at all.
-- **Upgrading to macOS 27 removed Rosetta.** An upgrade to macOS 27.0 removed an installed Rosetta and did not restore
-  it; macOS 27.2 stopped doing so ([Apple](https://support.apple.com/en-us/148830),
-  [MacRumors, 2026-10-26](https://www.macrumors.com/2026/10/26/macos-27-2-stops-removing-rosetta/)). Users had to
-  reinstall Rosetta just to start the editor.
+- **Rosetta is going away.** Apple supports it fully only through macOS 27; from macOS 28 only a subset for older
+  games is to remain, and upgrading to macOS 27.0 already removed it
+  ([sources](doc/research/2026-10-28-rosetta-on-macos-27.md)).
 - **Even with Rosetta, it no longer works on macOS 27.2.** Roland's app launches and lists the amp, but never connects
   to it ("WRONG DEVICE") and shows an empty Librarian, although the library is intact on disk — the editor is unusable
   and a whole preset collection looks lost (tested 2026-10-28 with a KATANA-HEAD MkII).
@@ -81,24 +75,18 @@ builds from source), and Roland's KATANA USB driver for the amp (its installer, 
 arm64).
 
 ```bash
-make setup          # pinned Python, ruff and uv (mise.toml), locked packages (requirements.txt), Roland's web app
-make roland-assets  # (part of setup) web app + icon from Roland's installer zip (kept), SHA-256 checked, no install
-make run            # the app window
-make browser        # server only; prints a URL for a browser (no file dialogs)
-make trace          # the window, logging every bridge command and MIDI message
-make import-roland  # re-import the Librarian from Roland's app
-make check          # lint + tests
+make setup          # toolchain, packages and Roland's web app (see How the build works)
+make run            # the app window; `make browser` serves it to a browser, `make trace` logs the bridge
+make app install    # build the standalone .app and copy it to ~/Applications
+make help           # every target
 ```
 
 On the first launch the app offers a device picker — choose **KATANA** (not "KATANA DAW CTRL"). It reconnects on its
 own after that.
 
-`make app` builds `dist/BOSS TONE STUDIO for KATANA MkII (Apple Silicon).app` and `make install` copies it to
-`~/Applications`. Its icon is Roland's with a slate-grey instead of a black background (`packaging/make_icon.py`), so
-it is easy to tell from the original. The bundle carries its own Python 3.13 and Roland's web app, so it depends on
-neither the system Python (macOS ships none; `/usr/bin/python3` is a Command Line Tools shim, 3.9.6 here) nor
-Roland's installed app. Without the bundle, the web app is looked up in `BTS_HTML_DIR`, then `build/roland/html`,
-then Roland's installed app.
+The bundle carries its own Python 3.13 and Roland's web app, so it needs neither the system Python nor Roland's
+installed app; its slate-grey icon tells it apart from Roland's. The web app is looked up in `BTS_HTML_DIR`, then in
+the bundle, then in `build/roland/html`, then in Roland's installed app.
 
 ### Other Macs
 
@@ -116,7 +104,7 @@ apart from Roland's app. `BTS_HTML_DIR` and `BTS_DATA_DIR` override the paths.
 On the first launch the port takes over the Librarian (livesets with patches) from Roland's app, which keeps it in
 `~/Library/Preferences/jp.co.roland.BOSS-TONE-STUDIO-for-KATANA-MkII.plist`; the port only reads that file. The import
 runs once (marker `roland-librarian-imported` in the data folder); `make import-roland` runs it again without
-duplicating livesets already taken over. The Librarian holds at most 50 livesets. Data of the older Adobe AIR editor
+duplicating livesets already taken over, and refuses while the app is open. The Librarian holds at most 50 livesets. Data of the older Adobe AIR editor
 for the original KATANA (`~/Library/Application Support/BOSS-TONE-STUDIO-for-KATANA`) is not taken over.
 
 ## Verified amplifiers
@@ -142,7 +130,7 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 | Remembering the chosen device | ✅ reconnects on the next launch |
 | Closing the window (editor mode off, `$$app_exit`) | ✅ the page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
 | Librarian taken over from Roland's app | ✅ 29 livesets / 254 patches loaded in the original order |
-| File dialogs | ✅ `.tsl` export and import (round trip identical), All Data Backup (81 KB); a Gen 3 `.tsl` is refused by Roland's code ("UNSUPPORTED DATA"); restoring a backup not tested |
+| File dialogs | ✅ `.tsl` export and import (round trip identical), All Data Backup (81 KB); a Gen 3 `.tsl` is refused by Roland's code ("UNSUPPORTED DATA") |
 | Deleting livesets/patches | ✅ fixed (the page passes numeric IDs); liveset delete verified in the window, patch delete in the browser (persists across reload) |
 | Tone Central | ✅ through a local proxy: catalogue, details, YouTube preview, adding a liveset; SoundCloud previews ❌ (Roland's old API key returns 401) |
 | `.app` bundle | ✅ `make app`: standalone (serves the bundled web app, nothing open under `/Applications/BOSS`), arm64, "(Apple Silicon)" name, grey icon |
@@ -150,11 +138,14 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 ## Next steps
 
 1. **Restore from an All Data Backup** — the one file dialog not tested yet (it rewrites every patch in the amp).
-2. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
+2. **Use `native.js`'s own transport hook** (`window.$$app`, `$$fs`, `$$midi`) instead of the injected overrides: one
+   POST call for every command, no user-agent or `$$xhrport` tricks, no GET/POST split. Planned as the next PR; needs
+   a re-test with an amp.
+3. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
    other way round; Gen 3 presets store some effects per colour (green/red/yellow) and use different amp types, so a
    conversion would be lossy in known places.
-3. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
-4. **Option C** (later) — a native rewrite (WKWebView + embedded HTTP server + CoreMIDI, no Python): a small signed
+4. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
+5. **Option C** (later) — a native rewrite (WKWebView + embedded HTTP server + CoreMIDI, no Python): a small signed
    app instead of a 38 MB bundle with its own Python.
 
 ## Licensing
@@ -203,8 +194,8 @@ How this project relates to each point:
   needs a rebuild and a re-test.
 - **Partial bridge.** Only the commands the MkII app calls are implemented; anything else answers "undefined" and is
   logged (`make trace`).
-- **Limited testing.** KATANA-HEAD MkII and KATANA-ARTIST MkII on macOS 27.2 (see Verified amplifiers). Other MkII
-  models, macOS 14–26 and restoring an All Data Backup are untested.
+- **Limited testing.** Two amps on macOS 27.2 (see Verified amplifiers); other MkII models and macOS 14–26 are
+  untested.
 - **Signing.** The bundle is ad-hoc signed, not notarized. Built locally it opens normally; copied from elsewhere it
   needs right-click → Open, and a stricter future Gatekeeper could refuse it.
 - **Local server with file access.** Mitigated as described under Security; a program already running as you could

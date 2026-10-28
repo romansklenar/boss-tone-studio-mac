@@ -2,13 +2,9 @@
 
 ## Automated
 
-`make check` runs ruff and the unit tests (`tests/`), as CI does on every pull request:
-
-- `test_bridge_http.py` — the security rules over a real loopback server with a stand-in bridge: token, Host, Origin
-  and `Sec-Fetch-Site` checks, POST limits, escaped log lines, the file allowlist and web-only `fs.exec`;
-- `test_proxy_and_midi.py` — the proxy's host allowlist and MIDI message splitting;
-- `test_server.py` — POST argument types and response encoding;
-- `test_roland_import.py` — the Librarian import on synthetic plists, including an unreadable one.
+`make check` runs ruff and the unit tests (`tests/`), as CI does on every pull request. They cover the bridge's
+security rules (over a real loopback server with a stand-in bridge), storage, the proxy allowlist, MIDI message
+splitting and the Librarian import.
 
 ## The bridge without an amp
 

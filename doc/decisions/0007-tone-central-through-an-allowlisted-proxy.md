@@ -9,7 +9,8 @@ could not load them from `localhost`. The alternative was hiding Tone Central.
 
 ## Decision
 
-Rewrite the page's absolute `$.ajax` URLs to a token-guarded `/__proxy` endpoint that fetches over HTTPS from an
+Rewrite the page's absolute `$.ajax` URLs (a jQuery prefilter, so every jQuery request form is covered) to a
+token-guarded `/proxy` endpoint that fetches over HTTPS from an
 allowlist of Tone Central's hosts only, checks redirects against it, and drops POSTs (usage telemetry).
 
 ## Consequences

@@ -10,7 +10,8 @@ request lines over 64 KB with `414`, so backups silently failed.
 ## Decision
 
 Replace `fs.writeString` and the write form of `app.storage2` with synchronous POSTs carrying a JSON array of
-arguments, behind the same token and origin checks. Convert every POSTed argument to a string, matching GET.
+arguments, behind the same token and origin checks. The page script converts every argument to a string, matching
+GET, and throws on any answer but HTTP 200.
 
 ## Consequences
 

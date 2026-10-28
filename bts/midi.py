@@ -32,8 +32,7 @@ def split_messages(data):
 
 
 def endpoint(name):
-    # The page remembers the chosen device by MIDIEndpointUIDKey; rtmidi exposes no CoreMIDI uniqueID, and port
-    # names are unique and stable, so the name doubles as the UID.
+    # The name doubles as the UID the page remembers the device by (doc/decisions/0005).
     return {"MIDIEntityNameKey": name, "MIDIDeviceNameKey": name, "MIDIEndpointUIDKey": name}
 
 
@@ -60,11 +59,14 @@ class Midi:
         if port:
             port.ignore_types(sysex=False, timing=True, active_sense=True)
             port.set_callback(self._on_message)
-            self._input = port
+            with self._lock:
+                self._input = port
 
     def connect_output(self, ep_json):
         self.disconnect_output()
-        self._output = self._open(rtmidi.MidiOut(), ep_json)
+        port = self._open(rtmidi.MidiOut(), ep_json)
+        with self._lock:
+            self._output = port
 
     def disconnect_input(self, *_):
         with self._lock:

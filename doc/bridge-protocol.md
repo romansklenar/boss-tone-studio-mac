@@ -28,8 +28,9 @@ on platform URL helpers to split out the `;arguments`.
 
 Large writes (an All Data Backup, a liveset with 15 patches) outgrow a GET URL — Python's `http.server` caps the request
 line at 64 KB and answers `414` — so `fs.writeString` and the writing form of `app.storage2` are replaced to
-`POST /<token>/$$cmd` with a JSON array of arguments as the body. Every POSTed argument is converted to a string, as
-GET's percent-decoding does: the Librarian passes numeric liveset IDs.
+`POST /<token>/$$cmd` with a JSON array of arguments as the body. The page script converts every argument to a string
+first, as GET's percent-encoding does: the Librarian passes numeric liveset IDs. Both calls throw in the page when
+the bridge answers anything but HTTP 200, like `native.js` does for an undecodable answer.
 
 ## What is injected into `index.html`
 
@@ -40,16 +41,17 @@ Before `<script src="js/lib/native.js"></script>` (the marker must exist, else t
 - `window.$$xhrport = '<port>/<token>';` — `native.js` builds every URL from it, so the token after the port becomes
   the path prefix of every command (`/<token>/$$cmd`).
 - `navigator.userAgent` overridden with `Object.defineProperty` to append `roland.quattro(Mac)`.
-- `window.onerror` → `GET /__bts/log;<message>` (JS errors logged on the server).
+- `window.onerror` → `POST /<token>/log` (JS errors logged on the server).
 
 After `native.js`:
 
 - `$native.midi.send` → sync GET `$$midi_send` (keeps MIDI order);
 - `$native.fs.writeString` and the write form of `$native.app.storage2` → sync POST;
-- `$.ajax` with an absolute URL → `/<token>/__proxy?url=…` (Tone Central, see below).
+- a `$.ajaxPrefilter` that sends absolute URLs to `/<token>/proxy?url=…` (Tone Central, see below).
 
 The page loads from `http://localhost:<port>/index.html` (not `127.0.0.1`): `native.js` calls `localhost`, so anything
-else is cross-origin. The server listens on both `127.0.0.1` and `::1` on the same port.
+else is cross-origin. The server listens on both `127.0.0.1` and `::1` on the same port (another port is picked if
+`::1` is taken) and keeps connections alive, since the page polls every 50 ms.
 
 ## Commands the MkII app calls
 
@@ -114,15 +116,17 @@ Behaviour worth knowing:
 
 The server can read and write files, so:
 
-1. It listens on loopback only and checks `Host` ∈ {`localhost:P`, `127.0.0.1:P`, `[::1]:P`} on every request
-   (DNS rebinding).
-2. A per-launch token (`secrets.token_urlsafe(24)`), compared with `hmac.compare_digest`, guards `/$$…` commands (GET
-   and POST) and GET `/__proxy` → `403` without it. Any other POST (the page's telemetry, also through the proxy) is
-   dropped with `204` and reaches nothing.
-3. A foreign `Origin` and any `Sec-Fetch-Site` outside {absent, `same-origin`, `none`} are rejected.
+1. It listens on loopback only and checks `Host` ∈ {`localhost:P`, `127.0.0.1:P`, `[::1]:P`} on every request, HEAD
+   included (DNS rebinding).
+2. A per-launch token (`secrets.token_urlsafe(24)`), compared with `hmac.compare_digest`, guards every bridge route —
+   `/<token>/$$…` (GET and POST), `/<token>/proxy`, `/<token>/log` → `403` without it. The page's usage telemetry —
+   POSTs to its own URL, or to Roland through the proxy — is dropped with `204` and reaches nothing.
+3. A foreign `Origin` and any `Sec-Fetch-Site` outside {absent, `same-origin`, `none`} are rejected on the bridge
+   routes and on `index.html`, and every response forbids framing (`X-Frame-Options: DENY`,
+   `frame-ancestors 'none'`), so other websites can neither drive the bridge nor open or frame the editor.
 4. `fs_readString`/`fs_writeString` only reach the app's data or temp folder, or exactly a path the user picked in a
    file dialog during this session (resolved paths).
 5. `fs_exec` opens `http(s)://` links only.
 6. POST bodies are capped (64 MB) and need a valid `Content-Length`; page log lines are printed escaped and truncated.
 
-`tests/test_bridge_http.py` covers each rule against a real loopback server.
+The tests in `tests/` cover each rule (rules 1–3 and 6 against a real loopback server).

@@ -17,4 +17,5 @@ choice).
 ## Consequences
 
 - Former users open straight into their library; Roland's file is never written.
-- Livesets created later in Roland's app need `make import-roland`.
+- Livesets created later in Roland's app need `make import-roland`, which refuses to run while the app is open (its
+  in-memory Librarian would overwrite the import). Storage writes are atomic, so a crash cannot truncate `ID_LIST`.

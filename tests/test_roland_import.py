@@ -39,7 +39,7 @@ class RolandImportTest(unittest.TestCase):
         return json.loads(self.read("ID_LIST"))["list"]
 
     def test_fresh_library_matches_roland_order_and_values(self):
-        roland_import.import_librarian(self.storage2, self.prefs)
+        roland_import.import_librarian(self.data_dir, self.prefs)
 
         self.assertEqual(self.ids(), [2, 1])
         self.assertEqual(self.read("1"), liveset("Foo"))
@@ -47,8 +47,8 @@ class RolandImportTest(unittest.TestCase):
         self.assertFalse((self.storage2 / "pref").exists())
 
     def test_reimport_adds_nothing(self):
-        roland_import.import_librarian(self.storage2, self.prefs)
-        summary = roland_import.import_librarian(self.storage2, self.prefs)
+        roland_import.import_librarian(self.data_dir, self.prefs)
+        summary = roland_import.import_librarian(self.data_dir, self.prefs)
 
         self.assertIn("Imported 0 livesets", summary)
         self.assertEqual(self.ids(), [2, 1])
@@ -59,7 +59,7 @@ class RolandImportTest(unittest.TestCase):
         (self.storage2 / "1").write_text(liveset("Mine"))
         (self.storage2 / "ID_LIST").write_text('{"list":[0,1]}')
 
-        roland_import.import_librarian(self.storage2, self.prefs)
+        roland_import.import_librarian(self.data_dir, self.prefs)
 
         self.assertEqual(self.ids(), [2, 3, 0, 1])
         self.assertEqual(self.read("1"), liveset("Mine"))
@@ -71,7 +71,7 @@ class RolandImportTest(unittest.TestCase):
             (self.storage2 / str(i)).write_text(liveset(f"L{i}"))
         (self.storage2 / "ID_LIST").write_text(json.dumps({"list": list(range(49))}))
 
-        summary = roland_import.import_librarian(self.storage2, self.prefs)
+        summary = roland_import.import_librarian(self.data_dir, self.prefs)
 
         self.assertEqual(len(self.ids()), 50)
         self.assertIn("1 skipped", summary)
@@ -82,6 +82,12 @@ class RolandImportTest(unittest.TestCase):
         roland_import.import_once(self.data_dir, self.prefs)
 
         self.assertEqual(self.ids(), [2, 1])
+
+    def test_duplicates_in_rolands_list_are_imported_once(self):
+        self.write_prefs({"ID_LIST": '{"list":[1,2]}', "1": liveset("Same"), "2": liveset("Same")})
+        roland_import.import_librarian(self.data_dir, self.prefs)
+
+        self.assertEqual(self.ids(), [1])
 
     def test_import_once_survives_an_unreadable_plist(self):
         self.prefs.write_bytes(b"not a plist")

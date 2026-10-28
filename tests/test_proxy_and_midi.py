@@ -1,7 +1,8 @@
 import unittest
+import urllib.request
 
 from bts.midi import split_messages
-from bts.proxy import checked_url
+from bts.proxy import _AllowlistedRedirects, checked_url
 
 
 class CheckedUrlTest(unittest.TestCase):
@@ -21,6 +22,11 @@ class CheckedUrlTest(unittest.TestCase):
         ):
             with self.subTest(url=url), self.assertRaises(PermissionError):
                 checked_url(url)
+
+    def test_redirects_are_held_to_the_allowlist(self):
+        request = urllib.request.Request("https://api.roland.com/")
+        with self.assertRaises(PermissionError):
+            _AllowlistedRedirects().redirect_request(request, None, 302, "Found", {}, "https://evil.example/")
 
 
 class SplitMessagesTest(unittest.TestCase):

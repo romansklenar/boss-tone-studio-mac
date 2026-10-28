@@ -12,12 +12,9 @@ in the README.
 ## Commands
 
 ```bash
-make setup          # make deps (pinned Python/ruff/uv + requirements.txt into .venv) + make roland-assets
-make lock           # re-resolve requirements*.txt after changing pins in pyproject.toml
-make run | browser | trace | import-roland
-make app | install  # standalone .app (PyInstaller) → dist/, then ~/Applications
-make test           # python -m unittest discover -s tests -t .
-make lint | format  # ruff
+make help           # every target
+make setup          # make deps (toolchain + locked packages into .venv) + make roland-assets
+make lock           # re-resolve requirements*.txt (with hashes) after changing pins in pyproject.toml
 make check          # lint + test — run before committing; CI runs the same on every PR
 ```
 

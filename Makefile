@@ -2,6 +2,7 @@
 
 PYTHON     ?= .venv/bin/python
 SRC        ?= bts tests packaging
+# Must match APP_NAME in bts/__main__.py, which names the bundle.
 APP_NAME   ?= BOSS TONE STUDIO for KATANA MkII (Apple Silicon)
 INSTALL_DIR ?= $(HOME)/Applications
 
@@ -39,30 +40,34 @@ deps:
 	@echo "Python: $$($(PYTHON) --version), ruff: $$(mise exec -- ruff --version)"
 
 lock:
-	@mise exec -- uv pip compile --quiet --python-version 3.13 pyproject.toml -o requirements.txt
-	@mise exec -- uv pip compile --quiet --python-version 3.13 --group app pyproject.toml -o requirements-app.txt
+	@mise exec -- uv pip compile --quiet --generate-hashes --python-version 3.13 pyproject.toml -o requirements.txt
+	@mise exec -- uv pip compile --quiet --generate-hashes --python-version 3.13 --group app pyproject.toml \
+		-o requirements-app.txt
 
 run:
-	@./run
+	@$(PYTHON) -m bts
 
 browser:
-	@./run --browser
+	@$(PYTHON) -m bts --browser
 
 trace:
-	@BTS_TRACE=1 ./run
+	@BTS_TRACE=1 $(PYTHON) -m bts
 
 import-roland:
-	@./run --import-roland
+	@$(PYTHON) -m bts --import-roland
 
 roland-assets:
 	@packaging/fetch-roland-assets.sh build/roland
 
-app: roland-assets
+app: roland-assets build/AppIcon.icns
 	@mise exec -- uv pip sync --quiet --python $(PYTHON) requirements-app.txt
-	@$(PYTHON) packaging/make_icon.py build/roland/AppIcon.icns build/AppIcon.icns
 	@$(PYTHON) -m PyInstaller --noconfirm --log-level WARN --distpath dist --workpath build/pyinstaller packaging/app.spec
 	@rm -rf "dist/$(APP_NAME)"  # the intermediate one-folder build; the .app holds its own copy
 	@echo "Built dist/$(APP_NAME).app"
+
+build/AppIcon.icns: build/roland/AppIcon.icns packaging/make_icon.py
+	@mise exec -- uv pip sync --quiet --python $(PYTHON) requirements-app.txt
+	@$(PYTHON) packaging/make_icon.py $< $@
 
 install:
 	@test -d "dist/$(APP_NAME).app" || (echo "Error: run 'make app' first" >&2 && exit 1)
