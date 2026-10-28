@@ -47,8 +47,8 @@ This project does what Roland's native shell does:
 - `bts/__main__.py` — the window, through `pywebview` (Cocoa/WKWebView). When the window closes, the page first takes
   the amp out of editor mode, as in the original.
 
-The full protocol, findings and design decisions are in
-[`doc/plans/2026-10-27-reimplementation-handover.md`](doc/plans/2026-10-27-reimplementation-handover.md).
+The protocol is described in [`doc/bridge-protocol.md`](doc/bridge-protocol.md), the design decisions in
+[`doc/decisions/`](doc/decisions/) and the background research in [`doc/research/`](doc/research/).
 Inspired by the [Linux port for KATANA Gen 3](https://github.com/Shesherd/BOSS-TONE-STUDIO-GEN-3-EXTENDED-FOR-LINUX).
 
 ## How the build works

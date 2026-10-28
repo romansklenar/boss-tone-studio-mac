@@ -5,8 +5,9 @@ Native arm64 shell for Roland's BOSS TONE STUDIO for KATANA MkII web app: a Pyth
 never modified or committed — `make roland-assets` takes it out of Roland's installer download into `build/roland/`
 and `make app` bundles it.
 
-Start with [`doc/plans/2026-10-27-reimplementation-handover.md`](doc/plans/2026-10-27-reimplementation-handover.md):
-the protocol (source of truth), the user's decisions, security rules, environment traps and status.
+Start with [`doc/bridge-protocol.md`](doc/bridge-protocol.md) (the protocol and security rules — the source of truth
+for `bts/`), then [`doc/decisions/`](doc/decisions/) and [`doc/research/`](doc/research/); status and verified amps are
+in the README.
 
 ## Commands
 
@@ -26,11 +27,18 @@ make check          # lint + test — run before committing
 - Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend, trailer
   `Co-authored-by: Claude <noreply@anthropic.com>`.
 - 120-character lines (ruff). Lean comments: say why, not what.
-- Plans and findings go to `doc/plans/YYYY-MM-DD-<topic>.md`.
+- A new design decision gets a record in `doc/decisions/NNNN-<title>.md` (context, decision, consequences); research
+  findings go to `doc/research/YYYY-MM-DD-<topic>.md`.
 - Never write to Roland's app or its plist; scratch work and personal backups go to `tmp/` (gitignored).
 - Claim only what was verified; say how (curl, browser pane, `make trace` log, the user in the window).
 
 ## Sandbox notes
 
-MIDI (CoreMIDI client), writes to `~/Library` and building python-rtmidi only work outside the Claude Code sandbox;
-run the app with `BTS_DATA_DIR=$PWD/tmp/<name>` while testing. Details: §6 of the handover document.
+- The Claude Code sandbox cannot create a CoreMIDI client (`RtMidiError … -10833`) — anything touching MIDI, and
+  running the app, needs the sandbox off. Test with `BTS_DATA_DIR=$PWD/tmp/<name>` instead of the real data folder.
+- python-rtmidi builds from source (no cp313 arm64 wheel) and needs `xcrun`, which cannot write its cache inside the
+  sandbox: run `make setup` / `make app` outside it. Inside, `UV_CACHE_DIR=$TMPDIR/uv-cache` avoids `~/.cache`.
+- `$TMPDIR` differs inside and outside the sandbox; write logs to the project's `tmp/`.
+- `open`/`osascript` and `ps`/`pgrep` fail inside the sandbox; check processes outside it (`ps`, `lsof -iTCP`).
+- The browser pane reaches `http://localhost:<port>` (`make browser`) for visual checks; the native window cannot be
+  seen — verify it through `make trace` logs and written storage.
