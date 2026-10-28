@@ -16,4 +16,5 @@ GET, and throws on any answer but HTTP 200.
 ## Consequences
 
 - Backups and large livesets save. Converting to strings matters: the Librarian passes numeric liveset IDs, and
-  without it deleting livesets and patches failed mid-way. A unit test guards it.
+  without it deleting livesets and patches failed mid-way. The server converts too (`post_args`), and a
+  unit test guards that.

@@ -16,5 +16,5 @@ CoreMIDI, the standard library's HTTP server for the bridge. Roland's web app ru
 ## Consequences
 
 - Fast to build and to change; everything is in a few hundred lines of Python.
-- The bundle carries its own Python (~38 MB) and is ad-hoc signed.
+- The bundle (~38 MB) carries its own Python and is ad-hoc signed.
 - A native rewrite remains possible later; the bridge protocol (`doc/bridge-protocol.md`) is what it must implement.

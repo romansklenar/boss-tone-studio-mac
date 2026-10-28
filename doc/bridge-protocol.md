@@ -41,7 +41,7 @@ Before `<script src="js/lib/native.js"></script>` (the marker must exist, else t
 - `window.$$xhrport = '<port>/<token>';` — `native.js` builds every URL from it, so the token after the port becomes
   the path prefix of every command (`/<token>/$$cmd`).
 - `navigator.userAgent` overridden with `Object.defineProperty` to append `roland.quattro(Mac)`.
-- `window.onerror` → `POST /<token>/log` (JS errors logged on the server).
+- a `window` `error` listener → `POST /<token>/log` (JS errors logged on the server).
 
 After `native.js`:
 
@@ -69,7 +69,7 @@ else is cross-origin. The server listens on both `127.0.0.1` and `::1` on the sa
 | `fs_exec;url` | open in the browser — `http(s)://` only |
 | `fs_readString;path`, `fs_writeString;path,text` | permitted paths only (see Security) |
 | `fs_openfilename[;["tsl"]]` | asynchronous dialog → event `fs\fopenfilename\f<path>` |
-| `fs_savefilename;name,ext` | asynchronous dialog → event `fs\fsavefilename\f<path>` (extension appended) |
+| `fs_savefilename;name,ext` | asynchronous dialog → event `fs\fsavefilename\f<path>` (extension appended unless present) |
 | `midi_inendpoints`, `midi_outendpoints` | JSON array of `{"MIDIEntityNameKey", "MIDIDeviceNameKey", "MIDIEndpointUIDKey"}` |
 | `midi_inconnect;json`, `midi_outconnect;json` | open the port by `MIDIEntityNameKey`; failure → event `midi\fconnectfailed\f<json>` |
 | `midi_indisconnect`, `midi_outdisconnect` | close |
@@ -116,8 +116,8 @@ Behaviour worth knowing:
 
 The server can read and write files, so:
 
-1. It listens on loopback only and checks `Host` ∈ {`localhost:P`, `127.0.0.1:P`, `[::1]:P`} on every request, HEAD
-   included (DNS rebinding).
+1. It listens on loopback only and checks `Host` ∈ {`localhost:P`, `127.0.0.1:P`, `[::1]:P`} on every GET, HEAD and
+   POST (DNS rebinding); other methods get `501`.
 2. A per-launch token (`secrets.token_urlsafe(24)`), compared with `hmac.compare_digest`, guards every bridge route —
    `/<token>/$$…` (GET and POST), `/<token>/proxy`, `/<token>/log` → `403` without it. The page's usage telemetry —
    POSTs to its own URL, or to Roland through the proxy — is dropped with `204` and reaches nothing.
@@ -125,9 +125,11 @@ The server can read and write files, so:
    routes and on `index.html`, and every response forbids framing (`X-Frame-Options: DENY`,
    `frame-ancestors 'none'`), so other websites can neither drive the bridge nor open or frame the editor.
 4. `fs_readString`/`fs_writeString` only reach the app's data or temp folder, or exactly a path the user picked in a
-   file dialog during this session (resolved paths). The save dialog's extension must be letters and digits, since it
-   is appended to the picked path.
+   file dialog during this session (resolved paths). The save dialog's extension must be 1–10 letters and digits,
+   since it is appended to the picked path.
 5. `fs_exec` opens `http(s)://` links only.
-6. POST bodies are capped (64 MB) and need a valid `Content-Length`; page log lines are printed escaped and truncated.
+6. POST bodies are capped (64 MB); a malformed or oversized `Content-Length` → `400`, a missing one is an empty body;
+   page log lines are printed escaped and truncated.
 
-The tests in `tests/` cover each rule (rules 1–3 and 6 against a real loopback server).
+The tests in `tests/` cover each rule except the loopback binding and log truncation (rules 1–3 and 6 against a real
+loopback server).

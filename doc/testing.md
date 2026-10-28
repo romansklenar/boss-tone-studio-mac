@@ -2,9 +2,9 @@
 
 ## Automated
 
-`make check` runs ruff and the unit tests (`tests/`), as CI does on every pull request. They cover the bridge's
-security rules (over a real loopback server with a stand-in bridge), storage, the proxy allowlist, MIDI message
-splitting and the Librarian import.
+`make check` runs ruff and the unit tests (`tests/`), as CI does on every pull request and push to `main`. They cover
+the bridge's security rules (over a real loopback server with a stand-in bridge), response encoding, storage, the close
+flow, the proxy allowlist, MIDI message splitting, the Librarian import and its running-app guard.
 
 ## The bridge without an amp
 
@@ -17,7 +17,7 @@ a path outside the app's folders, the bridge must answer `403` or refuse.
 ## With an amp
 
 Run `make trace` (or the built app's executable with `BTS_TRACE=1`) and keep its output; every bridge command
-(`-> $$…`) and every incoming MIDI message (`<- midi.message`) is logged.
+(`-> $$…`) except the `$$app_getevent` poll and every incoming MIDI message (`<- midi.message`) is logged.
 
 | Check | What the trace shows |
 |---|---|

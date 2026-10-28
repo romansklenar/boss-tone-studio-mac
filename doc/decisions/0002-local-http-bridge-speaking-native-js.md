@@ -12,8 +12,8 @@ be fragile and would modify Roland's software.
 
 Serve Roland's files unchanged from a local HTTP server and implement that protocol. Configure the page by adding two
 `<script>` blocks to the `index.html` response only: `$$xhrport`, the user agent, and replacements for the calls that go
-through WebKit message handlers only Roland's shell registers (`midi.send`) or outgrow a URL (large writes). Parse
-arguments from the raw request path.
+through WebKit message handlers only Roland's shell registers (`midi.send`) or outgrow a URL (large writes); later also
+a JS error hook and the Tone Central prefilter (decision 0007). Parse arguments from the raw request path.
 
 ## Consequences
 

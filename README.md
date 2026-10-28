@@ -32,13 +32,15 @@ Rosetta, so macOS 28 removing it should not affect it.
 ## How it works
 
 Roland's `js/lib/native.js` already has a macOS transport: when the user agent contains `roland.quattro` and the page
-has `window.$$xhrport`, every `$native.*` call becomes a synchronous `GET http://localhost:<port>/$$command;arg1,arg2`.
-This project does what Roland's native shell does:
+has `window.$$xhrport`, every `$native.*` call becomes a synchronous
+`GET http://localhost:<$$xhrport>/$$command;arg1,arg2` (here `$$xhrport` is `<port>/<token>`). This project does what
+Roland's native shell does:
 
 - `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds two
   `<script>` blocks to the `index.html` response to connect the page to it, and implements the commands the MkII app
   calls: storage, files, MIDI, events.
 - `bts/midi.py` — CoreMIDI through `python-rtmidi` (arm64).
+- `bts/storage.py` — the page's `app.storage2` (one file per key), written atomically; shared with the import.
 - `bts/proxy.py` — fetches Tone Central's content from Roland's servers, which the page cannot reach directly (CORS).
 - `bts/roland_import.py` — takes over the Librarian from Roland's app on the first launch.
 - `bts/__main__.py` — the window, through `pywebview` (Cocoa/WKWebView). When the window closes, the page first takes
@@ -64,7 +66,7 @@ Inspired by the [Linux port for KATANA Gen 3](https://github.com/Shesherd/BOSS-T
    `dist/BOSS TONE STUDIO for KATANA MkII (Apple Silicon).app` (arm64, ad-hoc signed, ~38 MB).
 4. **Install** (`make install`) — copies the bundle to `~/Applications`.
 
-At runtime the app starts the local server, imports Roland's Librarian on the first launch, serves the bundled web
+At runtime the app imports Roland's Librarian on the first launch, starts the local server, serves the bundled web
 app with the bridge scripts injected into the `index.html` response, and opens a WKWebView window on it. Nothing in
 `build/`, `dist/` or `tmp/` is committed.
 
@@ -104,8 +106,9 @@ apart from Roland's app. `BTS_HTML_DIR` and `BTS_DATA_DIR` override the paths.
 On the first launch the port takes over the Librarian (livesets with patches) from Roland's app, which keeps it in
 `~/Library/Preferences/jp.co.roland.BOSS-TONE-STUDIO-for-KATANA-MkII.plist`; the port only reads that file. The import
 runs once (marker `roland-librarian-imported` in the data folder); `make import-roland` runs it again without
-duplicating livesets already taken over, and refuses while the app is open. The Librarian holds at most 50 livesets. Data of the older Adobe AIR editor
-for the original KATANA (`~/Library/Application Support/BOSS-TONE-STUDIO-for-KATANA`) is not taken over.
+duplicating livesets already taken over, and refuses while the app is open. The Librarian holds at most 50 livesets.
+Data of the older Adobe AIR editor for the original KATANA (`~/Library/Application Support/BOSS-TONE-STUDIO-for-KATANA`)
+is not taken over.
 
 ## Verified amplifiers
 
@@ -145,7 +148,7 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
    other way round; Gen 3 presets store some effects per colour (green/red/yellow) and use different amp types, so a
    conversion would be lossy in known places.
 4. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
-5. **Option C** (later) — a native rewrite (WKWebView + embedded HTTP server + CoreMIDI, no Python): a small signed
+5. **Native rewrite** (later; decision 0001) — WKWebView + embedded HTTP server + CoreMIDI, no Python: a small signed
    app instead of a 38 MB bundle with its own Python.
 
 ## Licensing
@@ -193,19 +196,19 @@ How this project relates to each point:
   WKWebView behaviour; a future WebKit could break it. pywebview, pyobjc and PyInstaller are pinned; updating them
   needs a rebuild and a re-test.
 - **Partial bridge.** Only the commands the MkII app calls are implemented; anything else answers "undefined" and is
-  logged (`make trace`).
+  logged.
 - **Limited testing.** Two amps on macOS 27.2 (see Verified amplifiers); other MkII models and macOS 14–26 are
   untested.
 - **Signing.** The bundle is ad-hoc signed, not notarized. Built locally it opens normally; copied from elsewhere it
   needs right-click → Open, and a stricter future Gatekeeper could refuse it.
-- **Local server with file access.** Mitigated as described under Security; a program already running as you could
-  still read the token from `index.html`, but such a program has your access anyway.
+- **Local server with file access.** Mitigated as described under Security; any local program that is not a browser,
+  including other user accounts and sandboxed apps, can read the token from `index.html` (see decision 0003).
 - **Legal grey zone.** The runtime script injection is the point that rests on interoperability rather than on
   Roland's terms (see Licensing). Keeping the built app private keeps the exposure small.
 
 ## Security
 
 The server can read and write files, so it listens on loopback only, checks the `Host`, accepts commands only with a
-per-launch secret token that only the served page knows, reaches files only in the app's own folders or where the
+per-launch secret token carried by the served page, reaches files only in the app's own folders or where the
 user pointed a file dialog, and opens only web links. The rules are in
 [`doc/bridge-protocol.md`](doc/bridge-protocol.md#security), their tests in [`doc/testing.md`](doc/testing.md).

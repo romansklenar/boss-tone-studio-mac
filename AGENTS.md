@@ -15,14 +15,14 @@ in the README.
 make help           # every target
 make setup          # make deps (toolchain + locked packages into .venv) + make roland-assets
 make lock           # re-resolve requirements*.txt (with hashes) after changing pins in pyproject.toml
-make check          # lint + test — run before committing; CI runs the same on every PR
+make check          # lint + test — run before committing; CI runs the same on PRs and main
 ```
 
 ## Workflow
 
 - `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `docs/…`).
 - CI (`.github/workflows/ci.yml`) runs `make lint` on Ubuntu and `make deps` + `make test` on macOS 15 (Apple
-  Silicon) for every pull request; actions are pinned to commit SHAs.
+  Silicon) for every pull request and push to `main`; actions are pinned to commit SHAs.
 - Push only `main` and feature branches — never `--all`/`--mirror`, and never a local `archive/*` branch.
 
 ## Conventions

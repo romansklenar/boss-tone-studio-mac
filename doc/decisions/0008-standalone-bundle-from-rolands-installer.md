@@ -13,10 +13,11 @@ forbids redistributing its software.
 - `make roland-assets` downloads Roland's installer from Roland's server, checks a pinned SHA-256, expands the package
   with `pkgutil --expand-full` and keeps the web app, the icon and the zip (as the backup copy) in `build/roland/`.
 - `make app` bundles the web app with PyInstaller (py2app cannot handle mise's python-build-standalone interpreter);
-  at runtime the bundled copy is used first.
+  at runtime the bundled copy is used unless `BTS_HTML_DIR` overrides it.
 - The app is named "BOSS TONE STUDIO for KATANA MkII (Apple Silicon)" and its icon is Roland's on a slate-grey
   background, to tell it from Roland's app.
-- Native code targets macOS 14 (`MACOSX_DEPLOYMENT_TARGET`), so the bundle runs on macOS 14–27.
+- Native code targets macOS 14 (`MACOSX_DEPLOYMENT_TARGET`), so the bundle should run on macOS 14–27 (tested on 27.2
+  only).
 - Nothing of Roland's is committed; the built app is for the builder's own use and is not distributed.
 
 ## Consequences

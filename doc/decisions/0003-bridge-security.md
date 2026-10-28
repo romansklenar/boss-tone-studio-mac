@@ -32,6 +32,6 @@ From a security review on 2026-10-28; none is exploitable without code already o
 | CoreMIDI port names are rendered as HTML, and any process can name a virtual port | Skip ports whose names contain `<>&"'` |
 | pywebview opens `target=_blank` links of any scheme in the browser | `OPEN_EXTERNAL_LINKS_IN_BROWSER = False`; keep navigation on `localhost:P` |
 | A file picked to open may also be written | Separate read and write sets; only save-dialog paths are writable |
-| `::1` may stay unbound, so a local squatter could serve its own page there | Fail closed when `::1` cannot be bound |
+| If `::1` cannot be bound for a reason other than "in use" (e.g. IPv6 off), the server runs on IPv4 only and a local squatter could serve its own page there | Fail closed then too |
 | `make app` bundles `build/roland/html` without re-checking it against the verified zip | Re-extract from the zip on every `make app` |
-| The bundle is unsigned, with no hardened runtime | Ad-hoc sign with `--options runtime`; verify in `make install` |
+| The bundle is only ad-hoc signed (PyInstaller's default), without the hardened runtime | Sign with `--options runtime`; verify in `make install` |

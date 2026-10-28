@@ -17,7 +17,7 @@ help:
 	@echo "  setup          deps + roland-assets"
 	@echo "  deps           Install pinned tools (mise.toml) and locked packages (requirements.txt) into .venv"
 	@echo "  roland-assets  Take Roland's web app and icon out of its installer download (no install, no Rosetta)"
-	@echo "  lock           Re-resolve requirements.txt from the pins in pyproject.toml"
+	@echo "  lock           Re-resolve requirements*.txt from the pins in pyproject.toml"
 	@echo "  run            Open the app window"
 	@echo "  browser        Serve the app only; open the printed URL in a browser (no file dialogs)"
 	@echo "  trace          Open the app window, logging every bridge command and MIDI message"
