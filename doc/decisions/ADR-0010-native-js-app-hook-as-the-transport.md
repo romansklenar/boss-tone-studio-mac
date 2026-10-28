@@ -26,7 +26,8 @@ status but 200. The bridge has no `app_startevent`, so events are still polled. 
 - One code path for every command. The user-agent override, `$$xhrport`, the `midi.send`/`fs.writeString`/`storage2`
   overrides, URL argument parsing and the typed answer encoding are gone.
 - Commands need `Content-Type: application/json`, which a cross-site form cannot send. This adds a CSRF barrier on top
-  of the token and origin checks. The token is no longer a page-wide global.
+  of the token and origin checks. The token is no longer a named global, but any script in the page can still call the
+  methods or read the inline script, so ADR-0003's proxied-script weak point is unchanged.
 - A command the bridge does not implement throws a `TypeError` in the page instead of answering `undefined`. The
   page's error listener logs it. Roland's MkII app calls only implemented commands.
 - `curl` checks must POST JSON (see `doc/testing.md`).

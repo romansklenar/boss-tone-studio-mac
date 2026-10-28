@@ -263,7 +263,7 @@ class Handler(SimpleHTTPRequestHandler):
             if route == "proxy":
                 return self._proxy(urllib.parse.urlsplit(self.path).query)
             return self.send_error(405)
-        if urllib.parse.urlsplit(self.path).path in ("/", "/index.html"):
+        if self._is_index():
             if not self._same_origin():  # other websites must not open the editor
                 return self.send_error(403)
             return self._index()
@@ -292,6 +292,8 @@ class Handler(SimpleHTTPRequestHandler):
         if route == "log":
             print(f"[js] {body.decode(errors='replace')[:MAX_LOG_CHARS]!r}")  # repr: the page cannot forge log lines
             return self._reply("")
+        if not re.fullmatch(r"\$\$[a-z]+_[A-Za-z0-9]+", route):  # also keeps control characters out of the log
+            return self.send_error(404)
         if self.headers.get_content_type() != "application/json":  # a cross-site form cannot send this unasked
             return self.send_error(415)
         try:
@@ -308,8 +310,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def log_request(self, code="-", size="-"):
         # Successes are noise and a failing command already printed why; the token stays out of the log.
-        if not str(code).startswith(("2", "3", "500")):
-            self.log_message('"%s" %s %s', self.requestline.replace(self.token, "<token>"), code, size)
+        if str(code).startswith(("2", "3", "500")):
+            return
+        route = self._route()[1] if hasattr(self, "path") else None
+        line = self.requestline if route is None else f"{self.command} /<token>/{route!r}"
+        self.log_message('"%s" %s %s', line, code, size)
 
     def _route(self):
         """(token, route) for the bridge's routes; route is None for static files."""
@@ -319,6 +324,12 @@ class Handler(SimpleHTTPRequestHandler):
         if not (route.startswith("$$") or route in BRIDGE_ROUTES):
             return None, None
         return token, route
+
+    def _is_index(self):
+        """Any spelling of the page itself (`/`, `/./`, `/%69ndex.html`…), so none of them skips the origin check."""
+        target = Path(self.translate_path(self.path))
+        target = target / "index.html" if target.is_dir() else target
+        return target.resolve() == (Path(self.directory) / "index.html").resolve()
 
     def _authorized(self, token):
         """The per-launch token, compared as bytes (compare_digest refuses non-ASCII str), from this page only."""

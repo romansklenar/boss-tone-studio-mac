@@ -40,9 +40,9 @@ already loaded at that point. The block defines:
 - a `$.ajaxPrefilter` that sends absolute URLs to `/<token>/proxy?url=…` (Tone Central, see below).
 
 The token lives only in that script's closure; any script in the page can still call the methods. The page loads from
-`http://localhost:<port>/index.html` and calls the bridge by relative URL, so any loopback name works as its origin. The server listens on both `127.0.0.1` and `::1` on the same port, since WebKit may resolve
-`localhost` to either (another port is picked if `::1` is taken). It keeps connections alive, since the page polls
-every 50 ms.
+`http://localhost:<port>/index.html` and calls the bridge by relative URL, so any loopback name works as its origin. The
+server listens on both `127.0.0.1` and `::1` on the same port, since WebKit may resolve `localhost` to either (another
+port is picked if `::1` is taken). It keeps connections alive, since the page polls every 50 ms.
 
 ## Commands the MkII app calls
 
@@ -109,20 +109,21 @@ The server can read and write files, so:
 1. It listens on loopback only and checks `Host` ∈ {`localhost:P`, `127.0.0.1:P`, `[::1]:P`} on every GET, HEAD and
    POST (DNS rebinding); other methods get `501`.
 2. A per-launch token (`secrets.token_urlsafe(24)`), compared with `hmac.compare_digest`, guards every bridge route —
-   `/<token>/$$…`, `/<token>/proxy`, `/<token>/log` → `403` without it. Commands are POST only (GET → `405`) and need
-   `Content-Type: application/json` (`415` otherwise), which no cross-site form can send without a preflight. The page's
-   usage telemetry — POSTs to its own URL, or to Roland through the proxy — is dropped with `204` and reaches nothing.
+   `/<token>/$$…`, `/<token>/proxy`, `/<token>/log` → `403` without it. Commands are POST only (GET → `405`), are named
+   `$$<object>_<method>` (`404` otherwise) and need `Content-Type: application/json` (`415` otherwise), which no
+   cross-site form can send without a preflight. The page's usage telemetry — POSTs to its own URL, or to Roland through
+   the proxy — is dropped with `204` and reaches nothing.
 3. A foreign `Origin` and any `Sec-Fetch-Site` outside {absent, `same-origin`, `none`} are rejected on the bridge
-   routes and on `index.html` (the page's own origin is `http://` plus any of the trusted hosts), and every response
-   forbids framing (`X-Frame-Options: DENY`,
+   routes and on the page, under any spelling of its path (`/`, `/./`, `/%69ndex.html`…). The page's own origin is
+   `http://` plus any of the trusted hosts. Every response forbids framing (`X-Frame-Options: DENY`,
    `frame-ancestors 'none'`), so other websites can neither drive the bridge nor open or frame the editor.
 4. `fs_readString`/`fs_writeString` only reach the app's data or temp folder, or exactly a path the user picked in a
    file dialog during this session (resolved paths). The save dialog's extension must be 1–10 letters and digits,
    since it is appended to the picked path.
 5. `fs_exec` opens `http(s)://` links only.
 6. POST bodies are capped (64 MB): a malformed or oversized `Content-Length` → `400`. Command arguments must be a JSON
-   array of strings (`400` otherwise). Page log lines are printed escaped and truncated, and the server's log of
-   refused requests leaves out the token.
+   array of strings (`400` otherwise). Page log lines are printed escaped and truncated, and the server's log of refused
+   bridge requests shows the route but not the token.
 
 The tests in `tests/` cover each rule except the loopback binding and log truncation (rules 1–3 and 6 against a real
 loopback server).

@@ -95,7 +95,7 @@ class BridgeHttpTest(unittest.TestCase):
         self.assertEqual(plain[0], 415)  # what a cross-site form could send without a preflight
         for body in (b"not json", b'{"k": "v"}', b'[3, ""]', b"[null]", b"[" * 100_000):
             with self.subTest(body=body[:10]):
-                self.assertEqual(self.command(f"/{TOKEN}/$$x", body=body)[0], 400)
+                self.assertEqual(self.command(f"/{TOKEN}/$$app_x", body=body)[0], 400)
         self.assertEqual(self.bridge.calls, [])
 
     def test_foreign_host_is_refused_for_every_method(self):
@@ -119,21 +119,35 @@ class BridgeHttpTest(unittest.TestCase):
                 self.assertEqual(self.command(f"/{TOKEN}/$$app_storage2", ["3", ""], page)[0], 200)
 
     def test_refused_requests_are_logged_without_the_token(self):
+        encoded = "%74" + TOKEN[1:]  # the same token, percent-encoded
         with mock.patch("sys.stderr", new_callable=io.StringIO) as log:
-            self.command(f"/{TOKEN}/$$app_storage2", headers={"Origin": "https://evil.example"})
-        self.assertIn("403", log.getvalue())
-        self.assertNotIn(TOKEN, log.getvalue())
+            for token in (TOKEN, encoded):
+                self.command(f"/{token}/$$app_storage2", headers={"Origin": "https://evil.example"})
+        self.assertEqual(log.getvalue().count(" 403 "), 2)
+        self.assertNotIn(TOKEN[1:], log.getvalue())
+
+    def test_command_names_are_checked_before_anything_is_run_or_logged(self):
+        with mock.patch("sys.stderr", new_callable=io.StringIO) as log:
+            self.assertEqual(self.command(f"/{TOKEN}/$$x%0a[bts]%20forged")[0], 404)
+        self.assertNotIn("\n[bts] forged", log.getvalue())
+        self.assertEqual(self.bridge.calls, [])
 
     def test_post_with_a_bad_length_is_refused(self):
         for length in ("-1", "abc", str(server.MAX_POST_BYTES + 1)):
             with self.subTest(length=length):
-                self.assertEqual(self.status("POST", f"/{TOKEN}/$$x", {"Content-Length": length}), 400)
+                self.assertEqual(self.status("POST", f"/{TOKEN}/$$app_x", {"Content-Length": length}), 400)
 
     def test_telemetry_posts_are_dropped(self):
         self.assertEqual(self.status("POST", "/index.html", body=b"stats"), 204)
         url = "https%3A%2F%2Fapi.roland.com%2Fapp%2Fbtc%2F1%2Fstatuslogs%2F"
         self.assertEqual(self.status("POST", f"/{TOKEN}/proxy?url={url}", body=b"stats"), 204)
         self.assertEqual(self.bridge.calls, [])
+
+    def test_no_spelling_of_the_index_skips_the_origin_check(self):
+        for path in ("/", "/./", "/./index.html", "/%69ndex.html", "/index.html?x"):
+            with self.subTest(path=path):
+                self.assertEqual(self.status("GET", path, {"Sec-Fetch-Site": "cross-site"}), 403)
+                self.assertIn(f"var base = '/{TOKEN}/';", self.request("GET", path)[1])
 
     def test_index_hooks_native_js_with_the_token_and_cannot_be_framed(self):
         status, body, headers = self.request("GET", "/index.html", {"Sec-Fetch-Site": "none"})
