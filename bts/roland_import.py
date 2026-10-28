@@ -1,0 +1,80 @@
+"""Brings the Librarian (livesets with patches) over from Roland's own BOSS TONE STUDIO for KATANA MkII.
+
+Roland's app keeps `$native.app.storage2` in its NSUserDefaults plist under the same keys the page uses here
+(`ID_LIST`, `CONFIRM_FLAG`, one numeric key per liveset), so values are copied verbatim. The plist is only read.
+"""
+
+import json
+import plistlib
+import urllib.parse
+from pathlib import Path
+
+ROLAND_PREFS = Path.home() / "Library/Preferences/jp.co.roland.BOSS-TONE-STUDIO-for-KATANA-MkII.plist"
+MARKER = "roland-librarian-imported"
+MAX_LIVESETS = 50  # librarianCommonInfo.maxLivesetNum; liveset IDs live in 0..49
+
+
+def import_once(data_dir, prefs=ROLAND_PREFS):
+    """Imports on the first launch that finds Roland's plist, so former users open straight into their library."""
+    marker = Path(data_dir) / MARKER
+    if marker.exists() or not prefs.exists():
+        return
+    summary = import_librarian(Path(data_dir) / "storage2", prefs)
+    marker.write_text(summary + "\n", encoding="utf-8")
+
+
+def import_librarian(storage2_dir, prefs=ROLAND_PREFS):
+    """Appends Roland's livesets to this app's Librarian; skips ones already here, so re-running is harmless."""
+    storage2_dir.mkdir(parents=True, exist_ok=True)
+    roland = plistlib.loads(prefs.read_bytes())
+    store = _Storage2(storage2_dir)
+
+    ids = store.id_list()
+    existing = {store.read(i) for i in ids}
+    imported, skipped = [], []
+    for roland_id in json.loads(roland.get("ID_LIST") or '{"list":[]}')["list"]:
+        value = roland.get(str(roland_id))
+        if not value or value in existing:
+            continue
+        free = [i for i in range(MAX_LIVESETS) if i not in ids]
+        if not free:
+            skipped.append(roland_id)
+            continue
+        new_id = roland_id if roland_id in free else free[0]
+        store.write(new_id, value)
+        ids.append(new_id)
+        imported.append(new_id)
+
+    if imported:
+        # Roland's order first: that is the library the user knows; anything made here follows it.
+        ids = imported + [i for i in ids if i not in imported]
+        store.write("ID_LIST", json.dumps({"list": ids}, separators=(",", ":")))
+    if store.read("CONFIRM_FLAG") is None and roland.get("CONFIRM_FLAG"):
+        store.write("CONFIRM_FLAG", roland["CONFIRM_FLAG"])
+
+    summary = f"Imported {len(imported)} livesets from {prefs}"
+    if skipped:
+        summary += f"; {len(skipped)} skipped, the Librarian holds at most {MAX_LIVESETS}"
+    print(f"[bts] {summary}")
+    return summary
+
+
+class _Storage2:
+    """The same files Bridge._app_storage2 reads and writes."""
+
+    def __init__(self, directory):
+        self._directory = directory
+
+    def id_list(self):
+        raw = self.read("ID_LIST")
+        return json.loads(raw)["list"] if raw else []
+
+    def read(self, key):
+        path = self._path(key)
+        return path.read_text(encoding="utf-8") if path.exists() else None
+
+    def write(self, key, value):
+        self._path(key).write_text(value, encoding="utf-8")
+
+    def _path(self, key):
+        return self._directory / urllib.parse.quote(str(key), safe="")
