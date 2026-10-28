@@ -2,11 +2,35 @@
 
 A native (arm64) shell for Roland's BOSS TONE STUDIO for KATANA MkII 2.1.0 web app. Roland ships it for Intel
 (`x86_64`) only; on macOS 27.2 the original no longer connects to the amp even under Rosetta (see
-[Roland's app on macOS 27.2](#rolands-app-on-macos-272)).
+[Why this port exists](#why-this-port-exists)).
 
 The built app is **standalone**: Roland's web app (unchanged) is taken out of Roland's own installer download at build
 time and bundled in, so Roland's x86_64 app never has to be installed and Rosetta is never needed. The repository
 holds none of Roland's files, but the built app does — it is for personal use only; do not redistribute it.
+
+## Why this port exists
+
+- **Roland's editor is Intel-only.** BOSS TONE STUDIO for KATANA MkII 2.1.0, the current release on BOSS's site,
+  ships only an `x86_64` binary; there is no Apple Silicon build for the MkII (Roland's Gen 3 editor, by contrast, is
+  native). On Apple Silicon it runs only under Rosetta 2, which macOS does not include and installs on demand.
+- **Rosetta is going away.** Apple supports Rosetta fully only through macOS 27; from macOS 28 only a limited subset
+  is to remain, aimed at older, unmaintained games built on Intel frameworks
+  ([MacRumors, 2025-06-10](https://www.macrumors.com/2025/06/10/apple-to-phase-out-rosetta-2/), citing Apple's
+  developer documentation). An editor that talks to a USB amp is not that kind of app, so from macOS 28 Roland's
+  editor can be expected not to run at all.
+- **Upgrading to macOS 27 removed Rosetta.** An upgrade to macOS 27.0 removed an installed Rosetta and did not restore
+  it; macOS 27.2 stopped doing so ([Apple](https://support.apple.com/en-us/148830),
+  [MacRumors, 2026-10-26](https://www.macrumors.com/2026/10/26/macos-27-2-stops-removing-rosetta/)). Users had to
+  reinstall Rosetta just to start the editor.
+- **Even with Rosetta, it no longer works on macOS 27.2.** Roland's app launches and lists the amp, but never connects
+  to it ("WRONG DEVICE") and shows an empty Librarian, although the library is intact on disk — the editor is unusable
+  and a whole preset collection looks lost (tested 2026-10-28 with a KATANA-HEAD MkII).
+- **The amps are fine.** KATANA MkII amps are widely used and Roland's USB driver is already universal (arm64), so only
+  the editor stands between MkII owners and current macOS.
+
+This port keeps Roland's editor UI exactly as it is and replaces only the Intel-only native shell with an arm64 one:
+no Rosetta anywhere, it connects on macOS 27, it takes over the existing Librarian, and nothing in it depends on
+Rosetta, so macOS 28 removing it should not affect it.
 
 ## How it works
 
@@ -117,12 +141,6 @@ duplicating livesets already taken over. The Librarian holds at most 50 livesets
 4. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
 5. **Option C** (later) — a native rewrite (WKWebView + embedded HTTP server + CoreMIDI, no Python): a small signed
    app instead of a 38 MB bundle with its own Python.
-
-## Roland's app on macOS 27.2
-
-Roland's x86_64 app still launches under Rosetta on macOS 27.2, but it lists the amp without connecting to it
-("WRONG DEVICE") and shows an empty Librarian, although the Librarian data is intact. This app connects normally and
-takes that Librarian over on its first launch.
 
 ## Licensing
 
