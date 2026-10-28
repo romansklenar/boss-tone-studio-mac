@@ -3,10 +3,12 @@ import Foundation
 
 public enum StorageError: Error, Equatable, LocalizedError {
     case invalidKey(String)
+    case notUTF8(String)
 
     public var errorDescription: String? {
         switch self {
         case .invalidKey(let key): "invalid storage key \(escaped(key))"
+        case .notUTF8(let path): "\(escaped(path)) is not valid UTF-8"
         }
     }
 }
@@ -16,16 +18,27 @@ public func writeAtomically(_ text: String, to url: URL) throws {
     try Data(text.utf8).write(to: url, options: .atomic)
 }
 
-/// nil when the path is not a regular file, as Python's `is_file()` (which follows links) says, or not valid UTF-8.
-public func readText(_ url: URL) -> String? {
+/// nil when the path is not a regular file, as Python's `is_file()` (which follows links) says; throws when a regular
+/// file cannot be read or is not UTF-8. A caller that took that for "missing" would see ID_LIST as absent, treat the
+/// Librarian as empty and replace the file on its next write.
+func readTextOrThrow(_ url: URL) throws -> String? {
     var info = stat()
-    let found = url.withUnsafeFileSystemRepresentation { path in
-        path.map { stat($0, &info) == 0 } ?? false
+    let status = url.withUnsafeFileSystemRepresentation { path in
+        path.map { stat($0, &info) == 0 ? 0 : errno } ?? EINVAL
     }
-    guard found, info.st_mode & S_IFMT == S_IFREG, let data = try? Data(contentsOf: url) else { return nil }
+    if status == ENOENT || status == ENOTDIR { return nil }
+    if status != 0 { throw POSIXError(POSIXErrorCode(rawValue: status) ?? .EIO) }
+    guard info.st_mode & S_IFMT == S_IFREG else { return nil }
+    let data = try Data(contentsOf: url)
     // Not `String(data:encoding:)`, which drops a leading BOM; invalid bytes come back as U+FFFD and fail the compare.
     let text = String(decoding: data, as: UTF8.self)
-    return text.utf8.elementsEqual(data) ? text : nil
+    guard text.utf8.elementsEqual(data) else { throw StorageError.notUTF8(url.path) }
+    return text
+}
+
+/// `readTextOrThrow` for callers that cannot tell a bad file from a missing one anyway.
+public func readText(_ url: URL) -> String? {
+    (try? readTextOrThrow(url)) ?? nil
 }
 
 /// The page's `app.storage2`: one file per key, shared by the bridge and the Librarian import.
@@ -38,7 +51,7 @@ public struct Storage2: Sendable {
     }
 
     public func read(_ key: String) throws -> String? {
-        readText(try url(for: key))
+        try readTextOrThrow(url(for: key))
     }
 
     /// An empty value deletes the key, as the page expects.

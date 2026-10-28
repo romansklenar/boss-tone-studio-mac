@@ -113,3 +113,26 @@ import Testing
         #expect(readText(file) == nil)  // not UTF-8
     }
 }
+
+@Test func storage2ReadThrowsInsteadOfReportingAMissingKeyWhenTheFileIsBad() throws {
+    try withTemporaryFolder { folder in
+        let storage = try Storage2(dataDir: folder)
+        try Data([0xff, 0xfe, 0x41]).write(to: storage.directory.appendingPathComponent("ID_LIST"))
+        #expect(throws: (any Error).self) { try storage.read("ID_LIST") }
+        #expect(readText(storage.directory.appendingPathComponent("ID_LIST")) == nil)  // the non-throwing wrapper
+
+        let locked = storage.directory.appendingPathComponent("0")
+        try writeAtomically("liveset", to: locked)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: locked.path) }
+        if geteuid() != 0 {  // root reads anything
+            #expect(throws: (any Error).self) { try storage.read("0") }
+            #expect(readText(locked) == nil)
+        }
+
+        #expect(try storage.read("missing") == nil)  // only a missing file is "not there"
+        try FileManager.default.createDirectory(
+            at: storage.directory.appendingPathComponent("folder"), withIntermediateDirectories: false)
+        #expect(try storage.read("folder") == nil)  // as is a non-regular file
+    }
+}
