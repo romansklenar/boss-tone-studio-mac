@@ -1,4 +1,4 @@
-# 0005 — The MIDI port name doubles as the endpoint UID
+# ADR-0005: The MIDI port name doubles as the endpoint UID
 
 Status: accepted, 2026-10-28
 

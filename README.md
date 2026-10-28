@@ -148,8 +148,8 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
    other way round; Gen 3 presets store some effects per colour (green/red/yellow) and use different amp types, so a
    conversion would be lossy in known places.
 4. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
-5. **Native rewrite** (later; decision 0001) — WKWebView + embedded HTTP server + CoreMIDI, no Python: a small signed
-   app instead of a 38 MB bundle with its own Python.
+5. **Native rewrite** (later; [ADR-0001](doc/decisions/ADR-0001-python-shell-around-rolands-web-app.md)) — WKWebView +
+   embedded HTTP server + CoreMIDI, no Python: a small signed app instead of a 38 MB bundle with its own Python.
 
 ## Licensing
 
@@ -202,7 +202,8 @@ How this project relates to each point:
 - **Signing.** The bundle is ad-hoc signed, not notarized. Built locally it opens normally; copied from elsewhere it
   needs right-click → Open, and a stricter future Gatekeeper could refuse it.
 - **Local server with file access.** Mitigated as described under Security; any local program that is not a browser,
-  including other user accounts and sandboxed apps, can read the token from `index.html` (see decision 0003).
+  including other user accounts and sandboxed apps, can read the token from `index.html` (see
+  [ADR-0003](doc/decisions/ADR-0003-bridge-security.md)).
 - **Legal grey zone.** The runtime script injection is the point that rests on interoperability rather than on
   Roland's terms (see Licensing). Keeping the built app private keeps the exposure small.
 

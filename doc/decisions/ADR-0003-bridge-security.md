@@ -1,4 +1,4 @@
-# 0003 — Lock the bridge to this page and these files
+# ADR-0003: Lock the bridge to this page and these files
 
 Status: accepted, 2026-10-27 (from a security review)
 

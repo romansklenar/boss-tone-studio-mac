@@ -1,4 +1,4 @@
-# 0008 — A standalone app bundle built from Roland's installer download
+# ADR-0008: A standalone app bundle built from Roland's installer download
 
 Status: accepted, 2026-10-28
 

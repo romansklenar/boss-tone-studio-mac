@@ -1,4 +1,4 @@
-# 0001 — A Python shell around Roland's unchanged web app
+# ADR-0001: A Python shell around Roland's unchanged web app
 
 Status: accepted, 2026-10-27
 

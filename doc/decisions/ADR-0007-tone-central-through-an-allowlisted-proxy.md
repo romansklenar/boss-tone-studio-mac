@@ -1,4 +1,4 @@
-# 0007 — Tone Central through an allowlisted proxy
+# ADR-0007: Tone Central through an allowlisted proxy
 
 Status: accepted, 2026-10-28
 

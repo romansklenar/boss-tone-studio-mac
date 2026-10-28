@@ -1,4 +1,4 @@
-# 0006 — Take over Roland's Librarian on the first launch
+# ADR-0006: Take over Roland's Librarian on the first launch
 
 Status: accepted, 2026-10-28
 

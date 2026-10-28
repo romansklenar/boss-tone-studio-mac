@@ -31,8 +31,8 @@ make check          # lint + test — run before committing; CI runs the same on
 - Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend, trailer
   `Co-authored-by: Claude <noreply@anthropic.com>`.
 - 120-character lines (ruff). Lean comments: say why, not what.
-- A new design decision gets a record in `doc/decisions/NNNN-<title>.md` (context, decision, consequences); research
-  findings go to `doc/research/YYYY-MM-DD-<topic>.md`.
+- A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
+  consequences); research findings go to `doc/research/YYYY-MM-DD-<topic>.md`.
 - Never write to Roland's app or its plist; scratch work and personal backups go to `tmp/` (gitignored).
 - Claim only what was verified; say how (curl, browser pane, `make trace` log, the user in the window).
 

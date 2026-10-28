@@ -32,7 +32,7 @@ def split_messages(data):
 
 
 def endpoint(name):
-    # The name doubles as the UID the page remembers the device by (doc/decisions/0005).
+    # The name doubles as the UID the page remembers the device by (ADR-0005).
     return {"MIDIEntityNameKey": name, "MIDIDeviceNameKey": name, "MIDIEndpointUIDKey": name}
 
 

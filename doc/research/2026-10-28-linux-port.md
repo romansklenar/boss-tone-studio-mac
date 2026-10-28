@@ -13,5 +13,5 @@ port, which runs Roland's Gen 3 editor web app on Linux with pywebview, Flask an
 
 This project differs on purpose: Roland's files are neither modified nor committed; the build takes them from Roland's
 own download, and the page is adapted only through scripts added to the served response (see
-[decision 0002](../decisions/0002-local-http-bridge-speaking-native-js.md) and
-[decision 0008](../decisions/0008-standalone-bundle-from-rolands-installer.md)).
+[ADR-0002](../decisions/ADR-0002-local-http-bridge-speaking-native-js.md) and
+[ADR-0008](../decisions/ADR-0008-standalone-bundle-from-rolands-installer.md)).

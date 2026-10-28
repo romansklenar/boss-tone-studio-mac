@@ -1,4 +1,4 @@
-# 0009 — Pinned toolchain and dependencies
+# ADR-0009: Pinned toolchain and dependencies
 
 Status: accepted, 2026-10-28
 

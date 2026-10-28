@@ -1,4 +1,4 @@
-# 0004 — Large writes over POST, arguments as strings
+# ADR-0004: Large writes over POST, arguments as strings
 
 Status: accepted, 2026-10-28
 
