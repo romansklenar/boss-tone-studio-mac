@@ -75,6 +75,9 @@ public final class HTTPServer: Sendable {
         throw ServerError(description: "cannot listen on 127.0.0.1: no port within 10 s")
     }
 
+    /// Connections whose receive loop has not ended yet.
+    var openConnections: Int { state.withLock { $0.connections.count } }
+
     /// Stops listening and closes every connection; requests being answered finish, but their answers go nowhere.
     public func stop() {
         let (listener, connections) = state.withLock { state in
