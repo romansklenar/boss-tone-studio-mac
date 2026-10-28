@@ -32,6 +32,7 @@ app = BUNDLE(
     version=VERSION,
     info_plist={
         "CFBundleDisplayName": APP_NAME,
+        "CFBundleVersion": VERSION,
         "LSMinimumSystemVersion": "14.0",  # = MACOSX_DEPLOYMENT_TARGET in mise.toml
         "NSHighResolutionCapable": True,
     },
