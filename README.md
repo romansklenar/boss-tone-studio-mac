@@ -105,7 +105,7 @@ apart from Roland's app. `BTS_HTML_DIR` and `BTS_DATA_DIR` override the paths.
 
 On the first launch the port takes over the Librarian (livesets with patches) from Roland's app, which keeps it in
 `~/Library/Preferences/jp.co.roland.BOSS-TONE-STUDIO-for-KATANA-MkII.plist`; the port only reads that file. The import
-runs once (marker `roland-librarian-imported` in the data folder); `make import-roland` runs it again without
+runs once (marker `roland-librarian-imported` in the data folder); `make roland-import` runs it again without
 duplicating livesets already taken over, and refuses while the app is open. The Librarian holds at most 50 livesets.
 Data of the older Adobe AIR editor for the original KATANA (`~/Library/Application Support/BOSS-TONE-STUDIO-for-KATANA`)
 is not taken over.

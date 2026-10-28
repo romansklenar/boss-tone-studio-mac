@@ -24,7 +24,7 @@ def import_once(data_dir, prefs=ROLAND_PREFS):
     try:
         summary = import_librarian(data_dir, prefs)
     except Exception as error:  # an unreadable plist must not keep the app from starting
-        summary = f"Import failed ({error!r}); retry with `make import-roland`"
+        summary = f"Import failed ({error!r}); retry with `make roland-import`"
         print(f"[bts] {summary}")
     marker.write_text(summary + "\n", encoding="utf-8")
 

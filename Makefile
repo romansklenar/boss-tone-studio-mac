@@ -6,7 +6,7 @@ SRC        ?= bts tests packaging
 APP_NAME   ?= BOSS TONE STUDIO for KATANA MkII (Apple Silicon)
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help setup deps roland-assets lock run browser trace import-roland app install test lint format check
+.PHONY: help setup deps roland-assets lock run browser trace roland-import app install test lint format check
 
 help:
 	@echo "BOSS TONE STUDIO for KATANA MkII — Apple Silicon"
@@ -21,7 +21,7 @@ help:
 	@echo "  run            Open the app window"
 	@echo "  browser        Serve the app only; open the printed URL in a browser (no file dialogs)"
 	@echo "  trace          Open the app window, logging every bridge command and MIDI message"
-	@echo "  import-roland  Re-import the Librarian from Roland's own app"
+	@echo "  roland-import  Re-import the Librarian from Roland's own app"
 	@echo "  app            Build a standalone dist/$(APP_NAME).app (PyInstaller; Roland's web app inside)"
 	@echo "  install        Copy the built app to $(INSTALL_DIR)"
 	@echo "  test           Run the unit tests"
@@ -53,7 +53,7 @@ browser:
 trace:
 	@BTS_TRACE=1 $(PYTHON) -m bts
 
-import-roland:
+roland-import:
 	@$(PYTHON) -m bts --import-roland
 
 roland-assets:
