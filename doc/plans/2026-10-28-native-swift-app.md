@@ -29,6 +29,9 @@ the reference behaviour wherever this plan says "as in Python".
   only when `xcode-select -p` is the CLT, with a comment naming the issue. Keep `swift-tools-version: 6.0`, the default
   build system (`--build-system native` cannot find `Testing` at all on CLT), and `-Xswiftc -warnings-as-errors` on
   every build and test.
+- Swift is pinned to major version 6 only: a `swift-version` Make target (a prerequisite of `setup`, `build`, `test`,
+  `lint`, `app`) prints `Swift <x.y.z>` and fails with `Error: this project needs Swift 6 (found <x.y.z>); install or
+  update Apple's Command Line Tools` on any other major version. No mise, no exact pin.
 - `swift`, `make test`, `make app` and anything touching CoreMIDI run outside Claude Code's sandbox
   (`dangerouslyDisableSandbox`); tests never create a CoreMIDI client.
 - App name `BOSS TONE STUDIO for KATANA MkII (Apple Silicon)`, bundle identifier `local.boss-tone-studio-mac.katana-mk2`,
@@ -119,7 +122,8 @@ packaging/make-icon.swift, packaging/Info.plist
 }
 ```
 
-- [ ] **Step 4: Rewrite the Makefile's `test`, `lint`, `format`, `check` for Swift** and add `build`:
+- [ ] **Step 4: Rewrite the Makefile's `test`, `lint`, `format`, `check` for Swift** and add `build` and
+  `swift-version` (Global Constraints):
   - `SWIFT_FLAGS := -Xswiftc -warnings-as-errors`, plus the testing plugin path when `xcode-select -p` is
     `/Library/Developer/CommandLineTools`.
   - `lint`: `swift format lint --strict --recursive --parallel Package.swift Sources Tests packaging/make-icon.swift`
@@ -132,10 +136,11 @@ packaging/make-icon.swift, packaging/Info.plist
   - triggers `pull_request: types: [opened, synchronize, reopened, ready_for_review]` and `push: branches: [main]`;
     `concurrency` with `cancel-in-progress` stays.
   - job `lint` on `ubuntu-latest`, `container: swift:<x.y>@sha256:<digest>` where `<x.y>` is the local
-    `swift --version` (6.4 now); runs `make lint`. Find the digest with
-    `docker buildx imagetools inspect swift:<x.y>` or Docker Hub's API. If no image for the local version exists, use
-    the newest one and run `make format` with it once to confirm it changes nothing; note the gap in the commit.
-  - job `test` on `macos-26`, `if: github.event_name == 'push' || !github.event.pull_request.draft`, runs `make test`.
+    `swift --version` minor (6.4 now), with a comment that it moves together with a local minor update; runs
+    `make lint`. Find the digest with `docker buildx imagetools inspect swift:<x.y>` or Docker Hub's API. If no image
+    for the local minor exists, use the newest 6.x and confirm `make lint` passes with it; note the gap in the commit.
+  - job `test` on `macos-26` with its default Xcode (any Swift 6.x passes the version check),
+    `if: github.event_name == 'push' || !github.event.pull_request.draft`, runs `make test`.
   - Remove mise, uv and the cache step.
 - [ ] **Step 7: Commit** `Chore(swift): Add the Swift package, its Makefile targets and CI`.
 
@@ -710,10 +715,14 @@ concurrently; `invalid(status)` answers that status and closes; keep-alive per `
   (`[0.2.0] - <date>`: Changed — native Swift app, bundle size; Security — each fixed weak point; Removed — Python,
   mise, uv; link reference)
 
-- [ ] **Step 1: Write** the two ADRs (context, decision, consequences, as the existing ones).
+- [ ] **Step 1: Write** the two ADRs (context, decision, consequences, as the existing ones). ADR-0012 records the
+  Swift 6 major-version pin, why an exact pin through mise was dropped (swift.org's macOS toolchain is 4.8 GB and CI
+  would download it on every macOS run), the CLT `-plugin-path` workaround and the CI split (lint on Linux on every
+  push, tests on macOS only when ready).
 - [ ] **Step 2: Update** the listed files; grep the repo for `python`, `rtmidi`, `pywebview`, `PyInstaller`, `mise`,
   `uv `, `localhost`, `bts/` and fix every hit that describes the app (history in ADRs and CHANGELOG stays).
-- [ ] **Step 3: Run** the private repo-hygiene grep (its terms live in Roman's private notes, never in the repo; it must find nothing) and `make check`.
+- [ ] **Step 3: Run** the private repo-hygiene grep (its terms live in Roman's private notes, never in the repo; it
+  must find nothing) and `make check`.
 - [ ] **Step 4: Commit** `Docs: Describe the native Swift app and its decisions`.
 
 ### Task 14: Amp test (Roman, with Claude reading the trace)

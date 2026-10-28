@@ -42,6 +42,9 @@ Tools. No Xcode, no third-party packages.
 - Toolchain: Command Line Tools only (currently Swift 6.4, macOS 27 SDK). They include Swift Testing (`import Testing`)
   and `swift format`, but no XCTest and no Xcode. CI's macOS runner uses Xcode's Swift, so the package must build with
   the Swift version that runner ships (`swift-tools-version` no newer than that).
+- The Swift version is pinned to major version 6: `make setup` prints the version, and `make setup`/`make check` fail
+  with a clear message on any other major version; a different 6.x minor is fine. Pinning an exact toolchain through
+  mise was tried and dropped: swift.org's macOS toolchain takes 4.8 GB, and CI would download it on every macOS run.
 - Deployment target macOS 14 (`platforms: [.macOS(.v14)]`, `LSMinimumSystemVersion` 14.0), arm64 only.
 - No package dependencies: Foundation, AppKit, WebKit, Network, CoreMIDI, UniformTypeIdentifiers only.
 - Signing: ad-hoc (`codesign --sign -`) with the hardened runtime; no Developer ID exists.
@@ -160,10 +163,12 @@ ADR-0003's table is updated to mark each as fixed, with the residual risks that 
   shift on anti-aliased edges), by a small Swift tool or script instead of Pillow.
 - The version moves to a `VERSION` file at the root (AGENTS.md updated); 0.2.0.
 - CI, with macOS minutes costing ten times Linux ones:
-  - `make lint` on Ubuntu in the official Swift container, pinned by digest to the Swift version of the local Command
-    Line Tools (swift-format's output can differ between versions). It runs on every push, drafts included.
-  - `make test` on macOS (Network.framework, CoreMIDI and AppKit exist only there), only for pull requests that are
-    ready for review (`ready_for_review` included in the triggers, drafts skipped) and for pushes to `main`.
+  - `make lint` on Ubuntu in the official Swift container, pinned by digest to the minor version the code was last
+    formatted with (swift-format's output can differ between minors; after a local minor update, `make format` and
+    bump the container together). It runs on every push, drafts included.
+  - `make test` on macOS with the runner's default Xcode (any Swift 6.x), only for pull requests that are ready for
+    review (`ready_for_review` included in the triggers, drafts skipped) and for pushes to `main`.
+    Network.framework, CoreMIDI and AppKit exist only on macOS.
   - Actions stay pinned to commit SHAs; in-progress runs are cancelled by newer ones. mise and uv go.
 - New ADRs: the native app (supersedes ADR-0001 and the PyInstaller part of ADR-0008) and the Swift-only toolchain
   (supersedes ADR-0009). ADR-0005's context gets a note that the name stays the UID for the stored choice.
