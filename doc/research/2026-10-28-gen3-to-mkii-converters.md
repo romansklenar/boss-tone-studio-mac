@@ -13,8 +13,11 @@ No open-source tool converts a Gen 3 `.tsl` straight into a MkII `.tsl`.
 | [mathieu-lemay/katana-tsl-parser](https://github.com/mathieu-lemay/katana-tsl-parser) | MIT | Typed MkII `.tsl` read/write | Partial |
 | Katana Librarian (Apps For Amps) | proprietary | Imports/exports MkI, MkII, Gen 3 and GO `.tsl` | Gen 3 → MkII conversion undocumented |
 
-Also looked at: Solrak97/ToneForge and Splatink/rusty-boss (Gen 3 only, refuse MkII files), dogakocak/boss-katana-mcp,
-s4mdf0o1/TuxKatana (AGPL), fpereira3/ktnacontrol (no licence). No forum thread describes a hand conversion.
+Also looked at: [Solrak97/ToneForge](https://github.com/Solrak97/ToneForge) and
+[Splatink/rusty-boss](https://github.com/Splatink/rusty-boss) (Gen 3 only, refuse MkII files),
+[dogakocak/boss-katana-mcp](https://github.com/dogakocak/boss-katana-mcp),
+[s4mdf0o1/TuxKatana](https://github.com/s4mdf0o1/TuxKatana) (AGPL),
+[fpereira3/ktnacontrol](https://github.com/fpereira3/ktnacontrol) (no licence). No forum thread describes a hand conversion.
 
 **Block check on `GREEN BASKET.tsl`:** six `FX` and six `DELAY` blocks but three `BOOSTER` and `REVERB` blocks — two
 slots × three colours — which supports katatone's reading (FX 1–3 = MOD, FX 4–6 = FX, DELAY 4–6 = Delay 2) over
