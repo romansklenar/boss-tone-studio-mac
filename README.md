@@ -41,11 +41,11 @@ Roland's `js/lib/native.js` already has a macOS transport: when the user agent c
 has `window.$$xhrport`, every `$native.*` call becomes a synchronous `GET http://localhost:<port>/$$command;arg1,arg2`.
 This project does what Roland's native shell does:
 
-- `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML and adds two small
-  `<script>` blocks to the `index.html` response (port + token + user agent; `midi.send` over XHR instead of
-  `webkit.messageHandlers.quattro2`; large writes over POST). It implements the commands the MkII actually calls:
-  storage, files, MIDI, events through `$$app_getevent`.
+- `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds two
+  `<script>` blocks to the `index.html` response to connect the page to it, and implements the commands the MkII app
+  calls: storage, files, MIDI, events.
 - `bts/midi.py` — CoreMIDI through `python-rtmidi` (arm64).
+- `bts/proxy.py` — fetches Tone Central's content from Roland's servers, which the page cannot reach directly (CORS).
 - `bts/roland_import.py` — takes over the Librarian from Roland's app on the first launch.
 - `bts/__main__.py` — the window, through `pywebview` (Cocoa/WKWebView). When the window closes, the page first takes
   the amp out of editor mode, as in the original.
@@ -129,7 +129,8 @@ Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
 | KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | — (same code paths, not repeated) | ✅ | 2026-10-28 |
 
 Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
-are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps above show up as the CoreMIDI port `KATANA`; connect one amp at a time.
+are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps above show up as the CoreMIDI port
+`KATANA`; connect one amp at a time.
 
 ## Status
 
@@ -149,13 +150,11 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 ## Next steps
 
 1. **Restore from an All Data Backup** — the one file dialog not tested yet (it rewrites every patch in the amp).
-2. **Unit tests for the server** — response encoding, request parsing, `split_messages`, the proxy allowlist and the
-   security checks (token, Host, Origin, file allowlist), so a rebuild has a safety net beyond curl.
-3. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
+2. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
    other way round; Gen 3 presets store some effects per colour (green/red/yellow) and use different amp types, so a
    conversion would be lossy in known places.
-4. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
-5. **Option C** (later) — a native rewrite (WKWebView + embedded HTTP server + CoreMIDI, no Python): a small signed
+3. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
+4. **Option C** (later) — a native rewrite (WKWebView + embedded HTTP server + CoreMIDI, no Python): a small signed
    app instead of a 38 MB bundle with its own Python.
 
 ## Licensing
@@ -215,10 +214,7 @@ How this project relates to each point:
 
 ## Security
 
-The server can read and write files, so it:
-
-- listens on loopback only and rejects a foreign `Host` (DNS rebinding);
-- accepts `$$…` commands only with a secret token generated at each launch and sent only in `index.html` (as part of
-  `$$xhrport`, so Roland's `native.js` puts it in every path itself); other websites do not know it;
-- reads and writes files only in the app's own folders or where the user pointed a file dialog;
-- opens only `http(s)` links through `fs.exec`.
+The server can read and write files, so it listens on loopback only, checks the `Host`, accepts commands only with a
+per-launch secret token that only the served page knows, reaches files only in the app's own folders or where the
+user pointed a file dialog, and opens only web links. The rules are in
+[`doc/bridge-protocol.md`](doc/bridge-protocol.md#security), their tests in [`doc/testing.md`](doc/testing.md).

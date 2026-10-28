@@ -18,5 +18,5 @@ extend-exclude = ["tmp"]
 select = ["E", "F", "W", "I", "B", "UP"]
 
 [dependency-groups]
-# Build-only: `make app` installs the lock of this group (requirements-app.txt) on top of requirements.txt.
+# Build-only: `make app` syncs this group's lock, requirements-app.txt, which also holds the runtime packages.
 app = ["pyinstaller==6.22.3", "pillow==13.0.0"]

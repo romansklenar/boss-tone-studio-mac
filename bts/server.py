@@ -1,10 +1,4 @@
-"""Local HTTP backend speaking the `$$command;arg1,arg2` protocol of Roland's `js/lib/native.js`.
-
-Roland's own Mac shell runs the same kind of server: when the user agent contains `roland.quattro` and
-`window.$$xhrport` is set, every `$native.*` call becomes a synchronous GET to `http://localhost:<port>/$$…`, and the
-answer is a type-prefixed string (`v` undefined, `b`/`b1` boolean, `d` int, `f` float, `s` string). Native → JS
-events are queued here and polled by the page through `$$app_getevent`.
-"""
+"""Local HTTP bridge for Roland's web app; the protocol and its security rules are in doc/bridge-protocol.md."""
 
 import collections
 import functools
