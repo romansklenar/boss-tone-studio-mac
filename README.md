@@ -118,6 +118,10 @@ Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
 | KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
 | KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
 
+The KATANA-ARTIST MkII row was re-run on the `$$app` transport of 0.1.1 in the app window: connect, MIDI both ways,
+Tone Central, `.tsl` round trip, deleting a liveset, All Data Backup saved and restored, and closing. The checks used a
+`make trace` log. The KATANA-HEAD MkII row dates from 0.1.0.
+
 Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
 are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps above show up as the CoreMIDI port
 `KATANA`; connect one amp at a time.
@@ -190,8 +194,8 @@ How this project relates to each point:
 - **Web platform drift.** Roland's page relies on synchronous `XMLHttpRequest` (deprecated in browsers) and on
   WKWebView behaviour; a future WebKit could break it. pywebview, pyobjc and PyInstaller are pinned; updating them
   needs a rebuild and a re-test.
-- **Partial bridge.** Only the commands the MkII app calls are implemented; anything else answers "undefined" and is
-  logged.
+- **Partial bridge.** Only the commands the MkII app calls are implemented. A call to anything else throws in the page,
+  and the error is logged.
 - **Limited testing.** Two amps on macOS 27.2 (see Verified amplifiers); other MkII models and macOS 14–26 are
   untested.
 - **Signing.** The bundle is ad-hoc signed, not notarized. Built locally it opens normally; copied from elsewhere it

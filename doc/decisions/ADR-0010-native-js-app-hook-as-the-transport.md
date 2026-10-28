@@ -16,10 +16,10 @@ the result as is.
 
 ## Decision
 
-Inject one script before `native.js` that defines `$$app`, `$$midi`, `$$fs` and the other objects `native.js` can
-call. Each is a `Proxy` that sends every call as a synchronous `POST /<token>/$$<command>` with a JSON array of string
-arguments and returns the JSON-decoded answer, throwing on any status but 200. It leaves `startevent` undefined, so
-events are still polled. The bridge accepts commands only this way.
+Inject one script before `native.js` that defines one method per bridge command, built from the server's command
+table: `app_storage2` becomes `$$app.storage2`, and so on. Each sends the call as a synchronous
+`POST /<token>/$$<command>` with a JSON array of string arguments, returns the JSON-decoded answer and throws on any
+status but 200. The bridge has no `app_startevent`, so events are still polled. It accepts commands only this way.
 
 ## Consequences
 
@@ -27,6 +27,8 @@ events are still polled. The bridge accepts commands only this way.
   overrides, URL argument parsing and the typed answer encoding are gone.
 - Commands need `Content-Type: application/json`, which a cross-site form cannot send. This adds a CSRF barrier on top
   of the token and origin checks. The token is no longer a page-wide global.
+- A command the bridge does not implement throws a `TypeError` in the page instead of answering `undefined`. The
+  page's error listener logs it. Roland's MkII app calls only implemented commands.
 - `curl` checks must POST JSON (see `doc/testing.md`).
 - Pushed events (`startevent` with `$event.trigger`) remain possible later, but only in the window: `--browser` mode
   has no way to call into the page.

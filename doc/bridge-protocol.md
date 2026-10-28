@@ -10,8 +10,8 @@ in `bts/` follows this document.
 loads. Its first branch applies whenever `window.$$app` exists, whatever the user agent:
 
 - `_ = _1 = _2 = function (cmd, a1, a2)`: `'$$midi_send'` splits into object `$$midi` and method `send`, and
-  `window.$$midi.send(a1, a2)` is called with only the arguments that are defined. Its return value is used as is
-  (no `decode`).
+  `window.$$midi.send(…)` gets `a1, a2` when `a2` is defined, else `a1` when it is defined, else nothing. Its return
+  value is used as is (no `decode`).
 - If `window.$$app.startevent` is defined, `native.js` switches to pushed events (`$event.trigger`). Otherwise the
   default `$event.start` stays: `setInterval(pumpevent, 50)`, which calls `$$app_getevent` until it returns
   `undefined`.
@@ -29,16 +29,18 @@ Roland's files stay unchanged; only the HTTP response for `index.html` gets one 
 `<script src="js/lib/native.js"></script>` (the marker must exist, else the server refuses the version). jQuery is
 already loaded at that point. The block defines:
 
-- `window.$$app`, `$$midi`, `$$midix`, `$$fs`, `$$security`, `$$notification`, `$$recognizer`, `$$barcode` and `$$util`,
-  each a `Proxy` whose methods send the call to the bridge: a synchronous `POST /<token>/$$<object>_<method>` with
-  `Content-Type: application/json` and the arguments as a JSON array of strings (`String(arg)`, as the URL transport
-  would send them). The answer is the JSON-encoded result; `null` becomes `undefined`, and any status but `200` throws
-  an `Error` with the response text. `startevent` stays undefined, so events are polled.
+- one method per bridge command, built from the server's command table: `app_storage2` becomes
+  `window.$$app.storage2`, `midi_send` becomes `window.$$midi.send`. Each sends the call as a synchronous
+  `POST /<token>/$$<command>` with `Content-Type: application/json` and the arguments as a JSON array of strings
+  (`String(arg)`, as the URL transport would send them). The answer is the JSON-encoded result, and `null` becomes
+  `undefined`. A `500` throws an `Error` with the bridge's message; any other status throws
+  `bridge answered HTTP <status>`. There is no `app_startevent` command, so events are polled. A call the bridge does
+  not implement throws a `TypeError` in the page, which the error listener logs.
 - a `window` `error` listener → `POST /<token>/log` (JS errors logged on the server).
 - a `$.ajaxPrefilter` that sends absolute URLs to `/<token>/proxy?url=…` (Tone Central, see below).
 
-The token lives only in that script's closure. The page loads from `http://localhost:<port>/index.html` and calls the
-bridge by relative URL. The server listens on both `127.0.0.1` and `::1` on the same port, since WebKit may resolve
+The token lives only in that script's closure; any script in the page can still call the methods. The page loads from
+`http://localhost:<port>/index.html` and calls the bridge by relative URL, so any loopback name works as its origin. The server listens on both `127.0.0.1` and `::1` on the same port, since WebKit may resolve
 `localhost` to either (another port is picked if `::1` is taken). It keeps connections alive, since the page polls
 every 50 ms.
 
@@ -111,14 +113,16 @@ The server can read and write files, so:
    `Content-Type: application/json` (`415` otherwise), which no cross-site form can send without a preflight. The page's
    usage telemetry — POSTs to its own URL, or to Roland through the proxy — is dropped with `204` and reaches nothing.
 3. A foreign `Origin` and any `Sec-Fetch-Site` outside {absent, `same-origin`, `none`} are rejected on the bridge
-   routes and on `index.html`, and every response forbids framing (`X-Frame-Options: DENY`,
+   routes and on `index.html` (the page's own origin is `http://` plus any of the trusted hosts), and every response
+   forbids framing (`X-Frame-Options: DENY`,
    `frame-ancestors 'none'`), so other websites can neither drive the bridge nor open or frame the editor.
 4. `fs_readString`/`fs_writeString` only reach the app's data or temp folder, or exactly a path the user picked in a
    file dialog during this session (resolved paths). The save dialog's extension must be 1–10 letters and digits,
    since it is appended to the picked path.
 5. `fs_exec` opens `http(s)://` links only.
 6. POST bodies are capped (64 MB): a malformed or oversized `Content-Length` → `400`. Command arguments must be a JSON
-   array of strings (`400` otherwise). Page log lines are printed escaped and truncated.
+   array of strings (`400` otherwise). Page log lines are printed escaped and truncated, and the server's log of
+   refused requests leaves out the token.
 
 The tests in `tests/` cover each rule except the loopback binding and log truncation (rules 1–3 and 6 against a real
 loopback server).

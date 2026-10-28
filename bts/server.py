@@ -31,7 +31,8 @@ BRIDGE_ROUTES = ("proxy", "log")  # besides `$$<command>`; everything else is Ro
 NATIVE_SCRIPT_TAG = '<script src="js/lib/native.js"></script>'
 
 # native.js checks for window.$$app before anything else and then calls window['$$' + object][method](args…) for
-# every command, using the result as is. These proxies forward each call to the bridge, behind a per-launch token.
+# every command, using the result as is. This script defines those methods, one per bridge command, each forwarding the
+# call behind a per-launch token. The bridge has no app_startevent, so native.js keeps polling $$app_getevent.
 PRE_NATIVE = """<script>
 (function () {
   var base = '/%(token)s/';
@@ -40,18 +41,15 @@ PRE_NATIVE = """<script>
     x.open('POST', base + command, false);
     x.setRequestHeader('Content-Type', 'application/json');
     x.send(JSON.stringify(args.map(String)));  // String(): what native.js's own URL transport would send
-    if (x.status !== 200) throw new Error(x.responseText || 'bridge answered HTTP ' + x.status);
+    if (x.status !== 200) throw new Error(x.status === 500 ? x.responseText : 'bridge answered HTTP ' + x.status);
     var value = JSON.parse(x.responseText);
     return value === null ? undefined : value;
   }
-  ['app', 'midi', 'midix', 'fs', 'security', 'notification', 'recognizer', 'barcode', 'util'].forEach(function (o) {
-    window['$$' + o] = new Proxy({}, {
-      get: function (_, method) {
-        // A defined startevent would switch native.js to pushed events; it polls $$app_getevent without one.
-        if (typeof method !== 'string' || method === 'startevent') return undefined;
-        return function () { return call('$$' + o + '_' + method, Array.prototype.slice.call(arguments)); };
-      }
-    });
+  %(commands)s.forEach(function (command) {
+    var split = command.indexOf('_'), object = '$$' + command.slice(0, split);
+    (window[object] = window[object] || {})[command.slice(split + 1)] = function () {
+      return call('$$' + command, Array.prototype.slice.call(arguments));
+    };
   });
   window.addEventListener('error', function (e) {
     var x = new XMLHttpRequest();
@@ -131,6 +129,10 @@ class Bridge:
             "midi_send": self.midi.send,
             "midi_panel": _ignore,
         }
+
+    @property
+    def commands(self):
+        return sorted(self._commands)
 
     def dispatch(self, command, args):
         handler = self._commands.get(command)
@@ -294,7 +296,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_error(415)
         try:
             args = command_args(body)
-        except ValueError as error:  # JSONDecodeError included
+        except (ValueError, RecursionError) as error:  # JSONDecodeError is a ValueError; deep nesting recurses
             return self._reply(str(error), status=400)
         return self._call(route[2:], args)
 
@@ -305,8 +307,9 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_request(self, code="-", size="-"):
-        if not str(code).startswith(("2", "3")):
-            super().log_request(code, size)
+        # Successes are noise and a failing command already printed why; the token stays out of the log.
+        if not str(code).startswith(("2", "3", "500")):
+            self.log_message('"%s" %s %s', self.requestline.replace(self.token, "<token>"), code, size)
 
     def _route(self):
         """(token, route) for the bridge's routes; route is None for static files."""
@@ -346,7 +349,8 @@ class Handler(SimpleHTTPRequestHandler):
         if NATIVE_SCRIPT_TAG not in html:
             print("[bts] index.html no longer loads js/lib/native.js; unsupported app version")
             return self._reply(UNSUPPORTED_PAGE, "text/html; charset=utf-8", 500)
-        html = html.replace(NATIVE_SCRIPT_TAG, PRE_NATIVE % {"token": self.token} + NATIVE_SCRIPT_TAG)
+        script = PRE_NATIVE % {"token": self.token, "commands": json.dumps(self.bridge.commands)}
+        html = html.replace(NATIVE_SCRIPT_TAG, script + NATIVE_SCRIPT_TAG)
         return self._reply(html, "text/html; charset=utf-8")
 
     def _reply(self, body, content_type="text/plain; charset=utf-8", status=200):
@@ -359,13 +363,15 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _trusted_host(self):
         """Rejects DNS-rebinding requests: only loopback host names may reach the backend."""
-        return self.headers.get("Host") in {f"{h}:{self.port}" for h in ("localhost", "127.0.0.1", "[::1]")}
+        return self.headers.get("Host") in self._hosts()
+
+    def _hosts(self):
+        return {f"{name}:{self.port}" for name in ("localhost", "127.0.0.1", "[::1]")}
 
     def _same_origin(self):
         """Keeps other web pages in the user's browser from driving the bridge or opening the editor."""
-        origin = self.headers.get("Origin")
-        fetch_site = self.headers.get("Sec-Fetch-Site")
-        return origin in (None, f"http://localhost:{self.port}") and fetch_site in (None, "same-origin", "none")
+        origin_ok = self.headers.get("Origin") in {None, *(f"http://{host}" for host in self._hosts())}
+        return origin_ok and self.headers.get("Sec-Fetch-Site") in (None, "same-origin", "none")
 
 
 class IPv6Server(ThreadingHTTPServer):

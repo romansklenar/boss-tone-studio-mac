@@ -1,5 +1,6 @@
 import functools
 import http.client
+import io
 import json
 import os
 import tempfile
@@ -15,12 +16,15 @@ TOKEN = "test-token"
 
 
 class RecordingBridge:
-    def __init__(self):
+    commands = ["app_storage2", "midi_send"]
+
+    def __init__(self, result="ok"):
         self.calls = []
+        self.result = result
 
     def dispatch(self, command, args):
         self.calls.append((command, args))
-        return "ok"
+        return self.result
 
 
 class BridgeHttpTest(unittest.TestCase):
@@ -57,14 +61,18 @@ class BridgeHttpTest(unittest.TestCase):
     def status(self, *args, **kwargs):
         return self.request(*args, **kwargs)[0]
 
-    def command(self, path, args=(), headers=None):
+    def command(self, path, args=(), headers=None, body=None):
         """A command the way the page script sends it: POST, JSON array of strings."""
         headers = {"Content-Type": "application/json", **(headers or {})}
-        return self.request("POST", path, headers, json.dumps(list(args)).encode())
+        return self.request("POST", path, headers, json.dumps(list(args)).encode() if body is None else body)
 
     def test_command_with_token_reaches_the_bridge_and_answers_json(self):
         self.assertEqual(self.command(f"/{TOKEN}/$$app_storage2", ["key", ","])[:2], (200, '"ok"'))
         self.assertEqual(self.bridge.calls, [("app_storage2", ["key", ","])])
+
+    def test_no_result_answers_null(self):
+        self.bridge.result = None
+        self.assertEqual(self.command(f"/{TOKEN}/$$app_getevent")[:2], (200, "null"))
 
     def test_a_failing_command_answers_500_with_its_message(self):
         self.bridge.dispatch = mock.Mock(side_effect=PermissionError("refused"))
@@ -83,11 +91,11 @@ class BridgeHttpTest(unittest.TestCase):
         self.assertEqual(self.bridge.calls, [])
 
     def test_commands_need_json_arguments_of_strings(self):
-        plain = self.request("POST", f"/{TOKEN}/$$app_storage2", {"Content-Type": "text/plain"}, b'["k", "v"]')
+        plain = self.command(f"/{TOKEN}/$$app_storage2", ["k", "v"], {"Content-Type": "text/plain"})
         self.assertEqual(plain[0], 415)  # what a cross-site form could send without a preflight
-        for body in (b"not json", b'{"k": "v"}', b'[3, ""]', b"[null]"):
-            with self.subTest(body=body):
-                self.assertEqual(self.status("POST", f"/{TOKEN}/$$x", {"Content-Type": "application/json"}, body), 400)
+        for body in (b"not json", b'{"k": "v"}', b'[3, ""]', b"[null]", b"[" * 100_000):
+            with self.subTest(body=body[:10]):
+                self.assertEqual(self.command(f"/{TOKEN}/$$x", body=body)[0], 400)
         self.assertEqual(self.bridge.calls, [])
 
     def test_foreign_host_is_refused_for_every_method(self):
@@ -104,10 +112,17 @@ class BridgeHttpTest(unittest.TestCase):
                 self.assertEqual(self.status("GET", "/index.html", headers), 403)
         self.assertEqual(self.bridge.calls, [])
 
-    def test_the_page_own_origin_is_accepted(self):
-        page = {"Origin": f"http://localhost:{self.port}", "Sec-Fetch-Site": "same-origin"}
-        self.assertEqual(self.command(f"/{TOKEN}/$$app_storage2", ["3", ""], page)[0], 200)
-        self.assertEqual(self.bridge.calls, [("app_storage2", ["3", ""])])
+    def test_the_page_own_origin_is_accepted_on_every_loopback_name(self):
+        for host in ("localhost", "127.0.0.1", "[::1]"):
+            with self.subTest(host=host):
+                page = {"Origin": f"http://{host}:{self.port}", "Sec-Fetch-Site": "same-origin"}
+                self.assertEqual(self.command(f"/{TOKEN}/$$app_storage2", ["3", ""], page)[0], 200)
+
+    def test_refused_requests_are_logged_without_the_token(self):
+        with mock.patch("sys.stderr", new_callable=io.StringIO) as log:
+            self.command(f"/{TOKEN}/$$app_storage2", headers={"Origin": "https://evil.example"})
+        self.assertIn("403", log.getvalue())
+        self.assertNotIn(TOKEN, log.getvalue())
 
     def test_post_with_a_bad_length_is_refused(self):
         for length in ("-1", "abc", str(server.MAX_POST_BYTES + 1)):
@@ -124,7 +139,7 @@ class BridgeHttpTest(unittest.TestCase):
         status, body, headers = self.request("GET", "/index.html", {"Sec-Fetch-Site": "none"})
         self.assertEqual(status, 200)
         self.assertLess(body.index(f"var base = '/{TOKEN}/';"), body.index(server.NATIVE_SCRIPT_TAG))
-        self.assertNotIn("$$xhrport", body)
+        self.assertIn('["app_storage2", "midi_send"].forEach', body)
         self.assertEqual(headers["X-Frame-Options"], "DENY")
         self.assertEqual(headers["Content-Security-Policy"], "frame-ancestors 'none'")
 
@@ -196,6 +211,10 @@ class BridgeFilesTest(unittest.TestCase):
         window.destroy.assert_called_once()
         self.assertTrue(self.bridge._exit_timer.finished.is_set())  # cancelled
         self.assertTrue(self.bridge.on_closing())
+
+    def test_no_startevent_command_so_native_js_polls_for_events(self):
+        self.assertIn("app_getevent", self.bridge.commands)
+        self.assertNotIn("app_startevent", self.bridge.commands)
 
     def test_storage2_refuses_keys_that_name_a_folder(self):
         for key in ("", ".", ".."):
