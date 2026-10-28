@@ -70,7 +70,7 @@ public struct Proxy: ProxyFetching {
             let (body, response) = try await session.data(for: request, delegate: redirects)
             if let refusal = redirects.refusal { return .refused(refusal) }
             guard let http = response as? HTTPURLResponse, let host = http.url?.host?.lowercased() else {
-                return .failed("\(escaped(url)): no HTTP response")
+                return .failed("proxy \(escaped(url)) failed: no HTTP response")
             }
             // The delegate already held every hop to the list; this keeps gate from ever seeing another host.
             guard Self.allowedHosts.contains(host) else { return .refused("refusing to proxy \(escaped(url))") }
@@ -78,7 +78,7 @@ public struct Proxy: ProxyFetching {
             return Self.gate(host: host, status: http.statusCode, contentType: contentType, body: body)
         } catch {
             if let refusal = redirects.refusal { return .refused(refusal) }
-            return .failed("\(escaped(url)): \(error.localizedDescription)")
+            return .failed("proxy \(escaped(url)) failed: \(error.localizedDescription)")
         }
     }
 
