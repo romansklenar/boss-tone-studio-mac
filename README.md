@@ -4,6 +4,9 @@ A native (arm64) shell for Roland's BOSS TONE STUDIO for KATANA MkII 2.1.0 web a
 (`x86_64`) only; on macOS 27.2 the original no longer connects to the amp even under Rosetta (see
 [Why this port exists](#why-this-port-exists)).
 
+BOSS, KATANA and BOSS TONE STUDIO are trademarks of Roland Corporation. This is an independent project, not affiliated
+with or endorsed by Roland.
+
 The built app is **standalone**: Roland's web app (unchanged) is taken out of Roland's own installer download at build
 time and bundled in, so Roland's x86_64 app never has to be installed and Rosetta is never needed. The repository
 holds none of Roland's files, but the built app does — it is for personal use only; do not redistribute it.
@@ -113,7 +116,8 @@ apart from Roland's app. `BTS_HTML_DIR` and `BTS_DATA_DIR` override the paths.
 On the first launch the port takes over the Librarian (livesets with patches) from Roland's app, which keeps it in
 `~/Library/Preferences/jp.co.roland.BOSS-TONE-STUDIO-for-KATANA-MkII.plist`; the port only reads that file. The import
 runs once (marker `roland-librarian-imported` in the data folder); `make import-roland` runs it again without
-duplicating livesets already taken over. The Librarian holds at most 50 livesets.
+duplicating livesets already taken over. The Librarian holds at most 50 livesets. Data of the older Adobe AIR editor
+for the original KATANA (`~/Library/Application Support/BOSS-TONE-STUDIO-for-KATANA`) is not taken over.
 
 ## Verified amplifiers
 
@@ -125,7 +129,7 @@ Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
 | KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | — (same code paths, not repeated) | ✅ | 2026-10-28 |
 
 Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
-are untested. Both amps above show up as the CoreMIDI port `KATANA`; connect one amp at a time.
+are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps above show up as the CoreMIDI port `KATANA`; connect one amp at a time.
 
 ## Status
 
