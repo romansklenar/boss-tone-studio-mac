@@ -62,9 +62,11 @@ public func hex(_ bytes: [UInt8]) -> String {
     return String(decoding: text, as: UTF8.self)
 }
 
-/// The page puts port names into its HTML, so a name with markup characters is not offered to it.
+/// The page puts port names into its HTML, so a name with markup characters is not offered to it. Scalars, not
+/// Characters: `"` plus a combining mark is one Character in Swift, yet the HTML parser still sees the quote.
 public func isListablePortName(_ name: String) -> Bool {
-    !name.contains { "<>&\"'".contains($0) }
+    let markup = "<>&\"'".unicodeScalars
+    return !name.unicodeScalars.contains { markup.contains($0) }
 }
 
 /// The name doubles as the UID the page remembers the device by (ADR-0005). Sorted keys keep the text reproducible.

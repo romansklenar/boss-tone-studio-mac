@@ -40,6 +40,18 @@ private func split(_ hexString: String) throws -> [String] {
     #expect(!isListablePortName("a>b"))
 }
 
+@Test func aMarkupCharacterFollowedByACombiningMarkIsStillMarkup() {
+    // Swift joins these into one Character, but an HTML parser sees the markup code point on its own.
+    let names = [
+        "<\u{0301}", "A&\u{0301}B", "a\"\u{0301} onfocus=x autofocus x=\"\u{0301}", "a'\u{200D}b", "a>\u{200D}b",
+    ]
+    for name in names {
+        #expect(!isListablePortName(name), "\(name.unicodeScalars.map(\.value))")
+    }
+    let letters = "Gera\u{0301}t"  // a combining mark on an ordinary letter stays listable
+    #expect(isListablePortName(letters))
+}
+
 @Test func endpointsCarryTheNameAsUID() throws {
     let json = endpointsJSON(["KATANA", "KATANA DAW CTRL"])
     let endpoints = try JSONDecoder().decode([[String: String]].self, from: Data(json.utf8))
