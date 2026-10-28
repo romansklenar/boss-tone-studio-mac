@@ -1,0 +1,22 @@
+[project]
+name = "boss-tone-studio-mac"
+version = "0.1.0"
+description = "Runs Roland's BOSS TONE STUDIO for KATANA MkII web app natively on Apple Silicon"
+requires-python = "==3.13.*"
+# Exact pins; the full transitive lock is requirements.txt (`make lock`).
+dependencies = [
+    "pywebview==6.2.1",
+    "python-rtmidi==1.5.8",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+extend-exclude = ["tmp"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[dependency-groups]
+# Build-only: `make app` syncs this group's lock, requirements-app.txt, which also holds the runtime packages.
+app = ["pyinstaller==6.22.3", "pillow==13.0.0"]
