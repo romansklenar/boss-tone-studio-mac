@@ -10,9 +10,15 @@ flow, the proxy allowlist, MIDI message splitting, the Librarian import and its 
 
 `make browser` serves the app and prints its URL; open it in a browser. Without an amp the page shows "DEVICE NOT
 FOUND" — the MIDI port list went through the bridge — and **OFFLINE MODE** opens the editor, Librarian and Tone
-Central. The token is in `window.$$xhrport` of the served `index.html`; with it, `curl` can exercise commands, e.g.
-`curl "http://localhost:<port>/<token>/\$\$app_storage"`. Without the token, with a foreign `Host` or `Origin`, or for
-a path outside the app's folders, the bridge must answer `403` or refuse.
+Central. The token is in the script the server injects into `index.html` (`var base = '/<token>/'`); with it, `curl`
+can exercise commands:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' -d '["ID_LIST"]' "http://localhost:<port>/<token>/\$\$app_storage2"
+```
+
+Without the token, with a foreign `Host` or `Origin`, or for a path outside the app's folders, the bridge must answer
+`403` or refuse.
 
 ## With an amp
 

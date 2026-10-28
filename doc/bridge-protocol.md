@@ -6,74 +6,64 @@ in `bts/` follows this document.
 
 ## Transport in `native.js`
 
-`native.js` has a Mac branch: when `navigator.userAgent` contains `roland.quattro` **and** `window.$$xhrport` exists:
+`native.js` routes every `$native.*` call through `_()` (`_1()`/`_2()` for a few) and picks the transport once, when it
+loads. Its first branch applies whenever `window.$$app` exists, whatever the user agent:
 
-- `_()` is a **synchronous** `GET 'http://localhost:' + $$xhrport + '/' + method` + `';' + encodeURIComponent(arg1)`
-  + `',' + encodeURIComponent(arg2)`; the response is decoded.
-- `_1()` → `webkit.messageHandlers.quattro1` (player/recorder only; the MkII does not use it).
-- `_2()` → `webkit.messageHandlers.quattro2.postMessage`, used by **`midi.send`**. Only Roland's shell registers these
-  handlers, so `$native.midi.send` is replaced after `native.js` loads (sync XHR to `$$midi_send`).
-- `_('$$app_startevent')` runs at load; when it returns `undefined` (`v`), the default `$event.start` stays:
-  `setInterval(pumpevent, 50)`, which calls `$$app_getevent` until it returns `undefined`.
-
-Response (`decode`): the first character is the type — `v` undefined, `b` false / `b1` true, `d` int, `f` float,
-`s` string. Anything else → `throw new Error(rest)` (the server answers `e<message>` for errors).
+- `_ = _1 = _2 = function (cmd, a1, a2)`: `'$$midi_send'` splits into object `$$midi` and method `send`, and
+  `window.$$midi.send(…)` gets `a1, a2` when `a2` is defined, else `a1` when it is defined, else nothing. Its return
+  value is used as is (no `decode`).
+- If `window.$$app.startevent` is defined, `native.js` switches to pushed events (`$event.trigger`). Otherwise the
+  default `$event.start` stays: `setInterval(pumpevent, 50)`, which calls `$$app_getevent` until it returns
+  `undefined`.
 
 An event from `$$app_getevent` is `prop\ftype\farg1\farg2…` (form-feed separated), dispatched to
 `$native[prop].event[type](args…)`.
 
-Argument parsing: path `/$$cmd;a1,a2`. No `;` → no arguments; `;` with nothing after it → `['']`. Arguments are
-`encodeURIComponent`-ed, so a comma inside one is `%2C` and splitting on `,` is safe. Parse the raw path; do not rely
-on platform URL helpers to split out the `;arguments`.
-
-Large writes (an All Data Backup, a liveset with 15 patches) outgrow a GET URL — Python's `http.server` caps the request
-line at 64 KB and answers `414` — so `fs.writeString` and the writing form of `app.storage2` are replaced to
-`POST /<token>/$$cmd` with a JSON array of arguments as the body. The page script converts every argument to a string
-first, as GET's percent-encoding does: the Librarian passes numeric liveset IDs. Both calls throw in the page when
-the bridge answers anything but HTTP 200, like `native.js` does for an undecodable answer.
+The other branches (a `roland.quattro` user agent with `$$xhrport` → synchronous `GET /$$cmd;a1,a2` with typed
+answers; WebKit message handlers for `midi.send`) are what Roland's own shell uses; this project does not use them
+(ADR-0010).
 
 ## What is injected into `index.html`
 
-Roland's files stay unchanged; only the HTTP response for `index.html` gets two `<script>` blocks.
+Roland's files stay unchanged; only the HTTP response for `index.html` gets one `<script>` block, just before
+`<script src="js/lib/native.js"></script>` (the marker must exist, else the server refuses the version). jQuery is
+already loaded at that point. The block defines:
 
-Before `<script src="js/lib/native.js"></script>` (the marker must exist, else the server refuses the version):
-
-- `window.$$xhrport = '<port>/<token>';` — `native.js` builds every URL from it, so the token after the port becomes
-  the path prefix of every command (`/<token>/$$cmd`).
-- `navigator.userAgent` overridden with `Object.defineProperty` to append `roland.quattro(Mac)`.
+- one method per bridge command, built from the server's command table: `app_storage2` becomes
+  `window.$$app.storage2`, `midi_send` becomes `window.$$midi.send`. Each sends the call as a synchronous
+  `POST /<token>/$$<command>` with `Content-Type: application/json` and the arguments as a JSON array of strings
+  (`String(arg)`, as the URL transport would send them). The answer is the JSON-encoded result, and `null` becomes
+  `undefined`. A `500` throws an `Error` with the bridge's message; any other status throws
+  `bridge answered HTTP <status>`. There is no `app_startevent` command, so events are polled. A call the bridge does
+  not implement throws a `TypeError` in the page, which the error listener logs.
 - a `window` `error` listener → `POST /<token>/log` (JS errors logged on the server).
-
-After `native.js`:
-
-- `$native.midi.send` → sync GET `$$midi_send` (keeps MIDI order);
-- `$native.fs.writeString` and the write form of `$native.app.storage2` → sync POST;
 - a `$.ajaxPrefilter` that sends absolute URLs to `/<token>/proxy?url=…` (Tone Central, see below).
 
-The page loads from `http://localhost:<port>/index.html` (not `127.0.0.1`): `native.js` calls `localhost`, so anything
-else is cross-origin. The server listens on both `127.0.0.1` and `::1` on the same port (another port is picked if
-`::1` is taken) and keeps connections alive, since the page polls every 50 ms.
+The token lives only in that script's closure; any script in the page can still call the methods. The page loads from
+`http://localhost:<port>/index.html` and calls the bridge by relative URL, so any loopback name works as its origin. The
+server listens on both `127.0.0.1` and `::1` on the same port, since WebKit may resolve `localhost` to either (another
+port is picked if `::1` is taken). It keeps connections alive, since the page polls every 50 ms.
 
 ## Commands the MkII app calls
 
 | Command | Behaviour |
 |---|---|
 | `app_ready`, `app_control` | no-op (`'indicator start/stop'`, `'set_window_size:{"mode":"min","width":1160}'`) |
-| `app_startevent` | return `v` (→ polling) |
-| `app_getevent` | pop one queued event or `v` |
-| `app_storage[;data]` | no argument: read the whole JSON (`s` + content, empty if missing); with an argument: write |
-| `app_storage2;key[,data]` | per-key storage; `data == ''` deletes; keys such as `ID_LIST`, `CONFIRM_FLAG`, `0`… |
+| `app_getevent` | pop one queued event, or `undefined` |
+| `app_storage(data?)` | no argument: read the whole JSON (empty if missing); with an argument: write |
+| `app_storage2(key, data?)` | per-key storage; `data == ''` deletes; keys such as `ID_LIST`, `CONFIRM_FLAG`, `0`… |
 | `app_importfile`, `app_exportfile` | no-op (cloud import/export) |
 | `app_exit` | disconnect MIDI, close the window |
 | `fs_separator` | `/` |
-| `fs_path;temporary` / `library` | absolute path **with a trailing `/`** |
-| `fs_exec;url` | open in the browser — `http(s)://` only |
-| `fs_readString;path`, `fs_writeString;path,text` | permitted paths only (see Security) |
-| `fs_openfilename[;["tsl"]]` | asynchronous dialog → event `fs\fopenfilename\f<path>` |
-| `fs_savefilename;name,ext` | asynchronous dialog → event `fs\fsavefilename\f<path>` (extension appended unless present) |
+| `fs_path('temporary' \| 'library')` | absolute path **with a trailing `/`** |
+| `fs_exec(url)` | open in the browser — `http(s)://` only |
+| `fs_readString(path)`, `fs_writeString(path, text)` | permitted paths only (see Security) |
+| `fs_openfilename('["tsl"]'?)` | asynchronous dialog → event `fs\fopenfilename\f<path>` |
+| `fs_savefilename(name, ext)` | asynchronous dialog → event `fs\fsavefilename\f<path>` (extension appended unless present) |
 | `midi_inendpoints`, `midi_outendpoints` | JSON array of `{"MIDIEntityNameKey", "MIDIDeviceNameKey", "MIDIEndpointUIDKey"}` |
-| `midi_inconnect;json`, `midi_outconnect;json` | open the port by `MIDIEntityNameKey`; failure → event `midi\fconnectfailed\f<json>` |
+| `midi_inconnect(json)`, `midi_outconnect(json)` | open the port by `MIDIEntityNameKey`; failure → event `midi\fconnectfailed\f<json>` |
 | `midi_indisconnect`, `midi_outdisconnect` | close |
-| `midi_send;HEX` | hex without spaces → bytes → split into whole messages (sysex `F0…F7`) → send |
+| `midi_send(HEX)` | hex without spaces → bytes → split into whole messages (sysex `F0…F7`) → send |
 | `midi_panel` | no-op |
 
 Behaviour worth knowing:
@@ -119,17 +109,21 @@ The server can read and write files, so:
 1. It listens on loopback only and checks `Host` ∈ {`localhost:P`, `127.0.0.1:P`, `[::1]:P`} on every GET, HEAD and
    POST (DNS rebinding); other methods get `501`.
 2. A per-launch token (`secrets.token_urlsafe(24)`), compared with `hmac.compare_digest`, guards every bridge route —
-   `/<token>/$$…` (GET and POST), `/<token>/proxy`, `/<token>/log` → `403` without it. The page's usage telemetry —
-   POSTs to its own URL, or to Roland through the proxy — is dropped with `204` and reaches nothing.
+   `/<token>/$$…`, `/<token>/proxy`, `/<token>/log` → `403` without it. Commands are POST only (GET → `405`), are named
+   `$$<object>_<method>` (`404` otherwise) and need `Content-Type: application/json` (`415` otherwise), which no
+   cross-site form can send without a preflight. The page's usage telemetry — POSTs to its own URL, or to Roland through
+   the proxy — is dropped with `204` and reaches nothing.
 3. A foreign `Origin` and any `Sec-Fetch-Site` outside {absent, `same-origin`, `none`} are rejected on the bridge
-   routes and on `index.html`, and every response forbids framing (`X-Frame-Options: DENY`,
+   routes and on the page, under any spelling of its path (`/`, `/./`, `/%69ndex.html`…). The page's own origin is
+   `http://` plus any of the trusted hosts. Every response forbids framing (`X-Frame-Options: DENY`,
    `frame-ancestors 'none'`), so other websites can neither drive the bridge nor open or frame the editor.
 4. `fs_readString`/`fs_writeString` only reach the app's data or temp folder, or exactly a path the user picked in a
    file dialog during this session (resolved paths). The save dialog's extension must be 1–10 letters and digits,
    since it is appended to the picked path.
 5. `fs_exec` opens `http(s)://` links only.
-6. POST bodies are capped (64 MB); a malformed or oversized `Content-Length` → `400`, a missing one is an empty body;
-   page log lines are printed escaped and truncated.
+6. POST bodies are capped (64 MB): a malformed or oversized `Content-Length` → `400`. Command arguments must be a JSON
+   array of strings (`400` otherwise). Page log lines are printed escaped and truncated, and failed requests are logged
+   with the token removed in any spelling.
 
 The tests in `tests/` cover each rule except the loopback binding and log truncation (rules 1–3 and 6 against a real
 loopback server).

@@ -9,10 +9,10 @@ The bridge reads and writes files and opens URLs. Any web page open in the user'
 
 ## Decision
 
-Listen on loopback only; check `Host` on every request; require a per-launch secret token as a path prefix (carried in
-`$$xhrport`, so `native.js` adds it by itself); reject foreign `Origin`/`Sec-Fetch-Site` and forbid framing, so no
-other website can open the editor either; limit file access to the app's folders and paths picked in a file dialog;
-let `fs.exec` open `http(s)` links only. The rules are listed in `doc/bridge-protocol.md`.
+Listen on loopback only; check `Host` on every request; require a per-launch secret token as a path prefix (held by the
+injected script, [ADR-0010](ADR-0010-native-js-app-hook-as-the-transport.md)); reject foreign `Origin`/`Sec-Fetch-Site`
+and forbid framing, so no other website can open the editor either; limit file access to the app's folders and paths
+picked in a file dialog; let `fs.exec` open `http(s)` links only. The rules are listed in `doc/bridge-protocol.md`.
 
 ## Consequences
 
@@ -27,11 +27,12 @@ From a security review on 2026-10-28; none is exploitable without code already o
 
 | Weak point | Follow-up |
 |---|---|
-| The token is served to any local client (above) | Open `/<token>/index.html` from the shell and refuse the bare page |
-| Proxied scripts (YouTube, SoundCloud, Roland) and Tone Central titles, which the page renders as HTML, run with the token | Drop SoundCloud from the allowlist; a CSP for `index.html`; JSON-only for the Roland hosts |
+| The token is served to any local client (above) | Open `/<token>/index.html` from the shell and refuse the bare page (simple since ADR-0010: the bridge is called by relative URL) |
+| Proxied scripts (YouTube, SoundCloud, Roland) and Tone Central titles, which the page renders as HTML, run with the token | Drop SoundCloud from the allowlist; a CSP for `index.html` with a nonce for the bridge script; JSON-only for the Roland hosts |
 | CoreMIDI port names are rendered as HTML, and any process can name a virtual port | Skip ports whose names contain `<>&"'` |
 | pywebview opens `target=_blank` links of any scheme in the browser | `OPEN_EXTERNAL_LINKS_IN_BROWSER = False`; keep navigation on `localhost:P` |
 | A file picked to open may also be written | Separate read and write sets; only save-dialog paths are writable |
-| If `::1` cannot be bound for a reason other than "in use" (e.g. IPv6 off), the server runs on IPv4 only and a local squatter could serve its own page there | Fail closed then too |
+| If `::1` cannot be bound for a reason other than "in use" (e.g. IPv6 off), the server runs on IPv4 only and a local squatter could serve its own page there | Open the window on `127.0.0.1` and bind IPv4 only: since ADR-0010 nothing needs `localhost` |
 | `make app` bundles `build/roland/html` without re-checking it against the verified zip | Re-extract from the zip on every `make app` |
+| The proxy keeps userinfo and any port from the requested URL (still only allowlisted hosts over HTTPS) | Rebuild the URL from the host name alone, default port |
 | The bundle is only ad-hoc signed (PyInstaller's default), without the hardened runtime | Sign with `--options runtime`; verify in `make install` |

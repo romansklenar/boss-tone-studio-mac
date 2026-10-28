@@ -13,6 +13,7 @@ in the README.
 
 ```bash
 make help           # every target
+mise trust          # once, by the user: mise.toml sets environment variables
 make setup          # make deps (toolchain + locked packages into .venv) + make roland-assets
 make lock           # re-resolve requirements*.txt (with hashes) after changing pins in pyproject.toml
 make check          # lint + test — run before committing; CI runs the same on PRs and main
@@ -37,8 +38,7 @@ make check          # lint + test — run before committing; CI runs the same on
 ## Conventions
 
 - Code, comments, docs and commit messages in English; talk to the user in Czech.
-- Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend, trailer
-  `Co-authored-by: Claude <noreply@anthropic.com>`.
+- Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend.
 - 120-character lines (ruff). Lean comments: say why, not what.
 - A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
   consequences); research findings go to `doc/research/YYYY-MM-DD-<topic>.md`.

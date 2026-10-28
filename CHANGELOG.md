@@ -3,6 +3,21 @@
 Notable changes per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-10-28
+
+### Changed
+
+- The bridge carries every command through `native.js`'s own `$$app` hook: one synchronous JSON POST per call. The
+  forged user agent and the per-call overrides are gone.
+- Bridge commands are accepted only as POST with a JSON content type.
+
+### Security
+
+- Every spelling of the editor page's path now goes through the origin check; `/./index.html` used to slip past it.
+- Refused requests no longer write the token to the log, and request paths can no longer forge log lines.
+- `make deps` no longer trusts `mise.toml` by itself (run `mise trust` once), and every package sync checks the lock's
+  hashes.
+
 ## [0.1.0] - 2026-10-28
 
 First release.
@@ -18,4 +33,5 @@ First release.
 - A standalone `.app` built from Roland's installer download, checked against a pinned SHA-256.
 - Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
 
+[0.1.1]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.1
 [0.1.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.0

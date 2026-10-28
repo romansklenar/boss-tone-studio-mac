@@ -1,6 +1,6 @@
 # ADR-0004: Large writes over POST, arguments as strings
 
-Status: accepted, 2026-10-28
+Status: superseded by [ADR-0010](ADR-0010-native-js-app-hook-as-the-transport.md), 2026-10-28
 
 ## Context
 

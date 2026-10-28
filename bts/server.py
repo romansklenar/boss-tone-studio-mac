@@ -26,78 +26,59 @@ TRACE = os.environ.get("BTS_TRACE") == "1"  # logs every bridge command and nati
 MAX_POST_BYTES = 64 * 1024 * 1024  # an All Data Backup is ~81 KB
 MAX_LOG_CHARS = 500
 MAX_QUEUED_EVENTS = 10_000  # events pile up only while no page polls
+COMMAND_ROUTE = re.compile(r"\$\$[a-z]+_[A-Za-z0-9]+")
 BRIDGE_ROUTES = ("proxy", "log")  # besides `$$<command>`; everything else is Roland's static files
 
 NATIVE_SCRIPT_TAG = '<script src="js/lib/native.js"></script>'
 
-# native.js builds 'http://localhost:' + $$xhrport + '/' + command, so a token appended to the port becomes a path
-# prefix that pages from other origins cannot know.
+# native.js checks for window.$$app before anything else and then calls window['$$' + object][method](args…) for
+# every command, using the result as is. This script defines those methods, one per bridge command, each forwarding the
+# call behind a per-launch token. The bridge has no app_startevent, so native.js keeps polling $$app_getevent.
 PRE_NATIVE = """<script>
-window.$$xhrport = '%(port)d/%(token)s';
 (function () {
-  var ua = navigator.userAgent;
-  if (ua.indexOf('roland.quattro') < 0) {
-    Object.defineProperty(navigator, 'userAgent', { get: function () { return ua + ' roland.quattro(Mac)'; } });
+  var base = '/%(token)s/';
+  function call(command, args) {
+    var x = new XMLHttpRequest();
+    x.open('POST', base + command, false);
+    x.setRequestHeader('Content-Type', 'application/json');
+    x.send(JSON.stringify(args.map(String)));  // String(): what native.js's own URL transport would send
+    if (x.status !== 200) throw new Error(x.status === 500 ? x.responseText : 'bridge answered HTTP ' + x.status);
+    var value = JSON.parse(x.responseText);
+    return value === null ? undefined : value;
   }
+  %(commands)s.forEach(function (command) {
+    var split = command.indexOf('_'), object = '$$' + command.slice(0, split);
+    (window[object] = window[object] || {})[command.slice(split + 1)] = function () {
+      return call('$$' + command, Array.prototype.slice.call(arguments));
+    };
+  });
   window.addEventListener('error', function (e) {
     var x = new XMLHttpRequest();
-    x.open('POST', 'http://localhost:' + window.$$xhrport + '/log', true);
+    x.open('POST', base + 'log', true);
     x.send(e.message + ' @ ' + e.filename + ':' + e.lineno);
   });
-})();
-</script>
-"""
-
-# Roland routes midi.send through webkit.messageHandlers.quattro2, which only their native shell registers.
-# Backups and livesets outgrow a GET URL (http.server caps the request line at 64 KB), so those writes go as POST.
-POST_NATIVE = """
-<script>
-(function () {
-  function call(verb, method, query, body) {
-    var x = new XMLHttpRequest();
-    x.open(verb, 'http://localhost:' + window.$$xhrport + '/' + method + query, false);
-    x.send(body);
-    if (x.status !== 200) throw new Error('bridge answered HTTP ' + x.status);
-    if (x.responseText.charAt(0) === 'e') throw new Error(x.responseText.slice(1));
-  }
-  function post(method, args) { call('POST', method, '', JSON.stringify(args.map(String))); }
-  var readStorage2 = $native.app.storage2;
-  $native.midi.send = function (msg) { call('GET', '$$midi_send', ';' + encodeURIComponent(msg), null); };
-  $native.fs.writeString = function (file, text) { post('$$fs_writeString', [file, text]); };
-  $native.app.storage2 = function (key, data) {
-    if (data === undefined) return readStorage2(key);
-    post('$$app_storage2', [key, data]);
-  };
   // Tone Central's servers send no CORS headers, so its absolute URLs go through the local proxy.
   $.ajaxPrefilter(function (options) {
     if (/^https?:\\/\\//.test(options.url)) {
-      options.url = 'http://localhost:' + window.$$xhrport + '/proxy?url=' + encodeURIComponent(options.url);
+      options.url = base + 'proxy?url=' + encodeURIComponent(options.url);
       options.crossDomain = false;
     }
   });
 })();
-</script>"""
+</script>
+"""
 
 UNSUPPORTED_PAGE = """<!doctype html><meta charset="utf-8"><title>Unsupported</title>
 <p>This version of Roland's editor is not supported: its <code>index.html</code> no longer loads
 <code>js/lib/native.js</code>. Rebuild with <code>make roland-assets</code>.</p>"""
 
 
-def post_args(body):
-    """Arguments of a POSTed command, as strings like GET's (the page script already sends strings)."""
-    return [str(arg) for arg in json.loads(body or b"[]")]
-
-
-def encode(value):
-    if value is None:
-        return "v"
-    if isinstance(value, bool):
-        return "b1" if value else "b"
-    if isinstance(value, int):
-        return f"d{value}"
-    if isinstance(value, float):
-        return f"f{value}"
-    return f"s{value}"
+def command_args(body):
+    """A command's arguments: a JSON array of strings, as the page script sends them."""
+    args = json.loads(body)
+    if not (isinstance(args, list) and all(isinstance(arg, str) for arg in args)):
+        raise ValueError("arguments must be a JSON array of strings")
+    return args
 
 
 def _ignore(*_):
@@ -126,7 +107,6 @@ class Bridge:
         self.midi = Midi(self.emit)
         self._commands = {
             "app_ready": _ignore,
-            "app_startevent": _ignore,  # undefined → native.js falls back to polling $$app_getevent
             "app_getevent": self._app_getevent,
             "app_storage": self._app_storage,
             "app_storage2": self._app_storage2,
@@ -150,6 +130,10 @@ class Bridge:
             "midi_send": self.midi.send,
             "midi_panel": _ignore,
         }
+
+    @property
+    def commands(self):
+        return sorted(self._commands)
 
     def dispatch(self, command, args):
         handler = self._commands.get(command)
@@ -273,17 +257,14 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if not self._trusted_host():
             return self.send_error(403)
-        token, route, raw_args, separator = self._route()
+        token, route = self._route()
         if route is not None:
             if not self._authorized(token):
                 return self.send_error(403)
             if route == "proxy":
                 return self._proxy(urllib.parse.urlsplit(self.path).query)
-            if route.startswith("$$"):
-                args = [urllib.parse.unquote(a) for a in raw_args.split(",")] if separator else []
-                return self._reply(self._call(route[2:], args))
             return self.send_error(405)
-        if urllib.parse.urlsplit(self.path).path in ("/", "/index.html"):
+        if self._is_index():
             if not self._same_origin():  # other websites must not open the editor
                 return self.send_error(403)
             return self._index()
@@ -301,7 +282,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not (length.isascii() and length.isdigit()) or int(length) > MAX_POST_BYTES:
             return self.send_error(400)
         body = self.rfile.read(int(length))  # read even when dropped, so a kept-alive connection stays in sync
-        token, route, _, _ = self._route()
+        token, route = self._route()
         if route is not None and not self._authorized(token):
             return self.send_error(403)
         if route in (None, "proxy"):
@@ -311,10 +292,16 @@ class Handler(SimpleHTTPRequestHandler):
             return None
         if route == "log":
             print(f"[js] {body.decode(errors='replace')[:MAX_LOG_CHARS]!r}")  # repr: the page cannot forge log lines
-            return self._reply("v")
-        if route.startswith("$$"):
-            return self._reply(self._call(route[2:], post_args(body)))
-        return self.send_error(405)
+            return self._reply("")
+        if not COMMAND_ROUTE.fullmatch(route):
+            return self.send_error(404)
+        if self.headers.get_content_type() != "application/json":  # a cross-site form cannot send this unasked
+            return self.send_error(415)
+        try:
+            args = command_args(body)
+        except (ValueError, RecursionError) as error:  # JSONDecodeError is a ValueError; deep nesting recurses
+            return self._reply(str(error), status=400)
+        return self._call(route[2:], args)
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
@@ -323,18 +310,30 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_request(self, code="-", size="-"):
-        if not str(code).startswith(("2", "3")):
-            super().log_request(code, size)
+        # Successes are noise and a failing command already printed why.
+        if not str(code).startswith(("2", "3", "500")):
+            self.log_message('"%s" %s %s', self._redacted(self.requestline), code, size)  # control chars escaped
+
+    def _redacted(self, text):
+        """The token, in any percent-encoded spelling and anywhere in the request line, kept out of the log."""
+        while (decoded := urllib.parse.unquote(text)) != text:
+            text = decoded
+        return text.replace(self.token, "<token>")
 
     def _route(self):
-        """(token, route, raw arguments, ';' if present) for the bridge's routes; route is None for static files."""
-        path, separator, raw_args = urllib.parse.urlsplit(self.path).path.partition(";")
-        token, slash, route = urllib.parse.unquote(path)[1:].partition("/")
+        """(token, route) for the bridge's routes; route is None for static files."""
+        token, slash, route = urllib.parse.unquote(urllib.parse.urlsplit(self.path).path)[1:].partition("/")
         if not slash:
             token, route = "", token  # a bridge route without a token
         if not (route.startswith("$$") or route in BRIDGE_ROUTES):
-            return None, None, None, None
-        return token, route, raw_args, separator
+            return None, None
+        return token, route
+
+    def _is_index(self):
+        """Any spelling of the page itself (`/`, `/./`, `/%69ndex.html`…), so none of them skips the origin check."""
+        target = Path(self.translate_path(self.path))
+        target = target / "index.html" if target.is_dir() else target
+        return target.resolve() == (Path(self.directory) / "index.html").resolve()
 
     def _authorized(self, token):
         """The per-launch token, compared as bytes (compare_digest refuses non-ASCII str), from this page only."""
@@ -354,18 +353,19 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _call(self, command, args):
         try:
-            return encode(self.bridge.dispatch(command, args))
-        except Exception as error:  # the page decodes anything else than v/b/d/f/s as a thrown Error
+            result = json.dumps(self.bridge.dispatch(command, args))
+        except Exception as error:  # the page script throws the message as an Error
             print(f"[bts] $${command} failed: {error!r}")
-            return f"e{error}"
+            return self._reply(str(error), status=500)
+        return self._reply(result, "application/json")
 
     def _index(self):
         html = (Path(self.directory) / "index.html").read_text(encoding="utf-8")
         if NATIVE_SCRIPT_TAG not in html:
             print("[bts] index.html no longer loads js/lib/native.js; unsupported app version")
             return self._reply(UNSUPPORTED_PAGE, "text/html; charset=utf-8", 500)
-        pre_native = PRE_NATIVE % {"port": self.port, "token": self.token}
-        html = html.replace(NATIVE_SCRIPT_TAG, pre_native + NATIVE_SCRIPT_TAG + POST_NATIVE)
+        script = PRE_NATIVE % {"token": self.token, "commands": json.dumps(self.bridge.commands)}
+        html = html.replace(NATIVE_SCRIPT_TAG, script + NATIVE_SCRIPT_TAG)
         return self._reply(html, "text/html; charset=utf-8")
 
     def _reply(self, body, content_type="text/plain; charset=utf-8", status=200):
@@ -378,13 +378,15 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _trusted_host(self):
         """Rejects DNS-rebinding requests: only loopback host names may reach the backend."""
-        return self.headers.get("Host") in {f"{h}:{self.port}" for h in ("localhost", "127.0.0.1", "[::1]")}
+        return self.headers.get("Host") in self._hosts()
+
+    def _hosts(self):
+        return {f"{name}:{self.port}" for name in ("localhost", "127.0.0.1", "[::1]")}
 
     def _same_origin(self):
         """Keeps other web pages in the user's browser from driving the bridge or opening the editor."""
-        origin = self.headers.get("Origin")
-        fetch_site = self.headers.get("Sec-Fetch-Site")
-        return origin in (None, f"http://localhost:{self.port}") and fetch_site in (None, "same-origin", "none")
+        origin_ok = self.headers.get("Origin") in {None, *(f"http://{host}" for host in self._hosts())}
+        return origin_ok and self.headers.get("Sec-Fetch-Site") in (None, "same-origin", "none")
 
 
 class IPv6Server(ThreadingHTTPServer):
@@ -392,7 +394,7 @@ class IPv6Server(ThreadingHTTPServer):
 
 
 def _bind():
-    """Both loopback addresses on one port, because native.js hard-codes `localhost`."""
+    """Both loopback addresses on one port: the window opens `localhost`, which WebKit may resolve to either."""
     for _ in range(10):
         servers = [ThreadingHTTPServer(("127.0.0.1", 0), None)]
         port = servers[0].server_address[1]

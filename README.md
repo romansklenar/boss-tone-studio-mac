@@ -31,13 +31,12 @@ Rosetta, so macOS 28 removing it should not affect it.
 
 ## How it works
 
-Roland's `js/lib/native.js` already has a macOS transport: when the user agent contains `roland.quattro` and the page
-has `window.$$xhrport`, every `$native.*` call becomes a synchronous
-`GET http://localhost:<$$xhrport>/$$command;arg1,arg2` (here `$$xhrport` is `<port>/<token>`). This project does what
-Roland's native shell does:
+Roland's `js/lib/native.js` hands every `$native.*` call to `window.$$app`, `$$midi`, `$$fs`… when the page defines
+them. This project defines them so that each call becomes a synchronous `POST /<token>/$$command` to a local server,
+and does what Roland's native shell does:
 
-- `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds two
-  `<script>` blocks to the `index.html` response to connect the page to it, and implements the commands the MkII app
+- `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds one
+  `<script>` block to the `index.html` response to connect the page to it, and implements the commands the MkII app
   calls: storage, files, MIDI, events.
 - `bts/midi.py` — CoreMIDI through `python-rtmidi` (arm64).
 - `bts/storage.py` — the page's `app.storage2` (one file per key), written atomically; shared with the import.
@@ -67,7 +66,7 @@ Inspired by the [Linux port for KATANA Gen 3](https://github.com/Shesherd/BOSS-T
 4. **Install** (`make install`) — copies the bundle to `~/Applications`.
 
 At runtime the app imports Roland's Librarian on the first launch, starts the local server, serves the bundled web
-app with the bridge scripts injected into the `index.html` response, and opens a WKWebView window on it. Nothing in
+app with the bridge script injected into the `index.html` response, and opens a WKWebView window on it. Nothing in
 `build/`, `dist/` or `tmp/` is committed.
 
 ## Setup and usage
@@ -77,6 +76,7 @@ builds from source), and Roland's KATANA USB driver for the amp (its installer, 
 arm64).
 
 ```bash
+mise trust          # once: lets mise apply mise.toml, which sets environment variables
 make setup          # toolchain, packages and Roland's web app (see How the build works)
 make run            # the app window; `make browser` serves it to a browser, `make trace` logs the bridge
 make app install    # build the standalone .app and copy it to ~/Applications
@@ -117,7 +117,11 @@ Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
 | Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
 |---|---|---|---|---|---|---|---|---|
 | KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
-| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | — (same code paths, not repeated) | ✅ | 2026-10-28 |
+| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
+
+The KATANA-ARTIST MkII row was re-run on the `$$app` transport of 0.1.1 in the app window: connect, MIDI both ways,
+Tone Central, `.tsl` round trip, deleting a liveset, All Data Backup saved and restored, and closing. The checks used a
+`make trace` log. The KATANA-HEAD MkII row dates from 0.1.0.
 
 Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
 are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps above show up as the CoreMIDI port
@@ -133,22 +137,18 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 | Remembering the chosen device | ✅ reconnects on the next launch |
 | Closing the window (editor mode off, `$$app_exit`) | ✅ the page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
 | Librarian taken over from Roland's app | ✅ 29 livesets / 254 patches loaded in the original order |
-| File dialogs | ✅ `.tsl` export and import (round trip identical), All Data Backup (81 KB); a Gen 3 `.tsl` is refused by Roland's code ("UNSUPPORTED DATA") |
+| File dialogs | ✅ `.tsl` export and import (round trip identical), All Data Backup (81 KB) saved and restored to the amp; a Gen 3 `.tsl` is refused by Roland's code ("UNSUPPORTED DATA") |
 | Deleting livesets/patches | ✅ fixed (the page passes numeric IDs); liveset delete verified in the window, patch delete in the browser (persists across reload) |
 | Tone Central | ✅ through a local proxy: catalogue, details, YouTube preview, adding a liveset; SoundCloud previews ❌ (Roland's old API key returns 401) |
 | `.app` bundle | ✅ `make app`: standalone (serves the bundled web app, nothing open under `/Applications/BOSS`), arm64, "(Apple Silicon)" name, grey icon |
 
 ## Next steps
 
-1. **Restore from an All Data Backup** — the one file dialog not tested yet (it rewrites every patch in the amp).
-2. **Use `native.js`'s own transport hook** (`window.$$app`, `$$fs`, `$$midi`) instead of the injected overrides: one
-   POST call for every command, no user-agent or `$$xhrport` tricks, no GET/POST split. Planned as the next PR; needs
-   a re-test with an amp.
-3. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
+1. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
    other way round; Gen 3 presets store some effects per colour (green/red/yellow) and use different amp types, so a
    conversion would be lossy in known places.
-4. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
-5. **Native rewrite** (later; [ADR-0001](doc/decisions/ADR-0001-python-shell-around-rolands-web-app.md)) — WKWebView +
+2. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
+3. **Native rewrite** (later; [ADR-0001](doc/decisions/ADR-0001-python-shell-around-rolands-web-app.md)) — WKWebView +
    embedded HTTP server + CoreMIDI, no Python: a small signed app instead of a 38 MB bundle with its own Python.
 
 ## Licensing
@@ -171,7 +171,7 @@ How this project relates to each point:
 - **One computer, one backup** — the app is built and used on your own Mac. The kept installer zip is the backup
   copy; `build/roland/` and the bundle are the working copy, as Roland's installer would put it in `/Applications`.
 - **No modification** — Roland's files stay byte-identical (installer SHA-256, `diff` against an installed copy). At
-  runtime the server adds two `<script>` blocks to the `index.html` *response* to connect the page to our bridge, the
+  runtime the server adds one `<script>` block to the `index.html` *response* to connect the page to our bridge, the
   way a browser extension would; nothing on disk changes. This is the most debatable point: it does change how
   Roland's software behaves while it runs.
 - **No reverse engineering** — the bridge was written from Roland's own plain-text JavaScript (`native.js` runs in the
@@ -195,8 +195,8 @@ How this project relates to each point:
 - **Web platform drift.** Roland's page relies on synchronous `XMLHttpRequest` (deprecated in browsers) and on
   WKWebView behaviour; a future WebKit could break it. pywebview, pyobjc and PyInstaller are pinned; updating them
   needs a rebuild and a re-test.
-- **Partial bridge.** Only the commands the MkII app calls are implemented; anything else answers "undefined" and is
-  logged.
+- **Partial bridge.** Only the commands the MkII app calls are implemented. A call to anything else throws in the page,
+  and the error is logged.
 - **Limited testing.** Two amps on macOS 27.2 (see Verified amplifiers); other MkII models and macOS 14–26 are
   untested.
 - **Signing.** The bundle is ad-hoc signed, not notarized. Built locally it opens normally; copied from elsewhere it

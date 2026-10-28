@@ -3,3 +3,4 @@ __pycache__/
 tmp/
 build/
 dist/
+.claude/settings.local.json

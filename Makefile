@@ -33,10 +33,9 @@ setup: deps roland-assets
 
 deps:
 	@which mise > /dev/null 2>&1 || (echo "Error: mise not found (brew install mise)" >&2 && exit 1)
-	@mise trust --quiet
 	@mise install
 	@mise exec -- uv venv --quiet --allow-existing --python "$$(mise which python)" .venv
-	@mise exec -- uv pip sync --python $(PYTHON) requirements.txt
+	@mise exec -- uv pip sync --require-hashes --python $(PYTHON) requirements.txt
 	@echo "Python: $$($(PYTHON) --version), ruff: $$(mise exec -- ruff --version)"
 
 lock:
@@ -60,13 +59,13 @@ roland-assets:
 	@packaging/fetch-roland-assets.sh build/roland
 
 app: roland-assets build/AppIcon.icns
-	@mise exec -- uv pip sync --quiet --python $(PYTHON) requirements-app.txt
+	@mise exec -- uv pip sync --quiet --require-hashes --python $(PYTHON) requirements-app.txt
 	@$(PYTHON) -m PyInstaller --noconfirm --log-level WARN --distpath dist --workpath build/pyinstaller packaging/app.spec
 	@rm -rf "dist/$(APP_NAME)"  # the intermediate one-folder build; the .app holds its own copy
 	@echo "Built dist/$(APP_NAME).app"
 
 build/AppIcon.icns: build/roland/AppIcon.icns packaging/make_icon.py
-	@mise exec -- uv pip sync --quiet --python $(PYTHON) requirements-app.txt
+	@mise exec -- uv pip sync --quiet --require-hashes --python $(PYTHON) requirements-app.txt
 	@$(PYTHON) packaging/make_icon.py $< $@
 
 install:
