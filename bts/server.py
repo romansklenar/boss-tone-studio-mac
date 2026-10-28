@@ -26,6 +26,7 @@ TRACE = os.environ.get("BTS_TRACE") == "1"  # logs every bridge command and nati
 MAX_POST_BYTES = 64 * 1024 * 1024  # an All Data Backup is ~81 KB
 MAX_LOG_CHARS = 500
 MAX_QUEUED_EVENTS = 10_000  # events pile up only while no page polls
+COMMAND_ROUTE = re.compile(r"\$\$[a-z]+_[A-Za-z0-9]+")
 BRIDGE_ROUTES = ("proxy", "log")  # besides `$$<command>`; everything else is Roland's static files
 
 NATIVE_SCRIPT_TAG = '<script src="js/lib/native.js"></script>'
@@ -292,7 +293,7 @@ class Handler(SimpleHTTPRequestHandler):
         if route == "log":
             print(f"[js] {body.decode(errors='replace')[:MAX_LOG_CHARS]!r}")  # repr: the page cannot forge log lines
             return self._reply("")
-        if not re.fullmatch(r"\$\$[a-z]+_[A-Za-z0-9]+", route):  # also keeps control characters out of the log
+        if not COMMAND_ROUTE.fullmatch(route):  # also keeps control characters out of the log
             return self.send_error(404)
         if self.headers.get_content_type() != "application/json":  # a cross-site form cannot send this unasked
             return self.send_error(415)

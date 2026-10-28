@@ -226,6 +226,11 @@ class BridgeFilesTest(unittest.TestCase):
         self.assertTrue(self.bridge._exit_timer.finished.is_set())  # cancelled
         self.assertTrue(self.bridge.on_closing())
 
+    def test_every_command_name_passes_the_route_check(self):
+        for command in self.bridge.commands:
+            with self.subTest(command=command):
+                self.assertTrue(server.COMMAND_ROUTE.fullmatch(f"$${command}"))
+
     def test_no_startevent_command_so_native_js_polls_for_events(self):
         self.assertIn("app_getevent", self.bridge.commands)
         self.assertNotIn("app_startevent", self.bridge.commands)
