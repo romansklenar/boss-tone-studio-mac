@@ -115,6 +115,18 @@ On the first launch the port takes over the Librarian (livesets with patches) fr
 runs once (marker `roland-librarian-imported` in the data folder); `make import-roland` runs it again without
 duplicating livesets already taken over. The Librarian holds at most 50 livesets.
 
+## Verified amplifiers
+
+Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
+
+| Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
+|---|---|---|---|---|---|---|---|---|
+| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
+| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ⏳ not yet seen in the trace | — (same code paths, not repeated) | ✅ | 2026-10-28 |
+
+Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
+are untested. Both amps above show up as the CoreMIDI port `KATANA`; connect one amp at a time.
+
 ## Status
 
 | Area | Status |
@@ -188,8 +200,8 @@ How this project relates to each point:
   needs a rebuild and a re-test.
 - **Partial bridge.** Only the commands the MkII app calls are implemented; anything else answers "undefined" and is
   logged (`make trace`).
-- **Limited testing.** One KATANA-HEAD MkII on macOS 27.2. Other MkII models (50, 100, 212), macOS 14–26 and restoring
-  an All Data Backup are untested.
+- **Limited testing.** KATANA-HEAD MkII and KATANA-ARTIST MkII on macOS 27.2 (see Verified amplifiers). Other MkII
+  models, macOS 14–26 and restoring an All Data Backup are untested.
 - **Signing.** The bundle is ad-hoc signed, not notarized. Built locally it opens normally; copied from elsewhere it
   needs right-click → Open, and a stricter future Gatekeeper could refuse it.
 - **Local server with file access.** Mitigated as described under Security; a program already running as you could
