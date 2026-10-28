@@ -13,6 +13,7 @@ in the README.
 
 ```bash
 make help           # every target
+mise trust          # once, by the user: mise.toml sets environment variables
 make setup          # make deps (toolchain + locked packages into .venv) + make roland-assets
 make lock           # re-resolve requirements*.txt (with hashes) after changing pins in pyproject.toml
 make check          # lint + test — run before committing; CI runs the same on PRs and main

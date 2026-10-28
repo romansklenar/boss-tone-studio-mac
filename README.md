@@ -76,6 +76,7 @@ builds from source), and Roland's KATANA USB driver for the amp (its installer, 
 arm64).
 
 ```bash
+mise trust          # once: lets mise apply mise.toml, which sets environment variables
 make setup          # toolchain, packages and Roland's web app (see How the build works)
 make run            # the app window; `make browser` serves it to a browser, `make trace` logs the bridge
 make app install    # build the standalone .app and copy it to ~/Applications
