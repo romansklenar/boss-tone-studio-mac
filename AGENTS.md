@@ -33,7 +33,13 @@ make check          # lint + test — run before committing; CI runs the same on
 - A pull request with a user-visible change is its own release: it bumps the version and adds a dated entry for it to
   `CHANGELOG.md` (no Unreleased section). After the merge, tag that `main` commit with an annotated tag
   (`git tag -a vX.Y.Z -m vX.Y.Z`) and push it; fix the date in the PR if the merge slips to another day.
-- A GitHub Release carries the changelog notes only. Never attach the built `.app`: it contains Roland's files.
+- Then publish a GitHub Release, without assets — never attach the built `.app`, it contains Roland's files:
+  1. Notes: the version's `CHANGELOG.md` section without its `## [x.y.z] - date` heading, each wrapped paragraph or
+     bullet joined into one line (release notes render every newline as a line break).
+  2. Append GitHub's generated notes (`gh api repos/romansklenar/boss-tone-studio-mac/releases/generate-notes
+     -f tag_name=vX.Y.Z -f previous_tag_name=vPREV --jq .body`), with `## What's Changed` demoted to `###`.
+  3. `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file <file>`; `gh release view v0.1.1` shows the
+     target form.
 
 ## Conventions
 
