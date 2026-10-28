@@ -102,7 +102,8 @@ guard dataDirLock != nil else { fail("Another instance already uses \(dataDir.pa
 // The checkout this was built from, where `make roland-assets` puts Roland's web app.
 let checkout = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent()
-let html = AppPaths.htmlDir(env: environment, bundleResources: Bundle.main.resourceURL, checkout: checkout)
+let resources = AppPaths.bundleResources(bundleURL: Bundle.main.bundleURL, resourceURL: Bundle.main.resourceURL)
+let html = AppPaths.htmlDir(env: environment, bundleResources: resources, checkout: checkout)
 guard isFile(html.appendingPathComponent("index.html")) else {
     fail("Roland's web app not found in \(html.path); run `make roland-assets` or set BTS_HTML_DIR.")
 }

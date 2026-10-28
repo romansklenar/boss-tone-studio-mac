@@ -44,3 +44,12 @@ import Testing
     #expect(AppPaths.dataDir(env: [:]).path == standard)
     #expect(AppPaths.dataDir(env: ["BTS_DATA_DIR": ""]).path == standard, "empty counts as unset")
 }
+
+@Test func bundleResourcesCountOnlyInsideAnApp() {
+    let app = URL(fileURLWithPath: "/Applications/BTS.app", isDirectory: true)
+    let resources = app.appendingPathComponent("Contents/Resources", isDirectory: true)
+    #expect(AppPaths.bundleResources(bundleURL: app, resourceURL: resources) == resources)
+    // A bare executable (`make run`) is its own bundle: its resources are the build folder, never Roland's web app.
+    let build = URL(fileURLWithPath: "/checkout/.build/arm64-apple-macosx/debug", isDirectory: true)
+    #expect(AppPaths.bundleResources(bundleURL: build, resourceURL: build) == nil)
+}

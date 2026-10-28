@@ -20,6 +20,12 @@ public enum AppPaths {
             .appendingPathComponent(appName, isDirectory: true)
     }
 
+    /// The resources folder of the `.app` this runs from, else nil: a bare executable (`make run`) is its own bundle,
+    /// whose "resources" are the build folder, so it would name that folder in the not-found message.
+    public static func bundleResources(bundleURL: URL, resourceURL: URL?) -> URL? {
+        bundleURL.pathExtension == "app" ? resourceURL : nil
+    }
+
     /// `BTS_HTML_DIR` as it is; else the first of the bundle's `roland-html`, the checkout's `build/roland/html` and
     /// Roland's installed app that has an `index.html`, else the first of them (the caller reports it missing).
     public static func htmlDir(env: [String: String], bundleResources: URL?, checkout: URL) -> URL {

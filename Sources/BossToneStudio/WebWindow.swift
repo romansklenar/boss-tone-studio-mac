@@ -24,6 +24,8 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         window.isReleasedWhenClosed = false
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        // Only a click opens a window (which goes to the browser): no script, in the page or an embed, can on its own.
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         webView = MenuFreeWebView(frame: .zero, configuration: configuration)
         webView.isInspectable = ProcessInfo.processInfo.environment["BTS_TRACE"] == "1"
         super.init()
