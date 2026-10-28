@@ -34,12 +34,9 @@ make check          # lint + test — run before committing; CI runs the same on
   `CHANGELOG.md` (no Unreleased section). After the merge, tag that `main` commit with an annotated tag
   (`git tag -a vX.Y.Z -m vX.Y.Z`) and push it; fix the date in the PR if the merge slips to another day.
 - Then publish a GitHub Release, without assets — never attach the built `.app`, it contains Roland's files:
-  1. Notes: the version's `CHANGELOG.md` section without its `## [x.y.z] - date` heading, each wrapped paragraph or
-     bullet joined into one line (release notes render every newline as a line break).
-  2. Append GitHub's generated notes (`gh api repos/romansklenar/boss-tone-studio-mac/releases/generate-notes
-     -f tag_name=vX.Y.Z -f previous_tag_name=vPREV --jq .body`), with `## What's Changed` demoted to `###`.
-  3. `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file <file>`; `gh release view v0.1.1` shows the
-     target form.
+  `make release-notes VERSION=x.y.z` writes its body (the version's changelog section with wrapped lines joined, then
+  GitHub's generated notes) to `tmp/`, and `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file <it>`
+  publishes it.
 
 ## Conventions
 
