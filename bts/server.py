@@ -167,8 +167,10 @@ class Bridge:
     def on_closing(self):
         """Lets the page take the amp out of editor mode first; it answers with $$app_exit."""
         with self._exit_lock:
-            if self._exiting:
+            if self.window is None:  # _app_exit is destroying it
                 return True
+            if self._exiting:  # a second click while the page is still answering
+                return False
             self._exiting = True
             self._exit_timer = threading.Timer(2.0, self._app_exit)
             self._exit_timer.daemon = True

@@ -178,6 +178,8 @@ class BridgeFilesTest(unittest.TestCase):
         self.bridge.window = window
         self.assertFalse(self.bridge.on_closing())  # first close waits for the page
         self.assertEqual(self.bridge._app_getevent(), "app\fcommand\fexit")
+        self.assertFalse(self.bridge.on_closing())  # so does a second click before the page answers
+        self.assertIsNone(self.bridge._app_getevent())  # without asking the page twice
         self.bridge._app_exit()  # the page's $$app_exit
         self.bridge._app_exit()  # the fallback timer, had it not been cancelled
         window.destroy.assert_called_once()

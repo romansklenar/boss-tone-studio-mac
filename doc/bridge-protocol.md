@@ -86,8 +86,8 @@ Behaviour worth knowing:
 - Hot-plug: port lists are compared every ~1.5 s → event `midi\fchanged`.
 - The page sends its MIDI queue one message at a time, paced by its own interval.
 - Closing the window: the shell sends the page `app\fcommand\fexit`; the page sends DT1 `7F 00 00 01 = 00` (editor
-  communication mode off) and calls `$$app_exit` 500 ms later. The pywebview `closing` handler cancels the first close,
-  queues the event and arms a 2 s fallback.
+  communication mode off) and calls `$$app_exit` 500 ms later. The pywebview `closing` handler cancels every close
+  until then, queues the event once and arms a 2 s fallback.
 - A POST to `index.html` is the page's usage telemetry → `204`, forwarded nowhere.
 - Tone Central fetches from `api.roland.com`, `bosstonecentral.com`, YouTube and SoundCloud, whose servers send no CORS
   headers; the proxy fetches them over HTTPS from that allowlist only (redirects checked too). SoundCloud's API rejects
