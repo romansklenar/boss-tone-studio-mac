@@ -122,8 +122,8 @@ The server can read and write files, so:
    since it is appended to the picked path.
 5. `fs_exec` opens `http(s)://` links only.
 6. POST bodies are capped (64 MB): a malformed or oversized `Content-Length` → `400`. Command arguments must be a JSON
-   array of strings (`400` otherwise). Page log lines are printed escaped and truncated, and the server's log of refused
-   bridge requests shows the route but not the token.
+   array of strings (`400` otherwise). Page log lines are printed escaped and truncated, and failed requests are logged
+   with the token removed in any spelling.
 
 The tests in `tests/` cover each rule except the loopback binding and log truncation (rules 1–3 and 6 against a real
 loopback server).
