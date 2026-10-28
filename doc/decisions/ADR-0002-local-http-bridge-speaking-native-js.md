@@ -1,6 +1,7 @@
 # ADR-0002: A local HTTP bridge speaking `native.js`'s own protocol
 
-Status: accepted, 2026-10-27
+Status: accepted, 2026-10-27; the transport part superseded by
+[ADR-0010](ADR-0010-native-js-app-hook-as-the-transport.md)
 
 ## Context
 

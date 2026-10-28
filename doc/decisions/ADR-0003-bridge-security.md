@@ -9,10 +9,10 @@ The bridge reads and writes files and opens URLs. Any web page open in the user'
 
 ## Decision
 
-Listen on loopback only; check `Host` on every request; require a per-launch secret token as a path prefix (carried in
-`$$xhrport`, so `native.js` adds it by itself); reject foreign `Origin`/`Sec-Fetch-Site` and forbid framing, so no
-other website can open the editor either; limit file access to the app's folders and paths picked in a file dialog;
-let `fs.exec` open `http(s)` links only. The rules are listed in `doc/bridge-protocol.md`.
+Listen on loopback only; check `Host` on every request; require a per-launch secret token as a path prefix (held by the
+injected script, [ADR-0010](ADR-0010-native-js-app-hook-as-the-transport.md)); reject foreign `Origin`/`Sec-Fetch-Site`
+and forbid framing, so no other website can open the editor either; limit file access to the app's folders and paths
+picked in a file dialog; let `fs.exec` open `http(s)` links only. The rules are listed in `doc/bridge-protocol.md`.
 
 ## Consequences
 

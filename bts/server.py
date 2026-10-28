@@ -30,74 +30,56 @@ BRIDGE_ROUTES = ("proxy", "log")  # besides `$$<command>`; everything else is Ro
 
 NATIVE_SCRIPT_TAG = '<script src="js/lib/native.js"></script>'
 
-# native.js builds 'http://localhost:' + $$xhrport + '/' + command, so a token appended to the port becomes a path
-# prefix that pages from other origins cannot know.
+# native.js checks for window.$$app before anything else and then calls window['$$' + object][method](args…) for
+# every command, using the result as is. These proxies forward each call to the bridge, behind a per-launch token.
 PRE_NATIVE = """<script>
-window.$$xhrport = '%(port)d/%(token)s';
 (function () {
-  var ua = navigator.userAgent;
-  if (ua.indexOf('roland.quattro') < 0) {
-    Object.defineProperty(navigator, 'userAgent', { get: function () { return ua + ' roland.quattro(Mac)'; } });
+  var base = '/%(token)s/';
+  function call(command, args) {
+    var x = new XMLHttpRequest();
+    x.open('POST', base + command, false);
+    x.setRequestHeader('Content-Type', 'application/json');
+    x.send(JSON.stringify(args.map(String)));  // String(): what native.js's own URL transport would send
+    if (x.status !== 200) throw new Error(x.responseText || 'bridge answered HTTP ' + x.status);
+    var value = JSON.parse(x.responseText);
+    return value === null ? undefined : value;
   }
+  ['app', 'midi', 'midix', 'fs', 'security', 'notification', 'recognizer', 'barcode', 'util'].forEach(function (o) {
+    window['$$' + o] = new Proxy({}, {
+      get: function (_, method) {
+        // A defined startevent would switch native.js to pushed events; it polls $$app_getevent without one.
+        if (typeof method !== 'string' || method === 'startevent') return undefined;
+        return function () { return call('$$' + o + '_' + method, Array.prototype.slice.call(arguments)); };
+      }
+    });
+  });
   window.addEventListener('error', function (e) {
     var x = new XMLHttpRequest();
-    x.open('POST', 'http://localhost:' + window.$$xhrport + '/log', true);
+    x.open('POST', base + 'log', true);
     x.send(e.message + ' @ ' + e.filename + ':' + e.lineno);
   });
-})();
-</script>
-"""
-
-# Roland routes midi.send through webkit.messageHandlers.quattro2, which only their native shell registers.
-# Backups and livesets outgrow a GET URL (http.server caps the request line at 64 KB), so those writes go as POST.
-POST_NATIVE = """
-<script>
-(function () {
-  function call(verb, method, query, body) {
-    var x = new XMLHttpRequest();
-    x.open(verb, 'http://localhost:' + window.$$xhrport + '/' + method + query, false);
-    x.send(body);
-    if (x.status !== 200) throw new Error('bridge answered HTTP ' + x.status);
-    if (x.responseText.charAt(0) === 'e') throw new Error(x.responseText.slice(1));
-  }
-  function post(method, args) { call('POST', method, '', JSON.stringify(args.map(String))); }
-  var readStorage2 = $native.app.storage2;
-  $native.midi.send = function (msg) { call('GET', '$$midi_send', ';' + encodeURIComponent(msg), null); };
-  $native.fs.writeString = function (file, text) { post('$$fs_writeString', [file, text]); };
-  $native.app.storage2 = function (key, data) {
-    if (data === undefined) return readStorage2(key);
-    post('$$app_storage2', [key, data]);
-  };
   // Tone Central's servers send no CORS headers, so its absolute URLs go through the local proxy.
   $.ajaxPrefilter(function (options) {
     if (/^https?:\\/\\//.test(options.url)) {
-      options.url = 'http://localhost:' + window.$$xhrport + '/proxy?url=' + encodeURIComponent(options.url);
+      options.url = base + 'proxy?url=' + encodeURIComponent(options.url);
       options.crossDomain = false;
     }
   });
 })();
-</script>"""
+</script>
+"""
 
 UNSUPPORTED_PAGE = """<!doctype html><meta charset="utf-8"><title>Unsupported</title>
 <p>This version of Roland's editor is not supported: its <code>index.html</code> no longer loads
 <code>js/lib/native.js</code>. Rebuild with <code>make roland-assets</code>.</p>"""
 
 
-def post_args(body):
-    """Arguments of a POSTed command, as strings like GET's (the page script already sends strings)."""
-    return [str(arg) for arg in json.loads(body or b"[]")]
-
-
-def encode(value):
-    if value is None:
-        return "v"
-    if isinstance(value, bool):
-        return "b1" if value else "b"
-    if isinstance(value, int):
-        return f"d{value}"
-    if isinstance(value, float):
-        return f"f{value}"
-    return f"s{value}"
+def command_args(body):
+    """A command's arguments: a JSON array of strings, as the page script sends them."""
+    args = json.loads(body)
+    if not (isinstance(args, list) and all(isinstance(arg, str) for arg in args)):
+        raise ValueError("arguments must be a JSON array of strings")
+    return args
 
 
 def _ignore(*_):
@@ -126,7 +108,6 @@ class Bridge:
         self.midi = Midi(self.emit)
         self._commands = {
             "app_ready": _ignore,
-            "app_startevent": _ignore,  # undefined → native.js falls back to polling $$app_getevent
             "app_getevent": self._app_getevent,
             "app_storage": self._app_storage,
             "app_storage2": self._app_storage2,
@@ -273,15 +254,12 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if not self._trusted_host():
             return self.send_error(403)
-        token, route, raw_args, separator = self._route()
+        token, route = self._route()
         if route is not None:
             if not self._authorized(token):
                 return self.send_error(403)
             if route == "proxy":
                 return self._proxy(urllib.parse.urlsplit(self.path).query)
-            if route.startswith("$$"):
-                args = [urllib.parse.unquote(a) for a in raw_args.split(",")] if separator else []
-                return self._reply(self._call(route[2:], args))
             return self.send_error(405)
         if urllib.parse.urlsplit(self.path).path in ("/", "/index.html"):
             if not self._same_origin():  # other websites must not open the editor
@@ -301,7 +279,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not (length.isascii() and length.isdigit()) or int(length) > MAX_POST_BYTES:
             return self.send_error(400)
         body = self.rfile.read(int(length))  # read even when dropped, so a kept-alive connection stays in sync
-        token, route, _, _ = self._route()
+        token, route = self._route()
         if route is not None and not self._authorized(token):
             return self.send_error(403)
         if route in (None, "proxy"):
@@ -311,10 +289,14 @@ class Handler(SimpleHTTPRequestHandler):
             return None
         if route == "log":
             print(f"[js] {body.decode(errors='replace')[:MAX_LOG_CHARS]!r}")  # repr: the page cannot forge log lines
-            return self._reply("v")
-        if route.startswith("$$"):
-            return self._reply(self._call(route[2:], post_args(body)))
-        return self.send_error(405)
+            return self._reply("")
+        if self.headers.get_content_type() != "application/json":  # a cross-site form cannot send this unasked
+            return self.send_error(415)
+        try:
+            args = command_args(body)
+        except ValueError as error:  # JSONDecodeError included
+            return self._reply(str(error), status=400)
+        return self._call(route[2:], args)
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
@@ -327,14 +309,13 @@ class Handler(SimpleHTTPRequestHandler):
             super().log_request(code, size)
 
     def _route(self):
-        """(token, route, raw arguments, ';' if present) for the bridge's routes; route is None for static files."""
-        path, separator, raw_args = urllib.parse.urlsplit(self.path).path.partition(";")
-        token, slash, route = urllib.parse.unquote(path)[1:].partition("/")
+        """(token, route) for the bridge's routes; route is None for static files."""
+        token, slash, route = urllib.parse.unquote(urllib.parse.urlsplit(self.path).path)[1:].partition("/")
         if not slash:
             token, route = "", token  # a bridge route without a token
         if not (route.startswith("$$") or route in BRIDGE_ROUTES):
-            return None, None, None, None
-        return token, route, raw_args, separator
+            return None, None
+        return token, route
 
     def _authorized(self, token):
         """The per-launch token, compared as bytes (compare_digest refuses non-ASCII str), from this page only."""
@@ -354,18 +335,18 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _call(self, command, args):
         try:
-            return encode(self.bridge.dispatch(command, args))
-        except Exception as error:  # the page decodes anything else than v/b/d/f/s as a thrown Error
+            result = json.dumps(self.bridge.dispatch(command, args))
+        except Exception as error:  # the page script throws the message as an Error
             print(f"[bts] $${command} failed: {error!r}")
-            return f"e{error}"
+            return self._reply(str(error), status=500)
+        return self._reply(result, "application/json")
 
     def _index(self):
         html = (Path(self.directory) / "index.html").read_text(encoding="utf-8")
         if NATIVE_SCRIPT_TAG not in html:
             print("[bts] index.html no longer loads js/lib/native.js; unsupported app version")
             return self._reply(UNSUPPORTED_PAGE, "text/html; charset=utf-8", 500)
-        pre_native = PRE_NATIVE % {"port": self.port, "token": self.token}
-        html = html.replace(NATIVE_SCRIPT_TAG, pre_native + NATIVE_SCRIPT_TAG + POST_NATIVE)
+        html = html.replace(NATIVE_SCRIPT_TAG, PRE_NATIVE % {"token": self.token} + NATIVE_SCRIPT_TAG)
         return self._reply(html, "text/html; charset=utf-8")
 
     def _reply(self, body, content_type="text/plain; charset=utf-8", status=200):
@@ -392,7 +373,7 @@ class IPv6Server(ThreadingHTTPServer):
 
 
 def _bind():
-    """Both loopback addresses on one port, because native.js hard-codes `localhost`."""
+    """Both loopback addresses on one port: the window opens `localhost`, which WebKit may resolve to either."""
     for _ in range(10):
         servers = [ThreadingHTTPServer(("127.0.0.1", 0), None)]
         port = servers[0].server_address[1]

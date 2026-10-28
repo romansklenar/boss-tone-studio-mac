@@ -31,10 +31,9 @@ Rosetta, so macOS 28 removing it should not affect it.
 
 ## How it works
 
-Roland's `js/lib/native.js` already has a macOS transport: when the user agent contains `roland.quattro` and the page
-has `window.$$xhrport`, every `$native.*` call becomes a synchronous
-`GET http://localhost:<$$xhrport>/$$command;arg1,arg2` (here `$$xhrport` is `<port>/<token>`). This project does what
-Roland's native shell does:
+Roland's `js/lib/native.js` hands every `$native.*` call to `window.$$app`, `$$midi`, `$$fs`… when the page defines
+them. This project defines them so that each call becomes a synchronous `POST /<token>/$$command` to a local server,
+and does what Roland's native shell does:
 
 - `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds two
   `<script>` blocks to the `index.html` response to connect the page to it, and implements the commands the MkII app
@@ -117,7 +116,7 @@ Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
 | Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
 |---|---|---|---|---|---|---|---|---|
 | KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
-| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | — (same code paths, not repeated) | ✅ | 2026-10-28 |
+| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
 
 Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
 are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps above show up as the CoreMIDI port
@@ -133,22 +132,18 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 | Remembering the chosen device | ✅ reconnects on the next launch |
 | Closing the window (editor mode off, `$$app_exit`) | ✅ the page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
 | Librarian taken over from Roland's app | ✅ 29 livesets / 254 patches loaded in the original order |
-| File dialogs | ✅ `.tsl` export and import (round trip identical), All Data Backup (81 KB); a Gen 3 `.tsl` is refused by Roland's code ("UNSUPPORTED DATA") |
+| File dialogs | ✅ `.tsl` export and import (round trip identical), All Data Backup (81 KB) saved and restored to the amp; a Gen 3 `.tsl` is refused by Roland's code ("UNSUPPORTED DATA") |
 | Deleting livesets/patches | ✅ fixed (the page passes numeric IDs); liveset delete verified in the window, patch delete in the browser (persists across reload) |
 | Tone Central | ✅ through a local proxy: catalogue, details, YouTube preview, adding a liveset; SoundCloud previews ❌ (Roland's old API key returns 401) |
 | `.app` bundle | ✅ `make app`: standalone (serves the bundled web app, nothing open under `/Applications/BOSS`), arm64, "(Apple Silicon)" name, grey icon |
 
 ## Next steps
 
-1. **Restore from an All Data Backup** — the one file dialog not tested yet (it rewrites every patch in the amp).
-2. **Use `native.js`'s own transport hook** (`window.$$app`, `$$fs`, `$$midi`) instead of the injected overrides: one
-   POST call for every command, no user-agent or `$$xhrport` tricks, no GET/POST split. Planned as the next PR; needs
-   a re-test with an amp.
-3. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
+1. **Gen 3 → MkII preset converter** — a separate project. Roland supports MkII presets on a Gen 3 amp but not the
    other way round; Gen 3 presets store some effects per colour (green/red/yellow) and use different amp types, so a
    conversion would be lossy in known places.
-4. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
-5. **Native rewrite** (later; [ADR-0001](doc/decisions/ADR-0001-python-shell-around-rolands-web-app.md)) — WKWebView +
+2. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
+3. **Native rewrite** (later; [ADR-0001](doc/decisions/ADR-0001-python-shell-around-rolands-web-app.md)) — WKWebView +
    embedded HTTP server + CoreMIDI, no Python: a small signed app instead of a 38 MB bundle with its own Python.
 
 ## Licensing
