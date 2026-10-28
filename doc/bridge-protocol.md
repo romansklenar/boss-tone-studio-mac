@@ -125,7 +125,8 @@ The server can read and write files, so:
    routes and on `index.html`, and every response forbids framing (`X-Frame-Options: DENY`,
    `frame-ancestors 'none'`), so other websites can neither drive the bridge nor open or frame the editor.
 4. `fs_readString`/`fs_writeString` only reach the app's data or temp folder, or exactly a path the user picked in a
-   file dialog during this session (resolved paths).
+   file dialog during this session (resolved paths). The save dialog's extension must be letters and digits, since it
+   is appended to the picked path.
 5. `fs_exec` opens `http(s)://` links only.
 6. POST bodies are capped (64 MB) and need a valid `Content-Length`; page log lines are printed escaped and truncated.
 

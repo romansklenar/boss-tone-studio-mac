@@ -155,6 +155,11 @@ class BridgeFilesTest(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(PermissionError):
                 self.bridge._permitted(path)
 
+    def test_save_dialog_refuses_an_extension_that_leaves_the_folder(self):
+        for ext in ("tsl/../../Library/LaunchAgents/x.plist", "", "t.sl"):
+            with self.subTest(ext=ext), self.assertRaises(PermissionError):
+                self.bridge._fs_savefilename("Backup", ext)
+
     def test_exec_opens_web_links_only(self):
         for target in ("/Applications/Calculator.app", "-aCalculator", "file:///etc/hosts"):
             with self.subTest(target=target), self.assertRaises(PermissionError):

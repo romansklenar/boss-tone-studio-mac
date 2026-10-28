@@ -7,6 +7,7 @@ import functools
 import hmac
 import json
 import os
+import re
 import secrets
 import shutil
 import socket
@@ -229,6 +230,8 @@ class Bridge:
         self._file_dialog("openfilename", dialog_type="OPEN", file_types=file_types)
 
     def _fs_savefilename(self, name, ext):
+        if not re.fullmatch(r"[A-Za-z0-9]{1,10}", ext):  # appended to the chosen path, so it must not hold a "/"
+            raise PermissionError(f"refusing extension {ext!r}")
         self._file_dialog("savefilename", dialog_type="SAVE", save_filename=f"{name}.{ext}", ext=ext)
 
     def _file_dialog(self, event, dialog_type, ext=None, **options):
