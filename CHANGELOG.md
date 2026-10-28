@@ -15,6 +15,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Every spelling of the editor page's path now goes through the origin check; `/./index.html` used to slip past it.
 - Refused requests no longer write the token to the log, and request paths can no longer forge log lines.
+- `make deps` no longer trusts `mise.toml` by itself (run `mise trust` once), and every package sync checks the lock's
+  hashes.
 
 ## [0.1.0] - 2026-10-28
 
