@@ -122,7 +122,7 @@ Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
 | Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
 |---|---|---|---|---|---|---|---|---|
 | KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
-| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ⏳ not yet seen in the trace | — (same code paths, not repeated) | ✅ | 2026-10-28 |
+| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | — (same code paths, not repeated) | ✅ | 2026-10-28 |
 
 Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
 are untested. Both amps above show up as the CoreMIDI port `KATANA`; connect one amp at a time.
