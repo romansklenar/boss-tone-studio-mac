@@ -17,6 +17,9 @@ public protocol MidiBackend: AnyObject, Sendable {
     func onSetupChanged(_ handler: @escaping @Sendable () -> Void)
 }
 
+/// Called from CoreMIDI's threads, possibly while the controller holds its own lock. An implementation must return
+/// promptly: take only a short lock of its own (as `Bridge.emit` does, to append to its event queue), never block on
+/// anything else, and never call back into the controller.
 public typealias Emit = @Sendable (_ prop: String, _ kind: String, _ args: [String]) -> Void
 
 /// The MIDI side of Roland's `$native.midi`, as `bts/midi.py` did it: port lists in the page's endpoint shape, one open
