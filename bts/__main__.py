@@ -5,7 +5,7 @@ python -m bts --browser   # backend only; open the printed URL in a browser (no 
 python -m bts --import-roland   # (re)import the Librarian from Roland's app, then exit
 """
 
-import atexit
+import fcntl
 import os
 import sys
 import threading
@@ -15,7 +15,7 @@ from bts import roland_import, server
 
 APP_NAME = "BOSS TONE STUDIO for KATANA MkII (Apple Silicon)"  # also the bundle name (packaging/app.spec, Makefile)
 DATA_DIR = Path(os.environ.get("BTS_DATA_DIR", Path.home() / "Library/Application Support" / APP_NAME))
-PID_FILE = DATA_DIR / "app.pid"
+LOCK_FILE = DATA_DIR / "app.lock"
 ROLAND_HTML = Path("/Applications/BOSS/KATANA MkII/BOSS TONE STUDIO for KATANA MkII.app/Contents/Resources/html")
 
 
@@ -29,33 +29,39 @@ def html_dir():
     return next((c for c in candidates if (c / "index.html").is_file()), candidates[0])
 
 
-def app_running():
-    """True while another instance serves this data folder; its in-memory Librarian would overwrite an import."""
+def lock_data_dir():
+    """One process per data folder: another one's in-memory Librarian would overwrite this one's writes or an import.
+
+    Returns the locked file, to be kept open for the process's lifetime (the OS releases it on exit), or None.
+    """
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock = LOCK_FILE.open("w")
     try:
-        pid = int(PID_FILE.read_text())
-        os.kill(pid, 0)
-    except (OSError, ValueError):
-        return False
-    return pid != os.getpid()
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock.close()
+        return None
+    return lock
 
 
 def main():
+    lock = lock_data_dir()  # stays open, and so locked, until the process exits
     if "--import-roland" in sys.argv:
-        if app_running():
+        if not lock:
             sys.exit("Quit the app first: it would overwrite the imported Librarian with the one it has open.")
         if not roland_import.ROLAND_PREFS.exists():
             sys.exit(f"Roland's settings not found in {roland_import.ROLAND_PREFS}")
         roland_import.import_librarian(DATA_DIR)
         return
 
+    if not lock:
+        sys.exit(f"Another instance already uses {DATA_DIR}.")
     html = html_dir()
     if not (html / "index.html").is_file():
         sys.exit(f"Roland's web app not found in {html}; run `make roland-assets` or set BTS_HTML_DIR.")
     roland_import.import_once(DATA_DIR)  # before the page loads, so it opens on the imported Librarian
 
     port, bridge = server.start(html, DATA_DIR)
-    PID_FILE.write_text(str(os.getpid()))
-    atexit.register(PID_FILE.unlink, missing_ok=True)
     url = f"http://localhost:{port}/index.html"
 
     if "--browser" in sys.argv:

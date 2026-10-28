@@ -1,4 +1,3 @@
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,23 +6,18 @@ from unittest import mock
 from bts import __main__ as app
 
 
-class AppRunningTest(unittest.TestCase):
-    """`make import-roland` must not run under an open app, whose Librarian would overwrite the import."""
+class DataDirLockTest(unittest.TestCase):
+    """One process per data folder, so `make roland-import` cannot run under an open app, nor two apps side by side."""
 
-    def check(self, content):
-        pid_file = Path(tempfile.mkdtemp()) / "app.pid"
-        if content is not None:
-            pid_file.write_text(content)
-        with mock.patch.object(app, "PID_FILE", pid_file):
-            return app.app_running()
-
-    def test_another_live_process_counts_as_running(self):
-        self.assertTrue(self.check(str(os.getppid())))
-
-    def test_this_process_a_dead_pid_or_no_file_do_not(self):
-        for content in (str(os.getpid()), "999999", "garbage", None):
-            with self.subTest(content=content):
-                self.assertFalse(self.check(content))
+    def test_the_folder_is_locked_until_its_holder_closes_it(self):
+        with mock.patch.object(app, "LOCK_FILE", Path(tempfile.mkdtemp()) / "data/app.lock"):
+            first = app.lock_data_dir()
+            self.assertIsNotNone(first)
+            self.assertIsNone(app.lock_data_dir())
+            first.close()
+            again = app.lock_data_dir()
+            self.assertIsNotNone(again)
+            again.close()
 
 
 if __name__ == "__main__":
