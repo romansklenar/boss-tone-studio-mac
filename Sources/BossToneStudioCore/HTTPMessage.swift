@@ -235,6 +235,7 @@ public struct HTTPResponse: Sendable {
         case 405: "Method Not Allowed"
         case 415: "Unsupported Media Type"
         case 500: "Internal Server Error"
+        case 501: "Not Implemented"
         case 502: "Bad Gateway"
         default: "Status \(status)"
         }
