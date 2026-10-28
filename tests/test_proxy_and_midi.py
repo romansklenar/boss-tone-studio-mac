@@ -1,7 +1,8 @@
 import unittest
 import urllib.request
+from unittest import mock
 
-from bts.midi import split_messages
+from bts.midi import Midi, split_messages
 from bts.proxy import _AllowlistedRedirects, checked_url
 
 
@@ -44,6 +45,26 @@ class SplitMessagesTest(unittest.TestCase):
 
     def test_unterminated_sysex_runs_to_the_end(self):
         self.assertEqual(self.split("F0410000"), ["F0410000"])
+
+
+class MidiConnectTest(unittest.TestCase):
+    def setUp(self):
+        self.events = []
+        self.midi = Midi.__new__(Midi)  # no CoreMIDI: _open only needs the emitter
+        self.midi._emit = lambda *event: self.events.append(event)
+
+    def open(self, port):
+        with mock.patch("builtins.print"):
+            return self.midi._open(port, '{"MIDIEntityNameKey": "KATANA"}')
+
+    def test_a_missing_or_unopenable_port_reports_connectfailed(self):
+        missing = mock.Mock(get_ports=lambda: ["Other"])
+        refused = mock.Mock(get_ports=lambda: ["KATANA"], open_port=mock.Mock(side_effect=RuntimeError("gone")))
+        for port in (missing, refused):
+            with self.subTest(port=port.get_ports()):
+                self.events.clear()
+                self.assertIsNone(self.open(port))
+                self.assertEqual(self.events, [("midi", "connectfailed", '{"MIDIEntityNameKey": "KATANA"}')])
 
 
 if __name__ == "__main__":

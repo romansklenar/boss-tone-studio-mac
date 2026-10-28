@@ -95,10 +95,12 @@ class Midi:
     def _open(self, port, ep_json):
         name = json.loads(ep_json).get("MIDIEntityNameKey") if ep_json else None
         ports = port.get_ports()
-        if name not in ports:
+        try:
+            port.open_port(ports.index(name))  # ValueError when the name is not (or no longer) listed
+        except Exception as error:
+            print(f"[bts] opening MIDI port {name!r} failed: {error!r}")
             self._emit("midi", "connectfailed", ep_json or "")
             return None
-        port.open_port(ports.index(name))
         return port
 
     def _on_message(self, event, _data):
