@@ -293,7 +293,7 @@ class Handler(SimpleHTTPRequestHandler):
         if route == "log":
             print(f"[js] {body.decode(errors='replace')[:MAX_LOG_CHARS]!r}")  # repr: the page cannot forge log lines
             return self._reply("")
-        if not COMMAND_ROUTE.fullmatch(route):  # also keeps control characters out of the log
+        if not COMMAND_ROUTE.fullmatch(route):
             return self.send_error(404)
         if self.headers.get_content_type() != "application/json":  # a cross-site form cannot send this unasked
             return self.send_error(415)
@@ -310,12 +310,15 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_request(self, code="-", size="-"):
-        # Successes are noise and a failing command already printed why; the token stays out of the log.
-        if str(code).startswith(("2", "3", "500")):
-            return
-        route = self._route()[1] if hasattr(self, "path") else None
-        line = self.requestline if route is None else f"{self.command} /<token>/{route!r}"
-        self.log_message('"%s" %s %s', line, code, size)
+        # Successes are noise and a failing command already printed why.
+        if not str(code).startswith(("2", "3", "500")):
+            self.log_message('"%s" %s %s', self._redacted(self.requestline), code, size)  # control chars escaped
+
+    def _redacted(self, text):
+        """The token, in any percent-encoded spelling and anywhere in the request line, kept out of the log."""
+        while (decoded := urllib.parse.unquote(text)) != text:
+            text = decoded
+        return text.replace(self.token, "<token>")
 
     def _route(self):
         """(token, route) for the bridge's routes; route is None for static files."""

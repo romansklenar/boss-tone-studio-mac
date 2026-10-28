@@ -118,17 +118,21 @@ class BridgeHttpTest(unittest.TestCase):
                 page = {"Origin": f"http://{host}:{self.port}", "Sec-Fetch-Site": "same-origin"}
                 self.assertEqual(self.command(f"/{TOKEN}/$$app_storage2", ["3", ""], page)[0], 200)
 
-    def test_refused_requests_are_logged_without_the_token(self):
-        encoded = "%74" + TOKEN[1:]  # the same token, percent-encoded
+    def test_failed_requests_are_logged_without_the_token(self):
+        evil = {"Origin": "https://evil.example"}
         with mock.patch("sys.stderr", new_callable=io.StringIO) as log:
-            for token in (TOKEN, encoded):
-                self.command(f"/{token}/$$app_storage2", headers={"Origin": "https://evil.example"})
-        self.assertEqual(log.getvalue().count(" 403 "), 2)
+            for token in (TOKEN, "%74" + TOKEN[1:], "%2574" + TOKEN[1:]):  # plain, encoded, double-encoded
+                self.command(f"/{token}/$$app_storage2", headers=evil)
+            self.status("GET", f"/{TOKEN}/proxy/")  # no known route
+            self.status("GET", f"/missing.html?t={TOKEN}")  # a static 404
+        self.assertEqual(log.getvalue().count(" 403 "), 3)
+        self.assertEqual(log.getvalue().count(" 404 "), 2)
         self.assertNotIn(TOKEN[1:], log.getvalue())
 
-    def test_command_names_are_checked_before_anything_is_run_or_logged(self):
+    def test_request_paths_cannot_forge_log_lines(self):
         with mock.patch("sys.stderr", new_callable=io.StringIO) as log:
             self.assertEqual(self.command(f"/{TOKEN}/$$x%0a[bts]%20forged")[0], 404)
+            self.assertEqual(self.status("GET", "/x%0a[bts]%20forged"), 404)
         self.assertNotIn("\n[bts] forged", log.getvalue())
         self.assertEqual(self.bridge.calls, [])
 
