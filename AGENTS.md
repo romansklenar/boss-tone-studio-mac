@@ -37,8 +37,7 @@ make check          # lint + test — run before committing; CI runs the same on
 ## Conventions
 
 - Code, comments, docs and commit messages in English; talk to the user in Czech.
-- Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend, trailer
-  `Co-authored-by: Claude <noreply@anthropic.com>`.
+- Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend.
 - 120-character lines (ruff). Lean comments: say why, not what.
 - A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
   consequences); research findings go to `doc/research/YYYY-MM-DD-<topic>.md`.

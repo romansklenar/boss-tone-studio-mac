@@ -1,6 +1,6 @@
 [project]
 name = "boss-tone-studio-mac"
-version = "0.1.0"
+version = "0.1.1"
 description = "Runs Roland's BOSS TONE STUDIO for KATANA MkII web app natively on Apple Silicon"
 requires-python = "==3.13.*"
 # Exact pins; the full transitive lock is requirements.txt (`make lock`).
