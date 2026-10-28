@@ -130,6 +130,9 @@ private func refusedToWrite(_ path: String) -> FileAccessError {
             #expect(try access.checkWrite(path).path == viaPrivate + "/backup.alb")
             #expect(try access.checkRead(path).path == viaPrivate + "/backup.alb")
         }
+        // Folders the write will create: the symlinked part is resolved although neither level exists yet.
+        let nested = try access.checkWrite(viaVar + "/newdir/sub/file.json").path
+        #expect(nested == viaPrivate + "/newdir/sub/file.json")
     }
 }
 
@@ -138,6 +141,31 @@ private func refusedToWrite(_ path: String) -> FileAccessError {
         let link = folders.data.appendingPathComponent("link")
         try FileManager.default.createSymbolicLink(atPath: link.path, withDestinationPath: "/etc")
         let path = link.path + "/hosts"
+        #expect(throws: refusedToRead(path)) { try folders.access.checkRead(path) }
+        #expect(throws: refusedToWrite(path)) { try folders.access.checkWrite(path) }
+    }
+}
+
+@Test func symlinkOutOfTheDataFolderIsRefusedBelowFoldersThatDoNotExistYet() throws {
+    try withFolders { folders throws in
+        // Creating the missing folders and writing the returned URL would otherwise create files in outside/.
+        let link = folders.data.appendingPathComponent("link")
+        try FileManager.default.createSymbolicLink(atPath: link.path, withDestinationPath: folders.outside.path)
+        // Spelled from the resolved data folder, so the unresolved path does match the folder's prefix.
+        let linkPath = onDisk(folders.data.path) + "/link"
+        for path in [linkPath + "/sub/file.json", linkPath + "/a/b/c.json"] {
+            #expect(throws: refusedToRead(path)) { try folders.access.checkRead(path) }
+            #expect(throws: refusedToWrite(path)) { try folders.access.checkWrite(path) }
+        }
+    }
+}
+
+@Test func danglingSymlinkBelowTheDataFolderIsRefusedWhateverFollows() throws {
+    try withFolders { folders throws in
+        let link = folders.data.appendingPathComponent("dangling")
+        try FileManager.default.createSymbolicLink(
+            atPath: link.path, withDestinationPath: folders.outside.path + "/not-there-yet")
+        let path = onDisk(folders.data.path) + "/dangling/sub/file"
         #expect(throws: refusedToRead(path)) { try folders.access.checkRead(path) }
         #expect(throws: refusedToWrite(path)) { try folders.access.checkWrite(path) }
     }

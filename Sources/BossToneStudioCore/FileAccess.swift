@@ -28,7 +28,8 @@ public final class FileAccess: Sendable {
         self.tempDir = tempDir
     }
 
-    /// The canonical file to read; the caller must use the returned URL, not the path it passed in.
+    /// The canonical file to read. Use the returned URL, immediately and once, never the path passed in: the check
+    /// holds for that URL only, and a later use of the input would resolve links again.
     public func checkRead(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path),
             inAppFolder(canonical) || picked.withLock({ $0.opened.contains(canonical) || $0.saved.contains(canonical) })
@@ -36,6 +37,7 @@ public final class FileAccess: Sendable {
         return URL(fileURLWithPath: canonical)
     }
 
+    /// As `checkRead`: write to the returned URL, immediately and once.
     public func checkWrite(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path),
             inAppFolder(canonical) || picked.withLock({ $0.saved.contains(canonical) })
@@ -61,19 +63,26 @@ public final class FileAccess: Sendable {
         }
     }
 
-    /// The path with `..` and links resolved, as Python's `Path.resolve()` gave it, so a link cannot lead out of a
-    /// folder and `/var` and `/private/var` are one place. A file that does not exist yet (a save target) is its
-    /// resolved parent plus its name; with no parent either, the standardised path stands. nil: a path no file
-    /// system call would read as typed (a NUL byte), or a link that leads nowhere (writing through it would create
-    /// its target).
+    /// The path with `..` and links resolved, as Python's non-strict `Path.resolve()` gave it, so a link cannot lead
+    /// out of a folder and `/var` and `/private/var` are one place. What does not exist yet (a save target, folders
+    /// about to be created) is the nearest existing ancestor, resolved, plus the missing names. nil: a path no file
+    /// system call would read as typed (a NUL byte), or a link that leads nowhere, at any level (writing through it
+    /// would create its target).
     static func canonical(_ path: String) -> String? {
         guard !path.utf8.contains(0) else { return nil }
         let standardised = URL(fileURLWithPath: path).standardizedFileURL
-        if let resolved = realPath(standardised.path) { return resolved }
-        var info = stat()
-        guard lstat(standardised.path, &info) != 0 else { return nil }
-        guard let parent = realPath(standardised.deletingLastPathComponent().path) else { return standardised.path }
-        return URL(fileURLWithPath: parent).appendingPathComponent(standardised.lastPathComponent).path
+        let names = standardised.pathComponents.dropFirst()  // the first is "/"
+        for kept in stride(from: names.count, through: 0, by: -1) {
+            let ancestor = "/" + names.prefix(kept).joined(separator: "/")
+            if let resolved = realPath(ancestor) {
+                let missing = names.dropFirst(kept)
+                return missing.reduce(URL(fileURLWithPath: resolved)) { $0.appendingPathComponent($1) }.path
+            }
+            // Present but unresolvable: a dangling link, a loop or no access. Not a name still to be created.
+            var info = stat()
+            if lstat(ancestor, &info) == 0 { return nil }
+        }
+        return standardised.path  // unreachable while "/" resolves
     }
 
     private static func realPath(_ path: String) -> String? {
