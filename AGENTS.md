@@ -12,14 +12,21 @@ in the README.
 ## Commands
 
 ```bash
-make setup          # mise install (pinned Python/ruff/uv) + uv pip sync requirements.txt + make roland-assets
+make setup          # make deps (pinned Python/ruff/uv + requirements.txt into .venv) + make roland-assets
 make lock           # re-resolve requirements*.txt after changing pins in pyproject.toml
 make run | browser | trace | import-roland
 make app | install  # standalone .app (PyInstaller) → dist/, then ~/Applications
 make test           # python -m unittest discover -s tests -t .
 make lint | format  # ruff
-make check          # lint + test — run before committing
+make check          # lint + test — run before committing; CI runs the same on every PR
 ```
+
+## Workflow
+
+- `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `docs/…`).
+- CI (`.github/workflows/ci.yml`) runs `make lint` on Ubuntu and `make deps` + `make test` on macOS 15 (Apple
+  Silicon) for every pull request; actions are pinned to commit SHAs.
+- Push only `main` and feature branches — never `--all`/`--mirror`, and never a local `archive/*` branch.
 
 ## Conventions
 

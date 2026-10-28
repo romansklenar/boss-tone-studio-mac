@@ -5,7 +5,7 @@ SRC        ?= bts tests packaging
 APP_NAME   ?= BOSS TONE STUDIO for KATANA MkII (Apple Silicon)
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help setup roland-assets lock run browser trace import-roland app install test lint format check
+.PHONY: help setup deps roland-assets lock run browser trace import-roland app install test lint format check
 
 help:
 	@echo "BOSS TONE STUDIO for KATANA MkII — Apple Silicon"
@@ -13,7 +13,8 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
-	@echo "  setup          Install pinned tools (mise.toml), locked packages (requirements.txt) and Roland's web app"
+	@echo "  setup          deps + roland-assets"
+	@echo "  deps           Install pinned tools (mise.toml) and locked packages (requirements.txt) into .venv"
 	@echo "  roland-assets  Take Roland's web app and icon out of its installer download (no install, no Rosetta)"
 	@echo "  lock           Re-resolve requirements.txt from the pins in pyproject.toml"
 	@echo "  run            Open the app window"
@@ -27,13 +28,14 @@ help:
 	@echo "  format         Fix the code (ruff check --fix + ruff format)"
 	@echo "  check          lint + test"
 
-setup:
+setup: deps roland-assets
+
+deps:
 	@which mise > /dev/null 2>&1 || (echo "Error: mise not found (brew install mise)" >&2 && exit 1)
 	@mise trust --quiet
 	@mise install
 	@mise exec -- uv venv --quiet --allow-existing --python "$$(mise which python)" .venv
 	@mise exec -- uv pip sync --python $(PYTHON) requirements.txt
-	@packaging/fetch-roland-assets.sh build/roland
 	@echo "Python: $$($(PYTHON) --version), ruff: $$(mise exec -- ruff --version)"
 
 lock:
