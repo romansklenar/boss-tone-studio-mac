@@ -19,8 +19,8 @@ Tools. No Xcode, no third-party packages.
 - The weak points listed in ADR-0003 ("Known weak points") are fixed in this rewrite, not later.
 - Users carry on seamlessly: same app name, bundle identifier, icon, data folder and on-disk formats, so the Librarian,
   the stored MIDI device and settings work unchanged.
-- The Python code, its tests and its tooling are removed in the same branch once the native app passes the amp test
-  below.
+- Every Python test is rewritten in Swift Testing. The Python code, its tooling and, once ported, its tests are removed
+  in the same branch after the native app passes the amp test below.
 
 ## Non-goals
 
@@ -153,14 +153,18 @@ ADR-0003's table is updated to mark each as fixed, with the residual risks that 
 ### Build, version, CI
 
 - `make` stays the entry point: `setup` (check the toolchain, `roland-assets`), `run`, `browser`, `trace`,
-  `roland-import`, `app`, `install`, `test` (`swift test`), `lint`/`format` (`swift format` with a `.swift-format`
-  config at 120 columns), `check`. `make app` builds release arm64, assembles `Contents/MacOS`, `Info.plist`
+  `roland-import`, `app`, `install`, `release-notes`, `test` (`swift test`, compiler warnings as errors),
+  `lint`/`format` (`swift format`, part of the toolchain, with a `.swift-format` config at 120 columns), `check`. `make app` builds release arm64, assembles `Contents/MacOS`, `Info.plist`
   (identifier `local.boss-tone-studio-mac.katana-mk2`, version), `Resources/roland-html` and `AppIcon.icns`, then signs.
 - The icon is recoloured as now (Roland's dark background `#242424` → slate grey `#5C6370`, tolerance 48, partial
   shift on anti-aliased edges), by a small Swift tool or script instead of Pillow.
 - The version moves to a `VERSION` file at the root (AGENTS.md updated); 0.2.0.
-- CI: one macOS job running `make lint` and `make test`; actions stay pinned to commit SHAs. mise, uv and the Ubuntu
-  lint job go.
+- CI, with macOS minutes costing ten times Linux ones:
+  - `make lint` on Ubuntu in the official Swift container, pinned by digest to the Swift version of the local Command
+    Line Tools (swift-format's output can differ between versions). It runs on every push, drafts included.
+  - `make test` on macOS (Network.framework, CoreMIDI and AppKit exist only there), only for pull requests that are
+    ready for review (`ready_for_review` included in the triggers, drafts skipped) and for pushes to `main`.
+  - Actions stay pinned to commit SHAs; in-progress runs are cancelled by newer ones. mise and uv go.
 - New ADRs: the native app (supersedes ADR-0001 and the PyInstaller part of ADR-0008) and the Swift-only toolchain
   (supersedes ADR-0009). ADR-0005's context gets a note that the name stays the UID for the stored choice.
 
@@ -185,16 +189,29 @@ ADR-0003's table is updated to mark each as fixed, with the residual risks that 
    directions, `.tsl` export and import, All Data Backup and its restore, deleting a patch and a liveset, clean close
    with editor mode off. Plus: alerts appear, Tone Central works, the window opens with the existing Librarian.
 3. The bundle is a few MB plus Roland's 13 MB web app, signed with the hardened runtime.
-4. Python, its tests, `mise.toml`, `pyproject.toml`, `requirements*.txt`, `packaging/app.spec` and
-   `packaging/make_icon.py` are removed; README, AGENTS.md, `doc/` and CHANGELOG (0.2.0) describe the Swift app.
+4. Every Python test has a Swift Testing counterpart. Then `bts/`, `tests/`, `mise.toml`, `pyproject.toml`,
+   `requirements*.txt`, `packaging/app.spec` and `packaging/make_icon.py` are removed; README, AGENTS.md, `doc/` and
+   CHANGELOG (0.2.0) describe the Swift app.
 
 The native app installs over 0.1.x under the same name. The fallback is the `v0.1.1` tag (`make setup app install` on
 it).
 
-## Left to the builder
+## Swift implementation choices
 
-- File and type names within the two targets; whether the bridge is an actor or a lock-guarded class.
-- Which CoreMIDI API generation to use (legacy packet lists or MIDI 1.0 event lists), as long as SysEx reassembly and
-  the port names are right.
-- The HTTP parser's internals, MIME table details, how the icon tool is run.
-- Order of work, as long as Python stays runnable until the amp test passes.
+Roman left these to Claude's judgement.
+
+- **Targets:** library `BossToneStudioCore` (no AppKit, no CoreMIDI client) and executable `BossToneStudio`; tests in
+  `Tests/BossToneStudioCoreTests`.
+- **Concurrency:** the bridge is a `final class` whose mutable state sits behind `OSAllocatedUnfairLock` (macOS 13+;
+  `Mutex` needs macOS 15). Commands answer synchronously, like the page's synchronous XHR, so an actor would add
+  `await` without gaining anything. Window work hops to the main thread.
+- **CoreMIDI:** the current, non-deprecated API: `MIDIInputPortCreateWithProtocol(._1_0)` and `MIDISendEventList`
+  with Universal MIDI Packets. Converting between MIDI 1.0 bytes and packets (SysEx7 start/continue/end, channel
+  voice, system messages) is a pure function in the library, unit-tested without a MIDI client. Warnings as errors
+  keeps deprecated calls out.
+- **HTTP:** a hand-written parser over the connection's byte stream: request line and headers up to 64 KB,
+  case-insensitive header names, `Content-Length` up to 64 MB, keep-alive unless `Connection: close`. MIME types from
+  `UTType(filenameExtension:)`, falling back to `application/octet-stream`.
+- **Icon:** `packaging/make-icon.swift`, run by `swift` as a script: it reads every size from Roland's `.icns` with
+  ImageIO, recolours it and writes a new `.icns`.
+- **Order of work:** Python stays runnable until the amp test passes.
