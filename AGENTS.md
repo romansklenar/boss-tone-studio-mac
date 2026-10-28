@@ -29,9 +29,9 @@ make check          # lint + test — run before committing; CI runs the same on
 
 - Semantic Versioning. The version lives only in `pyproject.toml`; `make app` copies it into the bundle's
   `Info.plist`.
-- A pull request with a user-visible change adds a line under `## [Unreleased]` in `CHANGELOG.md`.
-- A release PR bumps the version and moves the Unreleased entries under the new version, dated with the release day.
-  After the merge, tag that `main` commit with an annotated tag (`git tag -a vX.Y.Z -m vX.Y.Z`) and push it.
+- A pull request with a user-visible change is its own release: it bumps the version and adds a dated entry for it to
+  `CHANGELOG.md` (no Unreleased section). After the merge, tag that `main` commit with an annotated tag
+  (`git tag -a vX.Y.Z -m vX.Y.Z`) and push it; fix the date in the PR if the merge slips to another day.
 - A GitHub Release carries the changelog notes only. Never attach the built `.app`: it contains Roland's files.
 
 ## Conventions
