@@ -25,6 +25,9 @@ from bts.midi import Midi
 
 TRACE = os.environ.get("BTS_TRACE") == "1"  # logs every bridge command and native event
 
+MAX_POST_BYTES = 64 * 1024 * 1024  # an All Data Backup is ~81 KB
+MAX_LOG_CHARS = 500
+
 NATIVE_SCRIPT_TAG = '<script src="js/lib/native.js"></script>'
 
 # native.js builds 'http://localhost:' + $$xhrport + '/' + command, so a token appended to the port becomes a path
@@ -158,7 +161,10 @@ class Bridge:
         return False
 
     def _app_getevent(self):
-        return self._events.popleft() if self._events else None
+        try:
+            return self._events.popleft()
+        except IndexError:
+            return None
 
     def _app_storage(self, data=None):
         path = self._data_dir / "storage.json"
@@ -246,18 +252,18 @@ class Handler(SimpleHTTPRequestHandler):
         path = urllib.parse.unquote(path)
         token, _, command = path[1:].partition("/$$")
         if command:
-            if not hmac.compare_digest(token, self.token):
+            if not self._has_token(token):
                 return self.send_error(403)
             return self._native(command, raw_args)
         token, _, route = path[1:].partition("/")
         if route == "__proxy":
-            if not hmac.compare_digest(token, self.token) or not self._same_origin():
+            if not self._has_token(token) or not self._same_origin():
                 return self.send_error(403)
             return self._proxy(urllib.parse.urlsplit(self.path).query)
         if path.startswith("/$$"):
             return self.send_error(403)
         if path == "/__bts/log":
-            print(f"[js] {urllib.parse.unquote(raw_args)}")
+            print(f"[js] {urllib.parse.unquote(raw_args)[:MAX_LOG_CHARS]!r}")  # repr: the page cannot forge log lines
             return self._reply("v")
         if path in ("/", "/index.html"):
             return self._index()
@@ -268,10 +274,12 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_error(403)
         token, _, command = urllib.parse.unquote(urllib.parse.urlsplit(self.path).path)[1:].partition("/$$")
         if command:
-            if not hmac.compare_digest(token, self.token) or not self._same_origin():
+            if not self._has_token(token) or not self._same_origin():
                 return self.send_error(403)
-            body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
-            return self._reply(self._call(command, post_args(body)))
+            length = self.headers.get("Content-Length", "0")
+            if not (length.isascii() and length.isdigit()) or int(length) > MAX_POST_BYTES:
+                return self.send_error(400)
+            return self._reply(self._call(command, post_args(self.rfile.read(int(length)))))
         # Roland's usage telemetry (log_manager.js, also through the proxy) is the only other POST; it goes nowhere.
         self.send_response(204)
         self.end_headers()
@@ -328,6 +336,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _has_token(self, token):
+        # Bytes, because compare_digest refuses non-ASCII str and the path may hold anything.
+        return hmac.compare_digest(token.encode(), self.token.encode())
 
     def _trusted_host(self):
         """Rejects DNS-rebinding requests: only loopback host names may reach the backend."""

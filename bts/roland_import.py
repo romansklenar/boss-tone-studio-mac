@@ -19,7 +19,11 @@ def import_once(data_dir, prefs=ROLAND_PREFS):
     marker = Path(data_dir) / MARKER
     if marker.exists() or not prefs.exists():
         return
-    summary = import_librarian(Path(data_dir) / "storage2", prefs)
+    try:
+        summary = import_librarian(Path(data_dir) / "storage2", prefs)
+    except Exception as error:  # an unreadable plist must not keep the app from starting
+        summary = f"Import failed ({error!r}); retry with `make import-roland`"
+        print(f"[bts] {summary}")
     marker.write_text(summary + "\n", encoding="utf-8")
 
 

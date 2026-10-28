@@ -83,6 +83,12 @@ class RolandImportTest(unittest.TestCase):
 
         self.assertEqual(self.ids(), [2, 1])
 
+    def test_import_once_survives_an_unreadable_plist(self):
+        self.prefs.write_bytes(b"not a plist")
+        roland_import.import_once(self.data_dir, self.prefs)
+
+        self.assertIn("Import failed", (self.data_dir / roland_import.MARKER).read_text())
+
     def test_import_once_waits_for_roland_settings(self):
         roland_import.import_once(self.data_dir, self.tmp / "missing.plist")
 

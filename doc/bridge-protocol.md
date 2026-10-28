@@ -116,9 +116,13 @@ The server can read and write files, so:
 
 1. It listens on loopback only and checks `Host` ∈ {`localhost:P`, `127.0.0.1:P`, `[::1]:P`} on every request
    (DNS rebinding).
-2. A per-launch token (`secrets.token_urlsafe(24)`), compared with `hmac.compare_digest`, guards `/$$…` and
-   `/__proxy` (GET and POST) → `403` without it.
+2. A per-launch token (`secrets.token_urlsafe(24)`), compared with `hmac.compare_digest`, guards `/$$…` commands (GET
+   and POST) and GET `/__proxy` → `403` without it. Any other POST (the page's telemetry, also through the proxy) is
+   dropped with `204` and reaches nothing.
 3. A foreign `Origin` and any `Sec-Fetch-Site` outside {absent, `same-origin`, `none`} are rejected.
 4. `fs_readString`/`fs_writeString` only reach the app's data or temp folder, or exactly a path the user picked in a
    file dialog during this session (resolved paths).
 5. `fs_exec` opens `http(s)://` links only.
+6. POST bodies are capped (64 MB) and need a valid `Content-Length`; page log lines are printed escaped and truncated.
+
+`tests/test_bridge_http.py` covers each rule against a real loopback server.

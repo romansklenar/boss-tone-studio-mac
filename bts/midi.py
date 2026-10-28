@@ -16,6 +16,9 @@ def split_messages(data):
     messages, i = [], 0
     while i < len(data):
         status = data[i]
+        if status < 0x80:  # a stray data byte without a status: nothing to send it with
+            i += 1
+            continue
         if status == 0xF0:
             end = data.find(0xF7, i)
             end = len(data) - 1 if end < 0 else end
@@ -106,7 +109,11 @@ class Midi:
     def _watch_ports(self):
         while True:
             time.sleep(1.5)
-            ports = self._port_names()
+            try:
+                ports = self._port_names()
+            except Exception as error:  # a transient CoreMIDI failure must not end hot-plug detection
+                print(f"[bts] listing MIDI ports failed: {error!r}")
+                continue
             if ports != self._ports:
                 self._ports = ports
                 self._emit("midi", "changed")
