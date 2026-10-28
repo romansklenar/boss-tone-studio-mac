@@ -6,7 +6,8 @@ SRC        ?= bts tests packaging
 APP_NAME   ?= BOSS TONE STUDIO for KATANA MkII (Apple Silicon)
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help setup deps roland-assets lock run browser trace roland-import app install test lint format check
+.PHONY: help setup deps roland-assets lock run browser trace roland-import app install release-notes test lint \
+	format check
 
 help:
 	@echo "BOSS TONE STUDIO for KATANA MkII — Apple Silicon"
@@ -24,6 +25,7 @@ help:
 	@echo "  roland-import  Re-import the Librarian from Roland's own app"
 	@echo "  app            Build a standalone dist/$(APP_NAME).app (PyInstaller; Roland's web app inside)"
 	@echo "  install        Copy the built app to $(INSTALL_DIR)"
+	@echo "  release-notes  Write the GitHub Release body for VERSION=x.y.z (tagged) to tmp/"
 	@echo "  test           Run the unit tests"
 	@echo "  lint           Check the code (ruff check + ruff format --check)"
 	@echo "  format         Fix the code (ruff check --fix + ruff format)"
@@ -73,6 +75,10 @@ install:
 	@mkdir -p "$(INSTALL_DIR)" && rm -rf "$(INSTALL_DIR)/$(APP_NAME).app"
 	@cp -R "dist/$(APP_NAME).app" "$(INSTALL_DIR)/"
 	@echo "Installed $(INSTALL_DIR)/$(APP_NAME).app"
+
+release-notes:
+	@test -n "$(VERSION)" || (echo "Error: usage: make release-notes VERSION=x.y.z" >&2 && exit 1)
+	@packaging/release-notes.sh "$(VERSION)" "tmp/release-notes-v$(VERSION).md"
 
 test:
 	@$(PYTHON) -m unittest discover -s tests -t .
