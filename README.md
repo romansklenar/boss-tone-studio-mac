@@ -35,8 +35,8 @@ Roland's `js/lib/native.js` hands every `$native.*` call to `window.$$app`, `$$m
 them. This project defines them so that each call becomes a synchronous `POST /<token>/$$command` to a local server,
 and does what Roland's native shell does:
 
-- `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds two
-  `<script>` blocks to the `index.html` response to connect the page to it, and implements the commands the MkII app
+- `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds one
+  `<script>` block to the `index.html` response to connect the page to it, and implements the commands the MkII app
   calls: storage, files, MIDI, events.
 - `bts/midi.py` — CoreMIDI through `python-rtmidi` (arm64).
 - `bts/storage.py` — the page's `app.storage2` (one file per key), written atomically; shared with the import.
@@ -66,7 +66,7 @@ Inspired by the [Linux port for KATANA Gen 3](https://github.com/Shesherd/BOSS-T
 4. **Install** (`make install`) — copies the bundle to `~/Applications`.
 
 At runtime the app imports Roland's Librarian on the first launch, starts the local server, serves the bundled web
-app with the bridge scripts injected into the `index.html` response, and opens a WKWebView window on it. Nothing in
+app with the bridge script injected into the `index.html` response, and opens a WKWebView window on it. Nothing in
 `build/`, `dist/` or `tmp/` is committed.
 
 ## Setup and usage
@@ -166,7 +166,7 @@ How this project relates to each point:
 - **One computer, one backup** — the app is built and used on your own Mac. The kept installer zip is the backup
   copy; `build/roland/` and the bundle are the working copy, as Roland's installer would put it in `/Applications`.
 - **No modification** — Roland's files stay byte-identical (installer SHA-256, `diff` against an installed copy). At
-  runtime the server adds two `<script>` blocks to the `index.html` *response* to connect the page to our bridge, the
+  runtime the server adds one `<script>` block to the `index.html` *response* to connect the page to our bridge, the
   way a browser extension would; nothing on disk changes. This is the most debatable point: it does change how
   Roland's software behaves while it runs.
 - **No reverse engineering** — the bridge was written from Roland's own plain-text JavaScript (`native.js` runs in the
