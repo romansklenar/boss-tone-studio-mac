@@ -12,6 +12,7 @@ APP_NAME   ?= BOSS TONE STUDIO for KATANA MkII (Apple Silicon)
 APP        = dist/$(APP_NAME).app
 APP_VERSION = $(shell cat VERSION)
 INSTALL_DIR ?= $(HOME)/Applications
+RELEASE_BUILD = swift build -c release --arch arm64 $(SWIFT_FLAGS)
 
 .PHONY: help setup swift-version roland-assets roland-fresh run browser trace roland-import build app \
 	install release-notes test lint format check
@@ -73,25 +74,18 @@ roland-fresh:
 	@rm -rf build/roland/html
 	@packaging/fetch-roland-assets.sh build/roland
 
-# The icon is built by a sub-make: it must see the timestamp of the icon `roland-fresh` has just replaced.
 # cp -X: extended attributes (Finder info, resource forks) would break the bundle's seal.
 app: swift-version roland-fresh
-	@$(MAKE) --no-print-directory build/AppIcon.icns
-	@swift build -c release --arch arm64 $(SWIFT_FLAGS)
+	@swift packaging/make-icon.swift build/roland/AppIcon.icns build/AppIcon.icns
+	@$(RELEASE_BUILD)
 	@rm -rf "$(APP)"
 	@mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
-	@cp "$$(swift build -c release --arch arm64 --show-bin-path)/BossToneStudio" "$(APP)/Contents/MacOS/"
+	@cp "$$($(RELEASE_BUILD) --show-bin-path)/BossToneStudio" "$(APP)/Contents/MacOS/"
 	@sed 's/@VERSION@/$(APP_VERSION)/g' packaging/Info.plist > "$(APP)/Contents/Info.plist"
 	@cp -X build/AppIcon.icns "$(APP)/Contents/Resources/AppIcon.icns"
 	@cp -RX build/roland/html "$(APP)/Contents/Resources/roland-html"
 	@codesign --force --sign - --options runtime --timestamp=none "$(APP)"
 	@echo "Built $(APP)"
-
-build/roland/AppIcon.icns:
-	@packaging/fetch-roland-assets.sh build/roland
-
-build/AppIcon.icns: build/roland/AppIcon.icns packaging/make-icon.swift
-	@swift packaging/make-icon.swift $< $@
 
 install:
 	@test -d "$(APP)" || (echo "Error: run 'make app' first" >&2 && exit 1)
