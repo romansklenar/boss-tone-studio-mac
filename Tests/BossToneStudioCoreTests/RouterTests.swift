@@ -373,6 +373,22 @@ private struct TestServer {
     #expect(try await server.client.status("GET", "/\(token)/log") == 405)
 }
 
+@Test func pageLogLinesLeaveTheTokenOut() async throws {
+    let server = try TestServer()
+    defer { server.stop() }
+    // What the error listener sends: `e.filename` is a URL of the page, under the token.
+    let error = "boom @ \(server.origin)/\(token)/js/app.js:3 (%74\(token.dropFirst()), %2574\(token.dropFirst()))"
+    #expect(try await server.client.status("POST", "/\(token)/log", body: Data(error.utf8)) == 200)
+    // Redacted before the cut, so no part of the token is left at the end of a long line.
+    let long = String(repeating: "a", count: 495) + token
+    #expect(try await server.client.status("POST", "/\(token)/log", body: Data(long.utf8)) == 200)
+    #expect(
+        server.log.all == [
+            "[js] 'boom @ \(server.origin)/<token>/js/app.js:3 (<token>, <token>)'",
+            "[js] '\(String(repeating: "a", count: 495))<toke'",
+        ])
+}
+
 @Test func pageLogLinesAreCutAt500CodePoints() async throws {
     let server = try TestServer()
     defer { server.stop() }

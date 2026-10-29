@@ -170,12 +170,13 @@ public final class Router: Sendable {
         return ""
     }
 
-    /// Page errors, escaped and cut, so the page cannot forge log lines.
+    /// Page errors, escaped and cut, so the page cannot forge log lines. They name the page's files by URL, so the
+    /// token goes first: cutting first could leave part of it.
     private func pageLog(_ request: HTTPRequest) -> HTTPResponse {
         guard request.method == "POST" else { return .error(405) }
+        let body = redacted(String(decoding: request.body, as: UTF8.self))
         var text = ""
-        text.unicodeScalars.append(
-            contentsOf: String(decoding: request.body, as: UTF8.self).unicodeScalars.prefix(Self.maxPageLogCharacters))
+        text.unicodeScalars.append(contentsOf: body.unicodeScalars.prefix(Self.maxPageLogCharacters))
         output("[js] \(escaped(text))")
         return .text("")
     }
@@ -216,17 +217,22 @@ public final class Router: Sendable {
 
     // MARK: logs
 
-    /// The request line with the token removed in any percent-encoded spelling and control characters escaped (as
-    /// `escaped` does, without its quotes), so a failed request neither leaks the token nor forges a log line.
+    /// The request line with the token removed and control characters escaped (as `escaped` does, without its
+    /// quotes), so a failed request neither leaks the token nor forges a log line.
     private func loggable(_ requestLine: String) -> String {
-        var text = requestLine
+        String(escaped(redacted(requestLine)).dropFirst().dropLast())
+    }
+
+    /// `text` percent-decoded and with the token, in any percent-encoded spelling, replaced by `<token>`.
+    private func redacted(_ text: String) -> String {
+        var text = text
         // Each round undoes one level of encoding; a bound keeps a deeply nested `%25…` from costing a round per byte.
         for _ in 0..<32 {
             let decoded = percentDecoded(text)
             if decoded == text { break }
             text = decoded
         }
-        return String(escaped(text.replacingOccurrences(of: token, with: "<token>")).dropFirst().dropLast())
+        return text.replacingOccurrences(of: token, with: "<token>")
     }
 }
 
