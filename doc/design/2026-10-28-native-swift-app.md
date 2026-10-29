@@ -95,8 +95,10 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
   without a MIDI client; warnings as errors keep deprecated calls out.
 - Port names equal what python-rtmidi reported (`KATANA`, `KATANA DAW CTRL` on the verified amps), because the page
   stored `KATANA` as the device's `MIDIEndpointUIDKey` (ADR-0005: the name is the UID). They are built as rtmidi's
-  `CreateEndpointName`; ports with connections drawn in Audio MIDI Setup are the only ones python-rtmidi named
-  otherwise (ADR-0011). Both amps reconnected to the stored device without the device picker.
+  `CreateEndpointName`; ports with connections drawn in Audio MIDI Setup are the only ones python-rtmidi built otherwise
+  (ADR-0011), and a name with non-ASCII characters reads differently, since python-rtmidi decoded names as MacRoman
+  (`encoding='auto'`); such a device goes through the device picker once. Both amps reconnected to the stored device
+  without the device picker.
 - Incoming: one event per whole message, SysEx reassembled across packets, MIDI time code quarter frames (`F1`),
   timing clock (`F8`) and active sensing (`FE`) dropped as in 0.1.1, a SysEx longer than 1 MiB dropped, hex
   uppercase, timestamp in milliseconds since the epoch.

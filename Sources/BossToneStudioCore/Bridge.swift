@@ -2,9 +2,10 @@ import Darwin
 import Foundation
 import os
 
-/// The app window as the bridge needs it; there is none in `--browser` mode. The bridge calls these from connection
-/// queues and from the exit fallback's task, never while it holds one of its own locks, so an implementation may hop
-/// to the main thread and wait for it.
+/// The app window as the bridge needs it; there is none in `--browser` mode. The bridge calls these from the task that
+/// serves a connection, which runs on Swift's global executor, and from the exit fallback's task, never while it holds
+/// one of its own locks. An implementation must not block that thread: it hops to the main thread asynchronously (no
+/// `sync`) and returns.
 public protocol BridgeHost: AnyObject, Sendable {
     func closeWindow()
     /// `completion` gets the chosen path, or nil when the user cancelled. It must be called exactly once, from any

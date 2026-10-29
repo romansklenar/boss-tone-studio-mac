@@ -11,8 +11,8 @@ public struct FileAccessError: Error, Equatable, LocalizedError {
 
 /// Which files the page may reach (`doc/bridge-protocol.md`, rule 5): the app's data and temp folders, plus exactly
 /// what the user picked in a file dialog. A picked file to open is readable only; a picked path to save is both, since
-/// the page writes a backup and may read it back. Dialog results arrive on the main thread and commands on connection
-/// queues, so the picked paths sit behind a lock.
+/// the page writes a backup and may read it back. Dialog results arrive on the main thread and commands in the tasks
+/// that serve connections, so the picked paths sit behind a lock.
 public final class FileAccess: Sendable {
     private struct Picked {
         var opened: Set<String> = []

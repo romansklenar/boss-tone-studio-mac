@@ -40,7 +40,9 @@ Where the port had to choose, it chose:
   is refused; 0.1.1 followed a dangling link to its missing target and checked that.
 - `window.open` without a user gesture does nothing; a click's new window goes to the default browser.
 - Port names are built as rtmidi's `CreateEndpointName` builds them, not its connected-endpoint variant; the two
-  differ only for ports with connections drawn in Audio MIDI Setup. The name stays the UID (ADR-0005).
+  differ only for ports with connections drawn in Audio MIDI Setup. The name stays the UID (ADR-0005). Names are read
+  as CoreMIDI holds them, where python-rtmidi decoded them as MacRoman (`encoding='auto'`): a device whose name has
+  non-ASCII characters goes through the device picker once.
 - Hot-plug follows CoreMIDI's setup-changed notification instead of a 1.5 s poll, and `midi\fchanged` is sent only when
   the port lists really changed.
 - A connection is closed after 30 s without a complete request, and the HTTP parser refuses anything that could be

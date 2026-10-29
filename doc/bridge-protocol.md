@@ -71,10 +71,12 @@ complete request.
 Behaviour worth knowing:
 
 - Inputs and outputs are paired by an identical `MIDIEntityNameKey`, so input and output port names must match.
-- The page remembers the chosen device by `MIDIEndpointUIDKey`; without one, every port matches. The port name serves
-  as the UID (ADR-0005), so a device stored under 0.1.x is found again. Names are built as python-rtmidi built them
-  for ports without connections drawn in Audio MIDI Setup (ADR-0011): the endpoint's name without surrounding spaces,
-  else its entity's, with the device's name in front unless the name already starts with it.
+- The page remembers the chosen device by `MIDIEndpointUIDKey`; without one, every port matches. The port name serves as
+  the UID (ADR-0005), so a device stored under 0.1.x is found again. Names are built as python-rtmidi built them for
+  ports without connections drawn in Audio MIDI Setup (ADR-0011): the endpoint's name without surrounding spaces, else
+  its entity's, with the device's name in front unless the name already starts with it. A name with non-ASCII characters
+  is the exception: python-rtmidi decoded CoreMIDI's names as MacRoman (`encoding='auto'`), the app reads them as
+  CoreMIDI holds them, so such a device goes through the device picker once.
 - Ports whose names contain any of `<>&"'` are neither listed nor opened, since the page renders names as HTML.
 - Incoming MIDI: event `midi\fmessage\f<HEX, uppercase, no spaces>\f<timestamp ms>`; one whole message per event,
   sysex reassembled across packets; MIDI time code quarter frames (`F1`), timing clock (`F8`) and active sensing (`FE`)
@@ -88,7 +90,8 @@ Behaviour worth knowing:
   go this way: closing is refused until then, the event is queued once and a 2 s fallback is armed. `$$app_exit`
   disconnects MIDI and closes the window, which quits the app.
 - Storage and file reads return the text as stored; a file that is not UTF-8 is an error.
-- A POST to one of the page's own files (`index.html`) is the page's usage telemetry → `204`, forwarded nowhere.
+- The page's usage telemetry posts to `index.html` and, through the proxy, to Roland. As in 0.1.1, a POST to any path
+  under the token other than `$$…` and `log`, whether a file is there or not, gets `204` and is forwarded nowhere.
 - Tone Central fetches from `api.roland.com`, `bosstonecentral.com`, YouTube and SoundCloud, whose servers send no CORS
   headers; the proxy fetches the first three (see Security). SoundCloud's API rejects the page's old client ID, so its
   audio previews never worked and its requests are refused.
@@ -121,11 +124,11 @@ The server can read and write files, so:
    `501`.
 2. Everything lives under a per-launch token (24 random bytes, URL-safe base64), compared in constant time: the page
    `/<token>/index.html`, its files, the commands `/<token>/$$…`, `/<token>/proxy` and `/<token>/log`. Any other path
-   gets `403`, so the server never gives the token away; the window opens the page with it, and `--browser` prints
-   that URL. Commands are POST only (GET → `405`), are named `$$<object>_<method>` in ASCII (`404` otherwise) and need
-   `Content-Type: application/json` (`415` otherwise), which no cross-site form can send without a preflight. The
-   page's usage telemetry — POSTs to its own files, or to Roland through the proxy — is dropped with `204` and reaches
-   nothing.
+   gets `403`, so the server never gives the token away; the window opens the page with it, and `--browser` prints that
+   URL. Commands are POST only (GET → `405`), are named `$$<object>_<method>` in ASCII (`404` otherwise) and need
+   `Content-Type: application/json` (`415` otherwise), which no cross-site form can send without a preflight. A POST
+   under the token to anything but `$$…` or `log` is taken for the page's usage telemetry (to `index.html`, or to Roland
+   through the proxy): it is dropped with `204` and reaches nothing.
 3. A foreign `Origin` (anything but `http://127.0.0.1:P`) and any `Sec-Fetch-Site` outside {absent, `same-origin`,
    `none`} are rejected on every path under the token, the page under any spelling of its path (`/<token>/`,
    `/<token>/./index.html`, `/<token>/%69ndex.html`…) included. Static files are served only from inside the web app's

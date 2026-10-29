@@ -8,7 +8,9 @@ struct CoreMIDIError: Error, CustomStringConvertible {
 }
 
 /// `MidiBackend` on CoreMIDI, with ports named as python-rtmidi named them in 0.1.1: the page stored that name as the
-/// device's UID (ADR-0005), so a different one would send users back to the device picker.
+/// device's UID (ADR-0005), so a different one would send users back to the device picker. Names are taken as CoreMIDI
+/// holds them, though: python-rtmidi decoded them as MacRoman (`encoding='auto'`), so a device whose name has
+/// non-ASCII characters goes through the picker once.
 ///
 /// CoreMIDI calls the notification block and each input's receive block on threads of its own, never from inside the
 /// calls below, and no lock is held across a CoreMIDI call: the contract on `MidiBackend` holds.
