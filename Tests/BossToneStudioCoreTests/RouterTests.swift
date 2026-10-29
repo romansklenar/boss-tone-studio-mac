@@ -45,27 +45,18 @@ private final class RecordingDispatcher: CommandDispatching {
 
 private final class StubProxy: ProxyFetching {
     private let answer: @Sendable (String) async -> ProxyResult
-    private let fetched = OSAllocatedUnfairLock(initialState: [String]())
+    private let fetched = Recorder<String>()
 
     init(_ answer: @escaping @Sendable (String) async -> ProxyResult = { _ in .failed("unexpected fetch") }) {
         self.answer = answer
     }
 
-    var urls: [String] { fetched.withLock { $0 } }
+    var urls: [String] { fetched.all }
 
     func fetch(_ url: String) async -> ProxyResult {
-        fetched.withLock { $0.append(url) }
+        fetched.append(url)
         return await answer(url)
     }
-}
-
-/// What the router printed, line by line.
-private final class LogLines: Sendable {
-    private let lines = OSAllocatedUnfairLock(initialState: [String]())
-
-    var all: [String] { lines.withLock { $0 } }
-
-    func append(_ line: String) { lines.withLock { $0.append(line) } }
 }
 
 private let nativeJS = "window.native = true;\n"
@@ -77,7 +68,7 @@ private struct TestServer {
     let html: URL
     let dispatcher: RecordingDispatcher
     let proxy: StubProxy
-    let log = LogLines()
+    let log = Recorder<String>()  // what the server and the router printed, line by line
     private let server: HTTPServer
 
     var port: UInt16 { client.port }

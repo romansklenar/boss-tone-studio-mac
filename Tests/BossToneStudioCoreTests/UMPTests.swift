@@ -1,5 +1,4 @@
 import Testing
-import os
 
 @testable import BossToneStudioCore
 
@@ -155,17 +154,17 @@ private func sysExStatuses(_ words: [UInt32]) -> [UInt32] {
 }
 
 @Test func aSysExOfUpTo1MiBIsReassembledAndALongerOneDroppedWithOneLogLine() {
-    let lines = OSAllocatedUnfairLock(initialState: [String]())
-    var reassembler = UMPReassembler { line in lines.withLock { $0.append(line) } }
+    let lines = Recorder<String>()
+    var reassembler = UMPReassembler { lines.append($0) }
     let largest = sysEx(payloadCount: 1_048_576 - 2)  // F0 and F7 count
     #expect(reassembler.feed(umpWords(for: largest)) == [largest])
-    #expect(lines.withLock { $0 } == [])
+    #expect(lines.all == [])
 
     // Over by one byte at the end packet, and by many in the middle: each is dropped once, logged once.
     for payloadCount in [1_048_576 - 1, 1_100_000] {
-        lines.withLock { $0.removeAll() }
+        lines.clear()
         #expect(reassembler.feed(umpWords(for: sysEx(payloadCount: payloadCount))) == [], "\(payloadCount)")
-        #expect(lines.withLock { $0 } == ["[bts] dropped an incoming SysEx longer than 1048576 bytes"])
+        #expect(lines.all == ["[bts] dropped an incoming SysEx longer than 1048576 bytes"])
     }
     // Nothing of the dropped one is left behind.
     #expect(reassembler.feed(umpWords(for: [0xF0, 0x01, 0xF7])) == [[0xF0, 0x01, 0xF7]])

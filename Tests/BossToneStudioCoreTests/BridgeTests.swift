@@ -72,73 +72,16 @@ private final class FakeHost: BridgeHost {
     }
 }
 
-/// One listed `KATANA` port that remembers what the bridge asked of it.
-private final class FakeMidiBackend: MidiBackend {
-    private struct State {
-        var calls: [String] = []
-        var sent: [[UInt8]] = []
-        var onMessage: (@Sendable ([UInt8]) -> Void)?
-    }
-
-    private let state = OSAllocatedUnfairLock(initialState: State())
-
-    var calls: [String] { state.withLock { $0.calls } }
-    var sent: [[UInt8]] { state.withLock { $0.sent } }
-
-    func fireMessage(_ message: [UInt8]) {
-        state.withLock { $0.onMessage }?(message)
-    }
-
-    func sourceNames() -> [String] { ["KATANA"] }
-    func destinationNames() -> [String] { ["KATANA"] }
-
-    func connectInput(named name: String, onMessage: @escaping @Sendable ([UInt8]) -> Void) throws {
-        state.withLock {
-            $0.calls.append("connectInput \(name)")
-            $0.onMessage = onMessage
-        }
-    }
-
-    func disconnectInput() {
-        state.withLock {
-            $0.calls.append("disconnectInput")
-            $0.onMessage = nil
-        }
-    }
-
-    func connectOutput(named name: String) throws {
-        state.withLock { $0.calls.append("connectOutput \(name)") }
-    }
-
-    func disconnectOutput() {
-        state.withLock { $0.calls.append("disconnectOutput") }
-    }
-
-    func send(_ message: [UInt8]) throws {
-        state.withLock { $0.sent.append(message) }
-    }
-
-    func onSetupChanged(_ handler: @escaping @Sendable () -> Void) {}
-}
-
-private final class OpenedURLs: Sendable {
-    private let urls = OSAllocatedUnfairLock(initialState: [URL]())
-
-    var all: [URL] { urls.withLock { $0 } }
-
-    func record(_ url: URL) { urls.withLock { $0.append(url) } }
-}
-
 /// A bridge over a fresh data folder (not created yet, as on a first launch) that is wound down afterwards: the
 /// fallback timer cancelled and the temp folder removed.
 private func withBridge<T>(
     midi: MidiBackend? = nil, host: BridgeHost? = nil, exitFallback: Duration = .seconds(60),
-    opened: OpenedURLs = OpenedURLs(),
+    opened: Recorder<URL> = Recorder(),
     _ body: (Bridge, URL) throws -> T
 ) throws -> T {
     try withTemporaryFolder { root in
         let data = root.appendingPathComponent("data")
-        let bridge = try Bridge(dataDir: data, midiBackend: midi, exitFallback: exitFallback) { opened.record($0) }
+        let bridge = try Bridge(dataDir: data, midiBackend: midi, exitFallback: exitFallback) { opened.append($0) }
         bridge.host = host
         defer {
             bridge.appExit()
@@ -359,7 +302,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
 }
 
 @Test func execOpensWebLinksOnly() throws {
-    let opened = OpenedURLs()
+    let opened = Recorder<URL>()
     try withBridge(opened: opened) { bridge, _ throws in
         for target in ["/Applications/Calculator.app", "-aCalculator", "file:///etc/hosts", "", "ftp://example.com"] {
             #expect(throws: BridgeError(description: "refusing to open \(escaped(target))")) {
@@ -380,7 +323,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
 
 @Test func execRefusesLinksBackToThisMac() throws {
     // The page's own URLs carry the token: no spelling a browser reads as this Mac may reach it.
-    let opened = OpenedURLs()
+    let opened = Recorder<URL>()
     try withBridge(opened: opened) { bridge, _ throws in
         let refused = [
             "http://127.0.0.1:8080/token/index.html", "https://127.0.0.1/", "http://127.0.0.1./", "http://127.1:8080/",
