@@ -3,9 +3,9 @@ import Foundation
 import os
 
 /// The app window as the bridge needs it; there is none in `--browser` mode. The bridge calls these from the task that
-/// serves a connection, which runs on Swift's global executor, and from the exit fallback's task, never while it holds
-/// one of its own locks. An implementation must not block that thread: it hops to the main thread asynchronously (no
-/// `sync`) and returns.
+/// serves a connection, which runs on Swift's global executor, and from the exit fallback, which runs on a Dispatch
+/// queue of its own so that busy cooperative threads cannot delay it; never while it holds one of its own locks. An
+/// implementation must not block that thread: it hops to the main thread asynchronously (no `sync`) and returns.
 public protocol BridgeHost: AnyObject, Sendable {
     func closeWindow()
     /// `completion` gets the chosen path, or nil when the user cancelled. It must be called exactly once, from any
@@ -47,10 +47,15 @@ public final class Bridge: CommandDispatching {
         }
     }
 
+    /// `DispatchWorkItem` is documented as thread-safe but not declared `Sendable`.
+    private struct Fallback: @unchecked Sendable {
+        let item: DispatchWorkItem
+    }
+
     private struct Closing {
         var host: BridgeHost?
         var exiting = false
-        var fallback: Task<Void, Never>?
+        var fallback: Fallback?
     }
 
     private static let maxQueuedEvents = 10_000  // they pile up only while no page polls
@@ -121,6 +126,9 @@ public final class Bridge: CommandDispatching {
     private let exitFallback: Duration
     private let events: OSAllocatedUnfairLock<[String]>
     private let closing = OSAllocatedUnfairLock(initialState: Closing())
+    // A queue of its own, not `DispatchQueue.global()`: that one starved as well while blocked work held a thread per
+    // core (`theExitFallbackDoesNotNeedAThreadOfTheTaskPool`), and a serial queue still got a thread.
+    private let fallbackQueue = DispatchQueue(label: "bts.bridge.exit-fallback")
 
     /// Creates the data folder if it is missing. `openURL` opens a web link in the user's browser.
     public init(
@@ -176,15 +184,14 @@ public final class Bridge: CommandDispatching {
     /// that has happened (or `exitFallback` has passed) closing is refused. True once the window is meant to go.
     public func windowShouldClose() -> Bool {
         enum Verdict { case close, waitForPage, askPage }
-        let delay = exitFallback
+        let delay = exitFallback.timeInterval
         let verdict = closing.withLock { closing -> Verdict in
             if closing.host == nil { return .close }  // `appExit` is destroying it
             if closing.exiting { return .waitForPage }  // a second click while the page is still answering
             closing.exiting = true
-            closing.fallback = Task { [weak self] in
-                try? await Task.sleep(for: delay)
-                if !Task.isCancelled { self?.appExit() }
-            }
+            let item = DispatchWorkItem { [weak self] in self?.appExit() }
+            closing.fallback = Fallback(item: item)
+            fallbackQueue.asyncAfter(deadline: .now() + delay, execute: item)
             return .askPage
         }
         if verdict == .askPage { emit("app", "command", ["exit"]) }
@@ -193,7 +200,7 @@ public final class Bridge: CommandDispatching {
 
     /// The page's `$$app_exit`, or the fallback: disconnects MIDI and closes the window, once.
     public func appExit() {
-        let (host, fallback) = closing.withLock { closing -> (BridgeHost?, Task<Void, Never>?) in
+        let (host, fallback) = closing.withLock { closing -> (BridgeHost?, Fallback?) in
             closing.exiting = true
             defer {
                 closing.host = nil
@@ -201,7 +208,7 @@ public final class Bridge: CommandDispatching {
             }
             return (closing.host, closing.fallback)
         }
-        fallback?.cancel()
+        fallback?.item.cancel()
         midi.disconnectAll()
         host?.closeWindow()
     }
@@ -328,5 +335,12 @@ public final class Bridge: CommandDispatching {
     private func answered(_ event: String, _ path: String, allow: (String) -> Void) {
         if !path.isEmpty { allow(path) }
         emit("fs", event, [path])
+    }
+}
+
+extension Duration {
+    /// What `DispatchTime` adds.
+    fileprivate var timeInterval: TimeInterval {
+        Double(components.seconds) + Double(components.attoseconds) / 1e18
     }
 }

@@ -531,6 +531,27 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
     }
 }
 
+// A function of its own: `DispatchSemaphore.wait` is unavailable in an async closure.
+private func holdThread(until release: DispatchSemaphore) {
+    release.wait()
+}
+
+/// A busy CI runner (or blocking bridge work) holds every thread of Swift's cooperative pool; a fallback that waited
+/// for one there would not fire in time, so this one has to run elsewhere.
+@Test func theExitFallbackDoesNotNeedAThreadOfTheTaskPool() throws {
+    let release = DispatchSemaphore(value: 0)
+    let blockers = ProcessInfo.processInfo.activeProcessorCount
+    for _ in 0..<blockers { Task.detached { holdThread(until: release) } }
+    defer { for _ in 0..<blockers { release.signal() } }
+
+    let host = FakeHost()
+    try withBridge(host: host, exitFallback: .milliseconds(50)) { bridge, _ throws in
+        #expect(!bridge.windowShouldClose())
+        #expect(host.waitForClose(seconds: 5))
+        #expect(host.closeCount == 1)
+    }
+}
+
 @Test func exitingDisconnectsMIDIAndClosesTheWindow() throws {
     let midi = FakeMidiBackend()
     let host = FakeHost()
