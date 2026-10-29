@@ -123,10 +123,10 @@ is not taken over.
 Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the native app (0.2.0): the
 signed bundle from `make app`, run with `BTS_TRACE=1` on a copy of the data folder, with the trace logs read afterwards.
 
-| Amplifier | Identity Reply (model code) | Connects | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
-|---|---|---|---|---|---|---|---|
-| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
-| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
+| Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
+|---|---|---|---|---|---|---|---|---|
+| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
+| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
 
 Run with both amps, the trace logs and the window showed:
 
