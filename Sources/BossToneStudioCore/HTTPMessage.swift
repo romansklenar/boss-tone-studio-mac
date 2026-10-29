@@ -132,7 +132,7 @@ private func parseRequestLine(_ line: ArraySlice<UInt8>) -> (method: String, tar
     guard parts.count == 3, parts.allSatisfy({ !$0.isEmpty }) else { return nil }
     let (method, target, version) = (parts[0], parts[1], parts[2])
     let versionText = latin1(version)  // HTTP/1.x
-    // Visible ASCII only (RFC 9112): a raw byte from 0x80 up has no one reading; XHR percent-encodes them.
+    // Visible ASCII only (RFC 9112): raw bytes from 0x80 up have no agreed encoding, and XHR percent-encodes them.
     guard method.allSatisfy(isTokenCharacter), target.allSatisfy({ $0 > 0x20 && $0 < 0x7F }),
         versionText.hasPrefix("HTTP/1."), version.count == 8, version.last.map(isDigit) == true
     else { return nil }
