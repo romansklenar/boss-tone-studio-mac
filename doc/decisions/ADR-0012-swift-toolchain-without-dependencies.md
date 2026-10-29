@@ -15,8 +15,8 @@ download it on every macOS run.
 
 ## Decision
 
-- No package dependencies: Foundation, AppKit, WebKit, Network, CoreMIDI, UniformTypeIdentifiers, CryptoKit and
-  Security for the app; CoreGraphics and ImageIO for the icon script.
+- No package dependencies: Foundation, AppKit, WebKit, Network, CoreMIDI, UniformTypeIdentifiers, CryptoKit, Security
+  and os (`OSAllocatedUnfairLock`) for the app; CoreGraphics and ImageIO for the icon script.
 - Build and test with the Command Line Tools alone; `swift-tools-version: 6.0`, the Swift 6 language mode, and compiler
   warnings as errors on every build and test.
 - Pin the major version only. `make swift-version`, a prerequisite of `setup`, `build`, `test`, `lint` and `app`,
