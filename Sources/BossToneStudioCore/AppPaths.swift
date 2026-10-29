@@ -44,7 +44,7 @@ public enum AppPaths {
         return candidates.first(where: hasIndex) ?? candidates[0]
     }
 
-    private static func hasIndex(_ folder: URL) -> Bool {
+    public static func hasIndex(_ folder: URL) -> Bool {
         var isDirectory: ObjCBool = false
         let index = folder.appendingPathComponent("index.html").path
         return FileManager.default.fileExists(atPath: index, isDirectory: &isDirectory) && !isDirectory.boolValue

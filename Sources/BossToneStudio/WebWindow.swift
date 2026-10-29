@@ -27,7 +27,7 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         // Only a click opens a window (which goes to the browser): no script, in the page or an embed, can on its own.
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         webView = MenuFreeWebView(frame: .zero, configuration: configuration)
-        webView.isInspectable = ProcessInfo.processInfo.environment["BTS_TRACE"] == "1"
+        webView.isInspectable = traceEnabled
         super.init()
         window.contentView = webView
         window.delegate = self

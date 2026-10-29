@@ -1,6 +1,7 @@
 import Foundation
 
-private let traceEnabled = ProcessInfo.processInfo.environment["BTS_TRACE"] == "1"
+/// `BTS_TRACE=1` (`make trace`): bridge traffic in the log, and the window's web inspector.
+public let traceEnabled = ProcessInfo.processInfo.environment["BTS_TRACE"] == "1"
 
 public func log(_ message: String) {
     print("[bts] \(message)")

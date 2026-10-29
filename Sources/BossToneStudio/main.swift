@@ -16,11 +16,6 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
-func isFile(_ url: URL) -> Bool {
-    var isDirectory: ObjCBool = false
-    return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && !isDirectory.boolValue
-}
-
 func importRoland(into dataDir: URL, locked: Bool) -> Never {
     guard locked else {
         fail("Quit the app first: it would overwrite the imported Librarian with the one it has open.")
@@ -109,7 +104,7 @@ let checkout = URL(fileURLWithPath: #filePath).deletingLastPathComponent().delet
     .deletingLastPathComponent()
 let resources = AppPaths.bundleResources(bundleURL: Bundle.main.bundleURL, resourceURL: Bundle.main.resourceURL)
 let html = AppPaths.htmlDir(env: environment, bundleResources: resources, checkout: checkout)
-guard isFile(html.appendingPathComponent("index.html")) else {
+guard AppPaths.hasIndex(html) else {
     fail("Roland's web app not found in \(html.path); run `make roland-assets` or set BTS_HTML_DIR.")
 }
 RolandImport.importOnce(dataDir: dataDir)  // before the page loads, so it opens on the imported Librarian
