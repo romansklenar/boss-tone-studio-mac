@@ -8,7 +8,6 @@ set -eu
 VERSION=$1
 OUT=$2
 TAG="v$VERSION"
-REPO=romansklenar/boss-tone-studio-mac
 
 git rev-parse -q --verify "refs/tags/$TAG" > /dev/null || { echo "Error: tag $TAG does not exist" >&2; exit 1; }
 
@@ -31,7 +30,8 @@ set -- -f "tag_name=$TAG"
 if PREVIOUS=$(git describe --tags --abbrev=0 "$TAG^" 2> /dev/null); then
     set -- "$@" -f "previous_tag_name=$PREVIOUS"
 fi
-GENERATED=$(gh api "repos/$REPO/releases/generate-notes" "$@" --jq .body)
+# gh fills in {owner}/{repo} from this checkout's remote.
+GENERATED=$(gh api 'repos/{owner}/{repo}/releases/generate-notes' "$@" --jq .body)
 
 mkdir -p "$(dirname "$OUT")"
 printf '%s\n\n%s\n' "$NOTES" "$GENERATED" | cat -s | sed 's/^## What'"'"'s Changed$/### What'"'"'s Changed/' > "$OUT"
