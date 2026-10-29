@@ -114,7 +114,7 @@ func offThePool<T: Sendable>(_ work: @escaping @Sendable () throws -> T) async t
     }
 }
 
-/// Requests the way `tests/test_bridge_http.py` sent them, each on a new connection, with `Host: 127.0.0.1:<port>`
+/// Requests the way 0.1.1's Python tests sent them, each on a new connection, with `Host: 127.0.0.1:<port>`
 /// unless `headers` names its own.
 struct RawHTTPClient: Sendable {
     let port: UInt16

@@ -50,7 +50,7 @@ private func page(around middle: String = tag) -> String {
             "<script nonce=\"NON\">\n(function () {\n  var base = '/TOK/';\n  function call(command, args) {\n"))
     #expect(script.hasSuffix("})();\n</script>\n"))
     #expect(script.contains("  [\"a_b\"].forEach(function (command) {\n"))
-    // Escaping and comments as in bts/server.py.
+    // Escaping and comments as in 0.1.1's script.
     #expect(script.contains(#"    if (/^https?:\/\//.test(options.url)) {"#))
     #expect(
         script.contains(

@@ -19,8 +19,6 @@ make app            # the signed .app in dist/, Roland's web app re-extracted fr
 make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases)
 ```
 
-Until the Python code is removed, `make setup` also runs `make deps`, which needs mise.
-
 ## Workflow
 
 - `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `docs/…`).

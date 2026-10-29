@@ -27,7 +27,7 @@ public struct BridgeError: Error, CustomStringConvertible, Equatable, LocalizedE
     public var errorDescription: String? { description }
 }
 
-/// The `$native` commands BOSS TONE STUDIO for KATANA MkII calls, as `Bridge` in `bts/server.py` implemented them:
+/// The `$native` commands BOSS TONE STUDIO for KATANA MkII calls, as 0.1.1's Python bridge implemented them:
 /// storage, files, dialogs, MIDI, an event queue the page polls, and the close handshake.
 public final class Bridge: CommandDispatching {
     private struct Command: Sendable {

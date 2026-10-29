@@ -9,7 +9,7 @@ public enum PageScript {
     /// `native.js` checks for `window.$$app` before anything else and then calls `window['$$' + object][method](args)`
     /// for every command, using the result as is. This script defines those methods, one per bridge command, each
     /// forwarding the call behind a per-launch token. The bridge has no `app_startevent`, so `native.js` keeps polling
-    /// `$$app_getevent`. It is `PRE_NATIVE` from `bts/server.py` (0.1.1) with the nonce on its opening tag.
+    /// `$$app_getevent`. It is 0.1.1's script with the nonce on its opening tag.
     ///
     /// `token` must be URL-safe (`makeToken()`): it goes into a JS string and a URL path unescaped.
     public static func preNative(token: String, nonce: String, commands: [String]) -> String {
@@ -80,7 +80,7 @@ public enum PageScript {
         ].joined(separator: "; ")
     }
 
-    /// `UNSUPPORTED_PAGE` from `bts/server.py`.
+    /// What 0.1.1 answered when `index.html` has no `native.js` to hook, in the same words.
     public static let unsupportedPage = """
         <!doctype html><meta charset="utf-8"><title>Unsupported</title>
         <p>This version of Roland's editor is not supported: its <code>index.html</code> no longer loads

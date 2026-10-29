@@ -1,6 +1,5 @@
 .DEFAULT_GOAL := help
 
-PYTHON     ?= .venv/bin/python
 # `tests`, not `Tests`, until Python's tests/ goes: only the former exists in the case-sensitive lint container.
 SWIFT_SOURCES := $(wildcard Package.swift Sources tests packaging/make-icon.swift)
 SWIFT_FLAGS := -Xswiftc -warnings-as-errors
@@ -15,7 +14,7 @@ APP        = dist/$(APP_NAME).app
 APP_VERSION = $(shell cat VERSION)
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help setup swift-version deps roland-assets roland-fresh lock run browser trace roland-import build app \
+.PHONY: help setup swift-version roland-assets roland-fresh run browser trace roland-import build app \
 	install release-notes test lint format check
 
 help:
@@ -24,12 +23,10 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
-	@echo "  setup          swift-version + deps + roland-assets"
+	@echo "  setup          swift-version + roland-assets"
 	@echo "  swift-version  Print the Swift version; fail unless it is major version 6"
-	@echo "  deps           Install pinned tools (mise.toml) and locked packages (requirements.txt) into .venv"
 	@echo "  roland-assets  Take Roland's web app and icon out of its installer download (no install, no Rosetta)"
 	@echo "  roland-fresh   Extract them again from the verified download (what app does first)"
-	@echo "  lock           Re-resolve requirements*.txt from the pins in pyproject.toml"
 	@echo "  run            Open the app window"
 	@echo "  browser        Serve the app only; open the printed URL in a browser (no file dialogs)"
 	@echo "  trace          Open the app window, logging every bridge command and MIDI message"
@@ -43,7 +40,7 @@ help:
 	@echo "  format         Fix the code (swift format --in-place)"
 	@echo "  check          lint + test"
 
-setup: swift-version deps roland-assets
+setup: swift-version roland-assets
 
 swift-version:
 	@version="$$(swift --version 2>&1 | sed -n 's/.*Swift version \([0-9][0-9.]*\).*/\1/p' | head -n 1)"; \
@@ -52,18 +49,6 @@ swift-version:
 		*) echo "Error: this project needs Swift 6 (found $${version:-none});" \
 			"install or update Apple's Command Line Tools" >&2; exit 1 ;; \
 	esac
-
-deps:
-	@which mise > /dev/null 2>&1 || (echo "Error: mise not found (brew install mise)" >&2 && exit 1)
-	@mise install
-	@mise exec -- uv venv --quiet --allow-existing --python "$$(mise which python)" .venv
-	@mise exec -- uv pip sync --require-hashes --python $(PYTHON) requirements.txt
-	@echo "Python: $$($(PYTHON) --version), ruff: $$(mise exec -- ruff --version)"
-
-lock:
-	@mise exec -- uv pip compile --quiet --generate-hashes --python-version 3.13 pyproject.toml -o requirements.txt
-	@mise exec -- uv pip compile --quiet --generate-hashes --python-version 3.13 --group app pyproject.toml \
-		-o requirements-app.txt
 
 run:
 	@swift run -c debug $(SWIFT_FLAGS) BossToneStudio

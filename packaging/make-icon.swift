@@ -34,7 +34,7 @@ func recoloured(_ image: CGImage) -> CGImage? {
                 for channel in 0..<3 {
                     let shift = weight * (newBackground[channel] - originalBackground[channel])
                     let shifted = Double(bytes[start + channel]) + shift
-                    // Half to even, as Python's round() did in make_icon.py.
+                    // Half to even, as Python's round() did in 0.1.1's icon script.
                     bytes[start + channel] = UInt8(min(255, shifted.rounded(.toNearestOrEven)))
                 }
             }

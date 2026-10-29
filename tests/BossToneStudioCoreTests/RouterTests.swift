@@ -5,8 +5,8 @@ import os
 @testable import BossToneStudioCore
 
 // The security rules of doc/bridge-protocol.md and the design's fixes (127.0.0.1 only, everything under the token, a
-// CSP with a nonce), over a real loopback server with a stand-in bridge and proxy: `BridgeHttpTest` in
-// `tests/test_bridge_http.py`, ported.
+// CSP with a nonce), over a real loopback server with a stand-in bridge and proxy: the port of 0.1.1's Python
+// HTTP tests.
 
 private let token = "test-token"
 

@@ -1,9 +1,0 @@
-[tools]
-python = "3.13.18"
-ruff = "0.17.3"
-uv = "0.13.6"
-
-[env]
-# python-rtmidi builds from source; without this it targets the build Mac's macOS and won't load on older ones.
-# Matches LSMinimumSystemVersion in packaging/app.spec.
-MACOSX_DEPLOYMENT_TARGET = "14.0"

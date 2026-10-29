@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where the app keeps its data and finds Roland's web app, as `bts/__main__.py` (0.1.1) chose them.
+/// Where the app keeps its data and finds Roland's web app, as 0.1.1's Python version chose them.
 public enum AppPaths {
     /// Also the bundle's name and the data folder's: users of 0.1.x keep their Librarian.
     public static let appName = "BOSS TONE STUDIO for KATANA MkII (Apple Silicon)"
