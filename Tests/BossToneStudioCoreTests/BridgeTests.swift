@@ -5,7 +5,7 @@ import os
 
 @testable import BossToneStudioCore
 
-/// The unit separator the page splits events on (Python's `"\f"`).
+/// The form feed (`\f`) the page splits events on.
 private let formFeed = "\u{0C}"
 
 /// What the file system says a path is: `realpath` directly, so these tests do not lean on the code they check.

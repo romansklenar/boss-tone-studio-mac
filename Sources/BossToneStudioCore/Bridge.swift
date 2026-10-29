@@ -3,7 +3,7 @@ import Foundation
 import os
 
 /// The app window as the bridge needs it; there is none in `--browser` mode. The bridge calls these from connection
-/// queues and from the exit fallback's queue, never while it holds one of its own locks, so an implementation may hop
+/// queues and from the exit fallback's task, never while it holds one of its own locks, so an implementation may hop
 /// to the main thread and wait for it.
 public protocol BridgeHost: AnyObject, Sendable {
     func closeWindow()
@@ -161,9 +161,9 @@ public final class Bridge: CommandDispatching {
         return try entry.run(self, args)
     }
 
-    /// Queues an event for the page to poll. The MIDI controller calls this from CoreMIDI's threads, possibly while it
-    /// holds its own lock, so it only appends under the queue's short lock: it never blocks on anything else and never
-    /// calls into the controller or the host. (BTS_TRACE=1 also prints a line, before taking the lock.)
+    /// Queues an event for the page to poll. MIDI events take the same path from CoreMIDI's threads, possibly while the
+    /// controller holds its own lock, so it only appends under the queue's short lock: it never blocks on anything else
+    /// and never calls into the controller or the host. (BTS_TRACE=1 also prints a line, before taking the lock.)
     public func emit(_ prop: String, _ kind: String, _ args: [String]) {
         Self.enqueue(events, prop, kind, args)
     }

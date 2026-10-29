@@ -28,9 +28,8 @@ public protocol MidiBackend: AnyObject, Sendable {
 /// anything else, and never call back into the controller.
 public typealias Emit = @Sendable (_ prop: String, _ kind: String, _ args: [String]) -> Void
 
-/// The MIDI side of Roland's `$native.midi`, as 0.1.1's Python version did it: port lists in the page's endpoint
-/// shape, one open input and output chosen by name, and `midi` events for incoming messages, failed connects and port
-/// changes.
+/// The MIDI side of Roland's `$native.midi`, as 0.1.1 did it: port lists in the page's endpoint shape, one open input
+/// and output chosen by name, and `midi` events for incoming messages, failed connects and port changes.
 public final class MidiController: Sendable {
     private struct Ports: Equatable, Sendable {
         let sources: [String]
@@ -44,8 +43,8 @@ public final class MidiController: Sendable {
 
     private let backend: MidiBackend?
     private let emit: Emit
-    // Held across backend calls, as the Python lock was: a send is never interleaved with another send or with a
-    // disconnect. Events are emitted after it is released.
+    // Held across backend calls, as in 0.1.1: a send is never interleaved with another send or with a disconnect.
+    // The controller's own events are emitted after it is released.
     private let state: OSAllocatedUnfairLock<State>
 
     /// A nil backend stands for a Mac without CoreMIDI: nothing is listed and every connect fails.

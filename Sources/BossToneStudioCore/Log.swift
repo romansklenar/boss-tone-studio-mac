@@ -15,7 +15,7 @@ public func trace(_ arrow: String, _ label: String, _ args: [String]) {
 func traceLine(_ arrow: String, _ label: String, _ args: [String]) -> String {
     let cut = args.map { arg in
         var text = ""
-        text.unicodeScalars.append(contentsOf: arg.unicodeScalars.prefix(120))  // Python cuts by code point too
+        text.unicodeScalars.append(contentsOf: arg.unicodeScalars.prefix(120))  // by code point, as 0.1.1 cut them
         return text
     }
     return "[trace] \(arrow) \(label) \(pyList(cut))"
@@ -26,8 +26,8 @@ public func pyList(_ items: [String]) -> String {
     "[" + items.map(escaped).joined(separator: ", ") + "]"
 }
 
-/// Python's `repr` of a string, always single-quoted: the page and MIDI devices choose these texts, and a raw newline
-/// or escape sequence in them would forge log lines.
+/// Single-quoted, with `\`, `'` and control characters escaped as Python's `repr` escaped them in 0.1.1's logs: the
+/// page and MIDI devices choose these texts, and a raw newline or escape sequence in them would forge log lines.
 public func escaped(_ text: String) -> String {
     var result = "'"
     for scalar in text.unicodeScalars {

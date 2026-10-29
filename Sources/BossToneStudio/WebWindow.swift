@@ -119,7 +119,7 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         present(alert) { completionHandler($0 == .alertFirstButtonReturn ? field.stringValue : nil) }
     }
 
-    /// No new windows: web links open in the default browser, anything else is dropped.
+    /// No new windows: a clicked web link off the page's origin opens in the default browser, anything else is dropped.
     func webView(
         _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
         for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures

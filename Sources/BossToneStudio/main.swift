@@ -11,7 +11,7 @@ import os
 
 setvbuf(stdout, nil, _IOLBF, 0)  // every log line reaches `make trace` and pipes at once
 
-/// As Python's `sys.exit(message)`: the message on standard error, exit status 1.
+/// As 0.1.1's `sys.exit(message)`: the message on standard error, exit status 1.
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
     exit(1)
@@ -46,7 +46,7 @@ func startBridge(dataDir: URL) -> Bridge {
         midi = nil
     }
     do {
-        // `fs_exec`: the bridge lets only web links through, and they open in the user's browser.
+        // `fs_exec`: the bridge lets only web links off this Mac through, and they open in the user's browser.
         return try Bridge(dataDir: dataDir, midiBackend: midi) { url in
             DispatchQueue.main.async { NSWorkspace.shared.open(url) }
         }

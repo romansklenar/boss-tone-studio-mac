@@ -63,11 +63,11 @@ public final class FileAccess: Sendable {
         }
     }
 
-    /// The path with `..` and links resolved, as Python's non-strict `Path.resolve()` gave it, so a link cannot lead
-    /// out of a folder and `/var` and `/private/var` are one place. What does not exist yet (a save target, folders
-    /// about to be created) is the nearest existing ancestor, resolved, plus the missing names. nil: a path no file
-    /// system call would read as typed (a NUL byte), or a link that leads nowhere, at any level (writing through it
-    /// would create its target).
+    /// The path with `..` and links resolved, as 0.1.1's `Path.resolve()` gave it, so a link cannot lead out of a
+    /// folder and `/var` and `/private/var` are one place. What does not exist yet (a save target, folders about to be
+    /// created) is the nearest existing ancestor, resolved, plus the missing names. nil: a path no file system call
+    /// would read as typed (a NUL byte), or a name that exists but does not resolve, at any level (a dangling link:
+    /// writing through it would create its target).
     static func canonical(_ path: String) -> String? {
         guard !path.utf8.contains(0) else { return nil }
         let standardised = URL(fileURLWithPath: path).standardizedFileURL

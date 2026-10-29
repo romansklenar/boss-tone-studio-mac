@@ -154,7 +154,7 @@ private struct TestServer {
     let response = try await server.client.command("/\(token)/$$fs_exec", ["file:///"])
     #expect(response.status == 500)
     #expect(response.text == "refused\n[bts] forged")
-    // Escaped, and logged once: rule 6 leaves a 500 to this line.
+    // Escaped, and logged once: the router's failed-request line leaves a 500 to this one.
     #expect(server.log.all == [#"[bts] $$fs_exec failed: 'refused\n[bts] forged'"#])
 }
 

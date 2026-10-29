@@ -176,7 +176,7 @@ private func controller(
     let midi = controller(backend, Events())
     try midi.send("B00764")
     #expect(backend.sent.isEmpty)
-    // The hex is not even looked at, as in Python, where the output check comes first.
+    // The hex is not even looked at, as in 0.1.1, where the output check came first.
     try midi.send("not hex")
     midi.connectOutput(endpointsJSON(["KATANA"]).trimmingBrackets)
     midi.disconnectOutput()

@@ -123,9 +123,10 @@ final class CoreMIDIBackend: MidiBackend {
         state.withLock { $0.setupChanged = handler }
     }
 
-    /// rtmidi's `CreateEndpointName(endpoint, false)`, which python-rtmidi 1.5 reported for a device's port: the
-    /// endpoint's name without surrounding spaces, else its entity's; then the device's name in front, unless the
-    /// result already starts with it (`KATANA` stays `KATANA`, `DAW CTRL` becomes `KATANA DAW CTRL`).
+    /// rtmidi's `CreateEndpointName(endpoint, false)`, which python-rtmidi 1.5 reported for every port without
+    /// connections drawn in Audio MIDI Setup (ADR-0011): the endpoint's name without surrounding spaces, else its
+    /// entity's; then the device's name in front, unless the result already starts with it (`KATANA` stays `KATANA`,
+    /// `DAW CTRL` becomes `KATANA DAW CTRL`).
     static func endpointName(_ endpoint: MIDIEndpointRef) -> String {
         var name = stringProperty(endpoint).trimmingCharacters(in: CharacterSet(charactersIn: " "))
         var entity = MIDIEntityRef()

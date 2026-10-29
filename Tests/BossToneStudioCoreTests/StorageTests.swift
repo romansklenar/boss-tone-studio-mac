@@ -106,7 +106,7 @@ import Testing
         try writeAtomically("text", to: file)
         let link = folder.appendingPathComponent("link")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
-        #expect(readText(link) == "text")  // Python's is_file() follows links too
+        #expect(readText(link) == "text")  // links followed, as 0.1.1's is_file() did
         try writeAtomically("", to: file)
         #expect(readText(file) == "")  // empty is not missing
         try Data([0xff, 0xfe, 0x41]).write(to: file)

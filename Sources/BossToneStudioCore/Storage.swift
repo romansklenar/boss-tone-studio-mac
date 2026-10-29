@@ -18,7 +18,7 @@ public func writeAtomically(_ text: String, to url: URL) throws {
     try Data(text.utf8).write(to: url, options: .atomic)
 }
 
-/// nil when the path is not a regular file, as Python's `is_file()` (which follows links) says; throws when a regular
+/// nil when the path is not a regular file, links followed (as 0.1.1's `is_file()` did); throws when a regular
 /// file cannot be read or is not UTF-8. A caller that took that for "missing" would see ID_LIST as absent, treat the
 /// Librarian as empty and replace the file on its next write.
 func readTextOrThrow(_ url: URL) throws -> String? {

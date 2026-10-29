@@ -158,7 +158,7 @@ public final class Router: Sendable {
         }
     }
 
-    /// The first non-empty value of `name`, as Python's `parse_qs` reads a query: `+` is a space.
+    /// The first non-empty value of `name`, read as 0.1.1 read it with Python's `parse_qs`: `+` is a space.
     static func queryValue(_ name: String, in query: String) -> String {
         func decoded(_ text: Substring) -> String { percentDecoded(text.replacingOccurrences(of: "+", with: " ")) }
         for pair in query.split(separator: "&") {
@@ -234,7 +234,7 @@ struct ArgumentsError: Error, CustomStringConvertible {
     let description: String
 }
 
-/// Python's `urllib.parse.unquote` as bytes: valid `%XX` sequences decoded, anything else kept as it is.
+/// 0.1.1's `urllib.parse.unquote`, on bytes: valid `%XX` sequences decoded, anything else kept as it is.
 private func percentDecodedBytes(_ text: String) -> [UInt8] {
     let input = Array(text.utf8)
     var output: [UInt8] = []
@@ -254,7 +254,7 @@ private func percentDecodedBytes(_ text: String) -> [UInt8] {
     return output
 }
 
-/// As Python's `unquote`: bytes that are not UTF-8 become U+FFFD.
+/// As 0.1.1's `unquote`: bytes that are not UTF-8 become U+FFFD.
 private func percentDecoded(_ text: String) -> String {
     String(decoding: percentDecodedBytes(text), as: UTF8.self)
 }
