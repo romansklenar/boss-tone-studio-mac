@@ -108,9 +108,9 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
 
 - AppKit, no nib: one window titled `BOSS TONE STUDIO for KATANA MkII (Apple Silicon)`, 1280×800, minimum 1160×700, a
   WKWebView on the default website data store.
-- Standard app menu (Quit) and Edit menu (copy/paste/select all in text fields need it). Cmd-Q, the close button and
-  `SIGINT`/`SIGTERM` all go through the close handshake (`app\fcommand\fexit`, 2 s fallback, closes refused until
-  `$$app_exit`); closing the window quits the app.
+- Standard app menu (Quit), Edit menu (copy/paste/select all in text fields need it) and Window menu (Minimize, Close).
+  Cmd-Q, Cmd-W, the close button and `SIGINT`/`SIGTERM` all go through the close handshake (`app\fcommand\fexit`, 2 s
+  fallback, closes refused until `$$app_exit`); closing the window quits the app.
 - `alert()`/`confirm()`/`prompt()` shown as native sheets: Roland's page uses `alert()`.
 - File dialogs: `NSOpenPanel`/`NSSavePanel` sheets on the main thread, answered asynchronously through `fs` events; the
   name the page suggests only fills the save panel's name field, and the panel adds the page's extension itself, so it

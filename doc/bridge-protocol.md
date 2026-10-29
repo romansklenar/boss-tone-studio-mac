@@ -84,8 +84,8 @@ Behaviour worth knowing:
   differ.
 - The page sends its MIDI queue one message at a time, paced by its own interval.
 - Closing the window: the shell sends the page `app\fcommand\fexit`; the page sends DT1 `7F 00 00 01 = 00` (editor
-  communication mode off) and calls `$$app_exit` 500 ms later. The close button, Cmd-Q and `SIGINT`/`SIGTERM` all go
-  this way: closing is refused until then, the event is queued once and a 2 s fallback is armed. `$$app_exit`
+  communication mode off) and calls `$$app_exit` 500 ms later. The close button, Cmd-W, Cmd-Q and `SIGINT`/`SIGTERM` all
+  go this way: closing is refused until then, the event is queued once and a 2 s fallback is armed. `$$app_exit`
   disconnects MIDI and closes the window, which quits the app.
 - Storage and file reads return the text as stored; a file that is not UTF-8 is an error.
 - A POST to one of the page's own files (`index.html`) is the page's usage telemetry → `204`, forwarded nowhere.

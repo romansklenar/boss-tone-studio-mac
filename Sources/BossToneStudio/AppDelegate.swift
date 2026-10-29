@@ -1,7 +1,8 @@
 import AppKit
 import BossToneStudioCore
 
-/// One window; Cmd-Q and the close button both go through the bridge's close handshake, and closing the window quits.
+/// One window; Cmd-Q, Cmd-W and the close button all go through the bridge's close handshake, and closing the window
+/// quits.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let bridge: Bridge
@@ -16,7 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.mainMenu = Self.mainMenu()
+        let (mainMenu, windowMenu) = Self.menus()
+        NSApp.mainMenu = mainMenu
+        NSApp.windowsMenu = windowMenu
         let window = WebWindow(bridge: bridge, page: page, port: port)
         bridge.host = window
         self.window = window
@@ -36,8 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bridge.removeTempDir()
     }
 
-    /// Without an Edit menu, copy, paste and select all would not reach the page's text fields.
-    private static func mainMenu() -> NSMenu {
+    /// The main menu and its Window menu. Without an Edit menu, copy, paste and select all would not reach the page's
+    /// text fields; Close (Cmd-W) goes through `performClose(_:)` and so through the close handshake.
+    private static func menus() -> (main: NSMenu, window: NSMenu) {
         let app = NSMenu()
         app.addItem(
             withTitle: "Hide \(AppPaths.appName)", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
@@ -55,12 +59,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
 
+        let window = NSMenu(title: "Window")
+        window.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        window.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+
         let bar = NSMenu()
-        for submenu in [app, edit] {
+        for submenu in [app, edit, window] {
             let item = NSMenuItem(title: submenu.title, action: nil, keyEquivalent: "")
             item.submenu = submenu
             bar.addItem(item)
         }
-        return bar
+        return (bar, window)
     }
 }
