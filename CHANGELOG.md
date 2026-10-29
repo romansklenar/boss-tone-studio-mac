@@ -3,7 +3,7 @@
 Notable changes per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-10-29
+## [1.0.0] - 2026-10-29
 
 ### Changed
 
@@ -81,6 +81,6 @@ First release.
 - A standalone `.app` built from Roland's installer download, checked against a pinned SHA-256.
 - Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
 
-[0.2.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.2.0
+[1.0.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v1.0.0
 [0.1.1]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.1
 [0.1.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.0

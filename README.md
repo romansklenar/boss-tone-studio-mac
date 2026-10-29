@@ -120,7 +120,7 @@ is not taken over.
 
 ## Verified amplifiers
 
-Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the native app (0.2.0): the
+Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the native app (1.0.0): the
 signed bundle from `make app`, run with `BTS_TRACE=1` on a copy of the data folder, with the trace logs read afterwards.
 The two amps were run one after the other on the same data folder, and the checks that ran differ; the table ticks only
 what ran with each amp, and `–` marks what did not.
@@ -159,7 +159,7 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 
 ## Status
 
-The amp rows (MIDI, remembering the device, closing, file dialogs, deleting, window) record the native app (0.2.0) run
+The amp rows (MIDI, remembering the device, closing, file dialogs, deleting, window) record the native app (1.0.0) run
 with the two amps; what ran with each is under Verified amplifiers. The other rows come from earlier checks without an
 amp, with `--browser` and in a WKWebView: Roland's page loads under its security policy without errors, offline mode and
 Tone Central (catalogue, a liveset's `.tsl`) work and its YouTube player loads, the import took over Roland's 29

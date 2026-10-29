@@ -1,7 +1,7 @@
 # ADR-0002: A local HTTP bridge speaking `native.js`'s own protocol
 
 Status: accepted, 2026-10-27; the transport part superseded by
-[ADR-0010](ADR-0010-native-js-app-hook-as-the-transport.md); implemented since 0.2.0 by the Swift app
+[ADR-0010](ADR-0010-native-js-app-hook-as-the-transport.md); implemented since 1.0.0 by the Swift app
 ([ADR-0011](ADR-0011-native-swift-app.md)), where the injection lives in `PageScript.swift` instead of 0.1.x's
 `bts/server.py`
 

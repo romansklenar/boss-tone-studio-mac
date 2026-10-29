@@ -17,18 +17,18 @@ picked in a file dialog; let `fs.exec` open `http(s)` links only. The rules are 
 ## Consequences
 
 - Other websites cannot drive the bridge; tests cover the token and request handling.
-- Until 0.2.0, any local program that is not a browser — including other user accounts and sandboxed apps — could read
+- Until 1.0.0, any local program that is not a browser — including other user accounts and sandboxed apps — could read
   the token from `index.html`. It then reached the amp, the Librarian, the files picked this session, file dialogs and
-  web links, but nothing else. Since 0.2.0 the server answers nothing without the token, so it no longer gives it
+  web links, but nothing else. Since 1.0.0 the server answers nothing without the token, so it no longer gives it
   away; the window opens the page with it. Code running in the page still has the bridge's reach (see Residual risks).
 
 ## Known weak points
 
 From a security review on 2026-10-28; none was exploitable without code already on the Mac or in the page. The native
-app addressed each of them in 0.2.0 ([ADR-0011](ADR-0011-native-swift-app.md)); YouTube remains (see Residual risks).
+app addressed each of them in 1.0.0 ([ADR-0011](ADR-0011-native-swift-app.md)); YouTube remains (see Residual risks).
 The rules are in `doc/bridge-protocol.md`.
 
-| Weak point | Addressed in 0.2.0 |
+| Weak point | Addressed in 1.0.0 |
 |---|---|
 | The token is served to any local client (above) | The page and its files live under `/<token>/` too, and the window opens `/<token>/index.html`; any path without the token is `403` |
 | Proxied scripts (YouTube, SoundCloud, Roland) and Tone Central titles, which the page renders as HTML, run with the token | `index.html` comes with a Content-Security-Policy whose per-response nonce admits the bridge script, so inline scripts, injected event handlers and `javascript:` URLs are blocked; SoundCloud left the allowlist; Roland's hosts must answer with JSON, passed on as `application/json` or `text/plain`. YouTube remains: its player scripts still run with the token (see Residual risks) |

@@ -1,6 +1,6 @@
 # Design: a native Swift app instead of the Python shell
 
-Date: 2026-10-28. Status: implemented in 0.2.0. The decisions are recorded in
+Date: 2026-10-28. Status: implemented in 1.0.0. The decisions are recorded in
 [ADR-0011](../decisions/ADR-0011-native-swift-app.md) and
 [ADR-0012](../decisions/ADR-0012-swift-toolchain-without-dependencies.md), the protocol and security rules in
 [`doc/bridge-protocol.md`](../bridge-protocol.md).
@@ -184,7 +184,7 @@ ADR-0003 records each fix and the residual risks.
 - The icon is recoloured as in 0.1.x (Roland's dark background `#242424` → slate grey `#5C6370`, tolerance 48, partial
   shift on anti-aliased edges) by `packaging/make-icon.swift`, which `swift` runs as a script: it reads every image of
   Roland's `.icns` with ImageIO and writes a new `.icns`.
-- The version lives in a `VERSION` file at the root; 0.2.0.
+- The version lives in a `VERSION` file at the root; 1.0.0.
 - CI, with macOS minutes costing ten times Linux ones (ADR-0012): `make lint` on Ubuntu in the official Swift
   container, pinned by digest to the minor version the code was last formatted with, for every pull request update,
   drafts included, and for pushes to `main`; `make test` on macOS only for pull requests that are ready for review and
@@ -217,7 +217,7 @@ ADR-0003 records each fix and the residual risks.
 3. The bundle is 14 MB, 13 MB of which is Roland's web app, signed ad hoc with the hardened runtime.
 4. Every Python test has a Swift Testing counterpart. `bts/`, `tests/`, `mise.toml`, `pyproject.toml`,
    `requirements*.txt`, `packaging/app.spec` and `packaging/make_icon.py` are removed; README, AGENTS.md, `doc/` and
-   CHANGELOG (0.2.0) describe the Swift app.
+   CHANGELOG (1.0.0) describe the Swift app.
 
 The native app installs over 0.1.x under the same name. The fallback is the `v0.1.1` tag (`make setup app install` on
 it).

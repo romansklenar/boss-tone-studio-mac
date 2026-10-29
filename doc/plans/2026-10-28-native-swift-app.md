@@ -1,6 +1,6 @@
 # Native Swift App Implementation Plan
 
-Status: executed on 2026-10-28 and 2026-10-29 on `feat/native-app`, released as 0.2.0. This file records how the work
+Status: executed on 2026-10-28 and 2026-10-29 on `feat/native-app`, released as 1.0.0. This file records how the work
 was split and what changed on the way; the code, [ADR-0011](../decisions/ADR-0011-native-swift-app.md),
 [ADR-0012](../decisions/ADR-0012-swift-toolchain-without-dependencies.md) and
 [`doc/bridge-protocol.md`](../bridge-protocol.md) are the reference. Spec: the
