@@ -29,7 +29,7 @@ public struct Proxy: ProxyFetching {
     static let timeout: TimeInterval = 20
     static let userAgent = "Mozilla/5.0 (Macintosh)"
 
-    private let session: URLSession
+    let session: URLSession
 
     public init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -62,12 +62,9 @@ public struct Proxy: ProxyFetching {
         } catch {
             return .refused("\(error)")
         }
-        var request = URLRequest(url: target, timeoutInterval: Self.timeout)
-        request.httpMethod = "GET"
-        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         let redirects = AllowlistedRedirects()
         do {
-            let (body, response) = try await session.data(for: request, delegate: redirects)
+            let (body, response) = try await session.data(for: Self.request(for: target), delegate: redirects)
             if let refusal = redirects.refusal { return .refused(refusal) }
             guard let http = response as? HTTPURLResponse, let host = http.url?.host?.lowercased() else {
                 return .failed("proxy \(escaped(url)) failed: no HTTP response")
@@ -80,6 +77,14 @@ public struct Proxy: ProxyFetching {
             if let refusal = redirects.refusal { return .refused(refusal) }
             return .failed("proxy \(escaped(url)) failed: \(error.localizedDescription)")
         }
+    }
+
+    /// A GET that times out after `timeout` without data, with `userAgent`; `target` comes from `checkedURL`.
+    static func request(for target: URL) -> URLRequest {
+        var request = URLRequest(url: target, timeoutInterval: timeout)
+        request.httpMethod = "GET"
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        return request
     }
 
     /// Roland's hosts are held to JSON, and their bodies leave as `application/json` only when Roland said so, else as

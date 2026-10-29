@@ -83,6 +83,17 @@ private let plain = "text/plain; charset=utf-8"
             == "https://bosstonecentral.com/my%20set/%C3%A9.tsl?q=a%20b")
 }
 
+// MARK: the request
+
+@Test func aFetchIsAGetWithThe20sTimeoutAndTheUserAgent() throws {
+    let request = Proxy.request(for: try Proxy.checkedURL("https://api.roland.com/x"))
+    #expect(request.url?.absoluteString == "https://api.roland.com/x")
+    #expect(request.httpMethod == "GET")
+    #expect(request.timeoutInterval == 20)
+    #expect(request.value(forHTTPHeaderField: "User-Agent") == "Mozilla/5.0 (Macintosh)")
+    #expect(Proxy().session.configuration.timeoutIntervalForRequest == 20)
+}
+
 // MARK: redirects
 
 private let someResponse = HTTPURLResponse(
