@@ -463,6 +463,26 @@ private struct TestServer {
     }
 }
 
+@Test func aConnectionLeftIdleAfterARequestIsDroppedAfterTheIdleTimeout() async throws {
+    let server = HTTPServer(idleTimeout: .milliseconds(300), output: { _ in })
+    let port = try server.start { _ in { _ in .text("") } }
+    defer { server.stop() }
+    let (status, closed, waited, released) = try await offThePool {
+        let connection = try RawHTTPConnection(port: port)
+        try connection.send("GET / HTTP/1.1\r\nHost: x\r\n\r\n")  // keep-alive
+        let status = try connection.readResponse().status
+        let start = ContinuousClock.now
+        let closed = try connection.isClosedByServer()
+        let waited = ContinuousClock.now - start
+        for _ in 0..<100 where server.openConnections > 0 { usleep(10_000) }
+        return (status, closed, waited, server.openConnections == 0)
+    }
+    #expect(status == 200)
+    #expect(closed)
+    #expect(waited > .milliseconds(150), "closed by the idle timer, not at once")
+    #expect(released)
+}
+
 // MARK: proxy and telemetry
 
 @Test func telemetryPostsAreDropped() async throws {
