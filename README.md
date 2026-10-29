@@ -122,24 +122,33 @@ is not taken over.
 
 Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the native app (0.2.0): the
 signed bundle from `make app`, run with `BTS_TRACE=1` on a copy of the data folder, with the trace logs read afterwards.
+The two amps were run one after the other on the same data folder, and the checks that ran differ; the table ticks only
+what ran with each amp, and `–` marks what did not.
 
 | Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
 |---|---|---|---|---|---|---|---|---|
-| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
+| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | – | ✅ | 2026-10-29 |
 | KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
 
-Run with both amps, the trace logs and the window showed:
+What ran with the KATANA-ARTIST MkII:
 
-- The app reconnected to the stored `KATANA` on launch without the device picker; editor mode went on after connecting
-  and off before `$$app_exit`; MIDI worked both ways (the amp's knobs and the app).
-- `.tsl` export and re-import; All Data Backup (`.alb`) and its restore; a deleted patch and liveset stayed deleted
-  after reopening; Tone Central's liveset details and adding a liveset; the page's `alert` showed (an invalid `.tsl`
-  import).
-- Copy and paste in text fields worked, right click opened no context menu, and a web link opened in the default
-  browser.
-- Cmd-Q and the window's close button each closed the app through the handshake.
-- Unplugging and replugging the HEAD MkII reconnected it (`midi.changed`, a new Identity Reply).
-- The logs had no `[js]` or `failed` lines; the only refused requests were SoundCloud's, by design.
+- It reconnected to the stored `KATANA` on launch without the device picker, and MIDI worked both ways.
+- All Data Backup (`.alb`, which reads every user patch from the amp) and its restore; `.tsl` export and re-import;
+  deleting a patch and a liveset.
+- Tone Central's liveset details and adding a liveset; a web link opened in the default browser.
+- It closed cleanly through the handshake.
+
+What ran with the KATANA-HEAD MkII:
+
+- It reconnected without the device picker and read its current patch on connect; MIDI worked both ways.
+- The page's `alert` showed (an invalid `.tsl` import).
+- Unplugging and replugging it reconnected it (`midi.changed`, a new Identity Reply).
+- Two launches: the deletions made in the ARTIST MkII run were still gone on reopening.
+- It closed with Cmd-Q and with the window's close button, each through the handshake.
+
+Not tied to an amp: Roman confirmed in the window that copy and paste work in text fields and that right click opens no
+context menu. The traces showed editor mode on after connecting and off before `$$app_exit`, no `[js]` or `failed`
+lines, and no refused request but SoundCloud's, by design.
 
 The same two amps were checked with the 0.1.x Python shell on 2026-10-28 (the HEAD MkII with 0.1.0, the ARTIST MkII
 again with 0.1.1).
@@ -150,23 +159,25 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 
 ## Status
 
-The table records the native app (0.2.0), run with both amps (see Verified amplifiers). Without an amp it had also
-been checked with `--browser` and in a WKWebView: Roland's page loads under its security policy without errors, offline
-mode and Tone Central (catalogue, a liveset's `.tsl`, the YouTube player) work, the import took over Roland's 29
-livesets, and the built bundle serves its own copy of the web app. SoundCloud is no longer proxied.
+The amp rows (MIDI, remembering the device, closing, file dialogs, deleting, window) record the native app (0.2.0) run
+with the two amps; what ran with each is under Verified amplifiers. The other rows come from earlier checks without an
+amp, with `--browser` and in a WKWebView: Roland's page loads under its security policy without errors, offline mode and
+Tone Central (catalogue, a liveset's `.tsl`, the YouTube player) work, the import took over Roland's 29 livesets, and
+the built bundle serves its own copy of the web app. Tone Central's liveset details and adding a liveset also ran with
+the ARTIST MkII. SoundCloud is no longer proxied.
 
 | Area | Status |
 |---|---|
 | Editor UI, offline mode | ✅ checked visually in a browser; in the window, start-up verified through the bridge |
 | Storage (`app.storage`, `app.storage2`) | ✅ |
-| MIDI with the amp (KATANA MkII over USB) | ✅ Identity Reply, connecting, editor mode, changes from the app and from the amp's knobs; unplugging and replugging reconnects (HEAD MkII) |
+| MIDI with the amp (KATANA MkII over USB) | ✅ Identity Reply, connecting, reading patches, editor mode, changes from the app and from the amp's knobs; unplugging and replugging reconnects (HEAD MkII) |
 | Remembering the chosen device | ✅ reconnects on the next launch |
-| Closing the window (editor mode off, `$$app_exit`) | ✅ Cmd-Q and the close button, each through the handshake: the page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
+| Closing the window (editor mode off, `$$app_exit`) | ✅ HEAD MkII: Cmd-Q and the close button, each through the handshake; ARTIST MkII: a clean close through it. The page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
 | Librarian taken over from Roland's app | ✅ 29 livesets / 254 patches loaded in the original order |
-| File dialogs | ✅ `.tsl` export and re-import, All Data Backup (`.alb`) saved and restored; an invalid `.tsl` import shows the page's `alert`; with 0.1.x a Gen 3 `.tsl` was refused by Roland's code ("UNSUPPORTED DATA") |
-| Deleting livesets/patches | ✅ a deleted patch and liveset stay deleted after reopening |
+| File dialogs | ✅ `.tsl` export and re-import, All Data Backup (`.alb`) saved and restored (ARTIST MkII); an invalid `.tsl` import shows the page's `alert` (HEAD MkII); with 0.1.x a Gen 3 `.tsl` was refused by Roland's code ("UNSUPPORTED DATA") |
+| Deleting livesets/patches | ✅ a deleted patch and liveset (ARTIST MkII run) were still gone on reopening (HEAD MkII run, same data folder) |
 | Tone Central | ✅ through a local proxy: catalogue, details, YouTube preview, adding a liveset; SoundCloud previews ❌ (Roland's old API key returns 401) |
-| Window | ✅ copy and paste in text fields, no context menu on right click, a web link opens in the default browser |
+| Window | ✅ copy and paste in text fields, no context menu on right click (confirmed in the window); a web link opens in the default browser (ARTIST MkII run) |
 | `.app` bundle | ✅ `make app`: standalone (serves the bundled web app, nothing open under `/Applications/BOSS`), arm64, "(Apple Silicon)" name, grey icon |
 
 ## Next steps
