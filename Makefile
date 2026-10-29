@@ -9,12 +9,14 @@ SWIFT_FLAGS := -Xswiftc -warnings-as-errors
 ifeq ($(shell xcode-select -p 2>/dev/null),/Library/Developer/CommandLineTools)
 SWIFT_FLAGS += -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
 endif
-# Must match APP_NAME in bts/__main__.py, which names the bundle.
+# Must match AppPaths.appName and packaging/Info.plist.
 APP_NAME   ?= BOSS TONE STUDIO for KATANA MkII (Apple Silicon)
+APP        = dist/$(APP_NAME).app
+APP_VERSION = $(shell cat VERSION)
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help setup swift-version deps roland-assets lock run browser trace roland-import build app install \
-	release-notes test lint format check
+.PHONY: help setup swift-version deps roland-assets roland-reextract lock run browser trace roland-import build app \
+	install release-notes test lint format check
 
 help:
 	@echo "BOSS TONE STUDIO for KATANA MkII — Apple Silicon"
@@ -32,8 +34,8 @@ help:
 	@echo "  trace          Open the app window, logging every bridge command and MIDI message"
 	@echo "  roland-import  Re-import the Librarian from Roland's own app"
 	@echo "  build          Build the Swift package (compiler warnings are errors)"
-	@echo "  app            Build a standalone dist/$(APP_NAME).app (PyInstaller; Roland's web app inside)"
-	@echo "  install        Copy the built app to $(INSTALL_DIR)"
+	@echo "  app            Build dist/$(APP_NAME).app (ad-hoc signed, hardened runtime; Roland's web app inside)"
+	@echo "  install        Check the built app's signature, then copy it to $(INSTALL_DIR)"
 	@echo "  release-notes  Write the GitHub Release body for VERSION=x.y.z (tagged) to tmp/"
 	@echo "  test           Run the unit tests (swift test; compiler warnings are errors)"
 	@echo "  lint           Check the code (swift format lint --strict)"
@@ -80,20 +82,36 @@ roland-assets:
 build: swift-version
 	@swift build $(SWIFT_FLAGS)
 
-app: swift-version roland-assets build/AppIcon.icns
-	@mise exec -- uv pip sync --quiet --require-hashes --python $(PYTHON) requirements-app.txt
-	@$(PYTHON) -m PyInstaller --noconfirm --log-level WARN --distpath dist --workpath build/pyinstaller packaging/app.spec
-	@rm -rf "dist/$(APP_NAME)"  # the intermediate one-folder build; the .app holds its own copy
-	@echo "Built dist/$(APP_NAME).app"
+# Roland's web app goes into the bundle from the SHA-256-checked installer zip every time, never as it stands in
+# build/roland/html (the fetch script skips a folder that already has an index.html).
+roland-reextract:
+	@rm -rf build/roland/html
+	@packaging/fetch-roland-assets.sh build/roland
 
-build/AppIcon.icns: build/roland/AppIcon.icns packaging/make_icon.py
-	@mise exec -- uv pip sync --quiet --require-hashes --python $(PYTHON) requirements-app.txt
-	@$(PYTHON) packaging/make_icon.py $< $@
+app: swift-version roland-reextract build/AppIcon.icns
+	@swift build -c release --arch arm64 $(SWIFT_FLAGS)
+	@rm -rf "$(APP)"
+	@mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
+	@cp "$$(swift build -c release --arch arm64 --show-bin-path)/BossToneStudio" "$(APP)/Contents/MacOS/"
+	@sed 's/@VERSION@/$(APP_VERSION)/g' packaging/Info.plist > "$(APP)/Contents/Info.plist"
+	@cp -X build/AppIcon.icns "$(APP)/Contents/Resources/AppIcon.icns"
+	@cp -RX build/roland/html "$(APP)/Contents/Resources/roland-html"
+	@codesign --force --sign - --options runtime --timestamp=none "$(APP)"
+	@echo "Built $(APP)"
+
+build/roland/AppIcon.icns:
+	@packaging/fetch-roland-assets.sh build/roland
+
+build/AppIcon.icns: build/roland/AppIcon.icns packaging/make-icon.swift
+	@swift packaging/make-icon.swift $< $@
 
 install:
-	@test -d "dist/$(APP_NAME).app" || (echo "Error: run 'make app' first" >&2 && exit 1)
+	@test -d "$(APP)" || (echo "Error: run 'make app' first" >&2 && exit 1)
+	@codesign --verify --strict "$(APP)" || (echo "Error: $(APP) has no valid signature; run 'make app'" >&2 && exit 1)
+	@codesign --display --verbose "$(APP)" 2>&1 | grep -Eq 'flags=0x[0-9a-f]+\([a-z,]*runtime' \
+		|| (echo "Error: $(APP) lacks the hardened runtime; run 'make app'" >&2 && exit 1)
 	@mkdir -p "$(INSTALL_DIR)" && rm -rf "$(INSTALL_DIR)/$(APP_NAME).app"
-	@cp -R "dist/$(APP_NAME).app" "$(INSTALL_DIR)/"
+	@cp -R "$(APP)" "$(INSTALL_DIR)/"
 	@echo "Installed $(INSTALL_DIR)/$(APP_NAME).app"
 
 release-notes:
