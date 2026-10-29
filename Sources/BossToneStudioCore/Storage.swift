@@ -36,11 +36,6 @@ func readTextOrThrow(_ url: URL) throws -> String? {
     return text
 }
 
-/// `readTextOrThrow` for callers that cannot tell a bad file from a missing one anyway.
-public func readText(_ url: URL) -> String? {
-    (try? readTextOrThrow(url)) ?? nil
-}
-
 /// The page's `app.storage2`: one file per key, shared by the bridge and the Librarian import.
 public struct Storage2: Sendable {
     public let directory: URL

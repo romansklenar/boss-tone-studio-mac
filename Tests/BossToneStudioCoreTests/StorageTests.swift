@@ -79,7 +79,7 @@ import Testing
         let file = folder.appendingPathComponent("storage.json")
         let text = "\u{feff}{\"a\":\r\n\"b\"}\r\n\n"  // a BOM, CRLF and trailing newlines must survive
         try writeAtomically(text, to: file)
-        #expect(Array(try #require(readText(file)).utf8) == Array(text.utf8))
+        #expect(Array(try #require(try readTextOrThrow(file)).utf8) == Array(text.utf8))
     }
 }
 
@@ -88,7 +88,7 @@ import Testing
         let file = folder.appendingPathComponent("ID_LIST")
         try writeAtomically(String(repeating: "long ", count: 1000), to: file)
         try writeAtomically("short", to: file)
-        #expect(readText(file) == "short")
+        #expect(try readTextOrThrow(file) == "short")
         #expect(try Data(contentsOf: file) == Data("short".utf8))
     }
 }
@@ -102,17 +102,17 @@ import Testing
 
 @Test func readTextIsNilUnlessItIsARegularFile() throws {
     try withTemporaryFolder { folder in
-        #expect(readText(folder.appendingPathComponent("missing")) == nil)
-        #expect(readText(folder) == nil)
+        #expect(try readTextOrThrow(folder.appendingPathComponent("missing")) == nil)
+        #expect(try readTextOrThrow(folder) == nil)
         let file = folder.appendingPathComponent("file")
         try writeAtomically("text", to: file)
         let link = folder.appendingPathComponent("link")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
-        #expect(readText(link) == "text")  // links followed, as 0.1.1's is_file() did
+        #expect(try readTextOrThrow(link) == "text")  // links followed, as 0.1.1's is_file() did
         try writeAtomically("", to: file)
-        #expect(readText(file) == "")  // empty is not missing
+        #expect(try readTextOrThrow(file) == "")  // empty is not missing
         try Data([0xff, 0xfe, 0x41]).write(to: file)
-        #expect(readText(file) == nil)  // not UTF-8
+        #expect(throws: StorageError.notUTF8(file.path)) { try readTextOrThrow(file) }  // not UTF-8
     }
 }
 
@@ -121,7 +121,6 @@ import Testing
         let storage = try Storage2(dataDir: folder)
         try Data([0xff, 0xfe, 0x41]).write(to: storage.directory.appendingPathComponent("ID_LIST"))
         #expect(throws: (any Error).self) { try storage.read("ID_LIST") }
-        #expect(readText(storage.directory.appendingPathComponent("ID_LIST")) == nil)  // the non-throwing wrapper
 
         let locked = storage.directory.appendingPathComponent("0")
         try writeAtomically("liveset", to: locked)
@@ -129,7 +128,6 @@ import Testing
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: locked.path) }
         if geteuid() != 0 {  // root reads anything
             #expect(throws: (any Error).self) { try storage.read("0") }
-            #expect(readText(locked) == nil)
         }
 
         #expect(try storage.read("missing") == nil)  // only a missing file is "not there"

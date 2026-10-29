@@ -279,7 +279,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         #expect(try call(bridge, "app_storage") == "")
         #expect(try call(bridge, "app_storage", "{\"a\":1}") == nil)
         #expect(try call(bridge, "app_storage") == "{\"a\":1}")
-        #expect(readText(data.appendingPathComponent("storage.json")) == "{\"a\":1}")
+        #expect(try readTextOrThrow(data.appendingPathComponent("storage.json")) == "{\"a\":1}")
     }
 }
 
@@ -353,7 +353,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             #expect(throws: FileAccessError.self, "\(path)") { try call(bridge, "fs_readString", path) }
             #expect(throws: FileAccessError.self, "\(path)") { try call(bridge, "fs_writeString", path, "x") }
         }
-        #expect(readText(secret) == "secret")
+        #expect(try readTextOrThrow(secret) == "secret")
         #expect(!FileManager.default.fileExists(atPath: outside.appendingPathComponent("new.txt").path))
     }
 }
@@ -413,7 +413,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             #expect(try call(bridge, "app_getevent") == "fs\(formFeed)openfilename\(formFeed)\(picked.path)")
             #expect(try call(bridge, "fs_readString", picked.path) == "liveset")
             #expect(throws: FileAccessError.self) { try call(bridge, "fs_writeString", picked.path, "x") }
-            #expect(readText(picked) == "liveset")
+            #expect(try readTextOrThrow(picked) == "liveset")
             #expect(host.openRequests == [["tsl"]])
         }
     }
