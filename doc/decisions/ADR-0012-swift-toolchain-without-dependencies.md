@@ -30,7 +30,7 @@ download it on every macOS run.
   request is opened, updated or marked ready, drafts included, and on every push to `main`. `make test` on macOS
   (`macos-26`, the runner's default Xcode) only for pull requests that are not drafts and for pushes to `main`:
   Network.framework, CoreMIDI and AppKit exist only on macOS, where minutes cost ten times as much. Actions stay
-  pinned to commit SHAs, and a newer run cancels an older one.
+  pinned to commit SHAs; on a pull request a newer run cancels an older one, and every push to `main` runs to the end.
 
 ## Consequences
 

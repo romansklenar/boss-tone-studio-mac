@@ -187,7 +187,8 @@ ADR-0003 records each fix and the residual risks.
   container, pinned by digest to the minor version the code was last formatted with, for every pull request update,
   drafts included, and for pushes to `main`; `make test` on macOS only for pull requests that are ready for review and
   for pushes to `main`, since Network.framework, CoreMIDI and AppKit exist only there. Actions stay pinned to commit
-  SHAs; a newer run cancels an older one. mise and uv are gone.
+  SHAs; on a pull request a newer run cancels an older one, while every push to `main` runs to the end. mise and uv
+  are gone.
 - ADR-0011 (the native app) supersedes ADR-0001 and the PyInstaller part of ADR-0008; ADR-0012 (the Swift-only
   toolchain) supersedes ADR-0009; ADR-0005 notes that the name stays the UID.
 
