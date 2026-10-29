@@ -25,12 +25,13 @@ picked in a file dialog; let `fs.exec` open `http(s)` links only. The rules are 
 ## Known weak points
 
 From a security review on 2026-10-28; none was exploitable without code already on the Mac or in the page. The native
-app fixed each of them in 0.2.0 ([ADR-0011](ADR-0011-native-swift-app.md)); the rules are in `doc/bridge-protocol.md`.
+app addressed each of them in 0.2.0 ([ADR-0011](ADR-0011-native-swift-app.md)); YouTube remains (see Residual risks).
+The rules are in `doc/bridge-protocol.md`.
 
-| Weak point | Fixed in 0.2.0 |
+| Weak point | Addressed in 0.2.0 |
 |---|---|
 | The token is served to any local client (above) | The page and its files live under `/<token>/` too, and the window opens `/<token>/index.html`; any path without the token is `403` |
-| Proxied scripts (YouTube, SoundCloud, Roland) and Tone Central titles, which the page renders as HTML, run with the token | `index.html` comes with a Content-Security-Policy whose per-response nonce admits the bridge script, so inline scripts, injected event handlers and `javascript:` URLs are blocked; SoundCloud left the allowlist; Roland's hosts must answer with JSON, passed on as `application/json` or `text/plain` |
+| Proxied scripts (YouTube, SoundCloud, Roland) and Tone Central titles, which the page renders as HTML, run with the token | `index.html` comes with a Content-Security-Policy whose per-response nonce admits the bridge script, so inline scripts, injected event handlers and `javascript:` URLs are blocked; SoundCloud left the allowlist; Roland's hosts must answer with JSON, passed on as `application/json` or `text/plain`. YouTube remains: its player scripts still run with the token (see Residual risks) |
 | CoreMIDI port names are rendered as HTML, and any process can name a virtual port | Ports whose names contain `<>&"'` are neither listed nor opened |
 | pywebview opens `target=_blank` links of any scheme in the browser | The web view opens no windows: a clicked `http(s)` link goes to the default browser, other schemes are dropped, and `window.open` without a click does nothing; the window stays on `http://127.0.0.1:P`, and subframes load `https` only |
 | A file picked to open may also be written | Separate sets: a file picked to open is read only, a path picked to save is writable |
