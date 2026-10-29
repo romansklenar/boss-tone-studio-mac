@@ -250,5 +250,5 @@ How this project relates to each point:
 The server can read and write files, so it listens on `127.0.0.1` only, checks the `Host`, serves the page, its files
 and the bridge only under a per-launch secret token that it never hands out, holds the page to a
 Content-Security-Policy, reaches files only in the app's own folders or where the user pointed a file dialog (a file
-picked to open is read only), fetches only from Tone Central's hosts, and opens only web links. The rules are in
-[`doc/bridge-protocol.md`](doc/bridge-protocol.md#security), their tests in [`doc/testing.md`](doc/testing.md).
+picked to open is read only), fetches only from Tone Central's hosts, and opens only web links off this Mac. The rules
+are in [`doc/bridge-protocol.md`](doc/bridge-protocol.md#security), their tests in [`doc/testing.md`](doc/testing.md).

@@ -382,6 +382,31 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
     }
 }
 
+@Test func execRefusesLinksBackToThisMac() throws {
+    // The page's own URLs carry the token: no spelling a browser reads as this Mac may reach it.
+    let opened = OpenedURLs()
+    try withBridge(opened: opened) { bridge, _ throws in
+        let refused = [
+            "http://127.0.0.1:8080/token/index.html", "https://127.0.0.1/", "http://127.0.0.1./", "http://127.1:8080/",
+            "http://0x7f000001/", "http://2130706433/", "http://%31%32%37.0.0.1/", "http://0.0.0.0/",
+            "http://localhost:8080/", "http://LOCALHOST./", "http://app.localhost/", "http://[::1]:8080/",
+            "http://[::]/", "http://[::ffff:127.0.0.1]/", "http:///127.0.0.1/", "http://example.com\\@127.0.0.1/",
+            "http://user@example.com/",
+        ]
+        for target in refused {
+            #expect(throws: BridgeError(description: "refusing to open \(escaped(target))"), "\(target)") {
+                try call(bridge, "fs_exec", target)
+            }
+        }
+        #expect(opened.all == [])
+        #expect(try call(bridge, "fs_exec", "https://127.example.com/") == nil)  // a name, not an address
+        #expect(try call(bridge, "fs_exec", "http://192.168.1.1/") == nil)
+        #expect(try call(bridge, "fs_exec", "http://[2001:db8::1]/") == nil)
+        let expected = ["https://127.example.com/", "http://192.168.1.1/", "http://[2001:db8::1]/"]
+        #expect(opened.all.map(\.absoluteString) == expected)
+    }
+}
+
 @Test func openDialogResultIsReadableNotWritable() throws {
     try withTemporaryFolder { outside throws in
         let picked = outside.appendingPathComponent("Foo.tsl")

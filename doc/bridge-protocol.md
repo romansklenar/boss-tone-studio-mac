@@ -58,7 +58,7 @@ complete request.
 | `app_exit` | disconnect MIDI, close the window |
 | `fs_separator` | `/` |
 | `fs_path('temporary' \| 'library')` | absolute path **with a trailing `/`** |
-| `fs_exec(url)` | open in the default browser — `http(s)://` only |
+| `fs_exec(url)` | open in the default browser — `http(s)://` only, never this Mac (Security, rule 6) |
 | `fs_readString(path)`, `fs_writeString(path, text)` | permitted paths only (see Security) |
 | `fs_openfilename('["tsl"]'?)` | asynchronous dialog → event `fs\fopenfilename\f<path>`, empty when cancelled; window only |
 | `fs_savefilename(name, ext)` | asynchronous dialog, `name.ext` in its name field → event `fs\fsavefilename\f<path>` (extension appended unless present); window only |
@@ -157,7 +157,9 @@ The server can read and write files, so:
    ancestor, so no link leads out of a folder; a dangling link at any level, and a NUL byte, are refused. The file is
    then read or written at the resolved path. The save dialog's extension must be 1–10 ASCII letters and digits, since
    it is appended to the picked path.
-6. `fs_exec` opens `http(s)://` links only. The window opens no new windows: a clicked link with a new target, or a
+6. `fs_exec` opens `http(s)://` links to other machines only: a link without a host or with userinfo, or one to
+   `localhost` or a loopback address in any spelling a browser accepts (`127.1`, `0x7f000001`, `[::1]`…), is refused,
+   since the page's own URLs carry the token. The window opens no new windows: a clicked link with a new target, or a
    `window.open` after a click, goes to the default browser if it is an `http(s)` URL off the page's origin (whose
    URLs carry the token) and is dropped otherwise; `window.open` without a click does nothing. The window itself stays
    on `http://127.0.0.1:P` (other web pages go to the browser), and subframes load only `https` (the YouTube player)
