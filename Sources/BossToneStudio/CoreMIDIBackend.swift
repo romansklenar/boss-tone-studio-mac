@@ -77,11 +77,8 @@ final class CoreMIDIBackend: MidiBackend {
             close(input)
             throw error
         }
-        let replaced = state.withLock { state in
-            defer { state.input = input }
-            return state.input
-        }
-        if let replaced { close(replaced) }
+        // Empty since the disconnect above: the controller makes these calls one at a time, under its lock.
+        state.withLock { $0.input = input }
     }
 
     func disconnectInput() {
