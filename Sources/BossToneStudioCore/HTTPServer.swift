@@ -110,10 +110,10 @@ public final class HTTPServer: Sendable {
     }
 
     private func serve(_ connection: NWConnection, _ handler: Handler) async {
-        let timer = IdleTimer()
+        let timer = IdleTimer(closing: connection, after: idleTimeout, on: queue)
+        defer { timer.cancel() }
         var buffer = Data()
-        timer.arm(closing: connection, after: idleTimeout, on: queue)
-        defer { timer.disarm() }
+        timer.arm()
         while true {
             switch parseRequest(buffer) {
             case .incomplete:
@@ -129,7 +129,7 @@ public final class HTTPServer: Sendable {
                 timer.disarm()  // a proxy fetch may take up to 60 s
                 buffer = Data(buffer.dropFirst(consumed))
                 let response = await handler(request)
-                timer.arm(closing: connection, after: idleTimeout, on: queue)  // also bounds a client that never reads
+                timer.arm()  // also bounds a client that never reads
                 let keepAlive = request.keepAlive
                 let bytes = response.serialized(keepAlive: keepAlive, includeBody: request.method != "HEAD")
                 guard await send(bytes, on: connection), keepAlive else { return }
@@ -157,20 +157,38 @@ private struct ServerError: Error, CustomStringConvertible {
     let description: String
 }
 
-/// Cancels a connection unless disarmed in time. Firing and disarming take the same lock, so once `disarm` returns the
-/// timer can no longer close the connection.
+/// Cancels a connection unless disarmed in time: one timer per connection, moved on by every `arm`. The firing handler
+/// takes the deadline's lock too, so once `disarm` returns the timer can no longer close the connection, and a fire
+/// meant for an earlier deadline closes nothing.
 private final class IdleTimer: Sendable {
-    private let generation = OSAllocatedUnfairLock(initialState: 0)
+    private let source: DispatchSourceTimer
+    private let timeout: DispatchTimeInterval
+    private let deadline = OSAllocatedUnfairLock<DispatchTime?>(initialState: nil)  // nil while disarmed
 
-    func arm(closing connection: NWConnection, after timeout: DispatchTimeInterval, on queue: DispatchQueue) {
-        let armed = generation.withLock {
-            $0 += 1
-            return $0
-        }
-        queue.asyncAfter(deadline: .now() + timeout) { [generation] in
-            generation.withLock { if $0 == armed { connection.cancel() } }
+    init(closing connection: NWConnection, after timeout: DispatchTimeInterval, on queue: DispatchQueue) {
+        self.timeout = timeout
+        source = DispatchSource.makeTimerSource(queue: queue)
+        source.setEventHandler { [weak self] in self?.fire(closing: connection) }
+        source.resume()  // not scheduled yet, so it does not fire
+    }
+
+    func arm() {
+        deadline.withLock { deadline in
+            let due = DispatchTime.now() + timeout
+            deadline = due
+            source.schedule(deadline: due)
         }
     }
 
-    func disarm() { generation.withLock { $0 += 1 } }
+    func disarm() { deadline.withLock { $0 = nil } }
+
+    /// Once the connection has ended: lets go of the handler and the connection it holds.
+    func cancel() { source.cancel() }
+
+    private func fire(closing connection: NWConnection) {
+        deadline.withLock { deadline in
+            guard let deadline else { return }
+            if DispatchTime.now() >= deadline { connection.cancel() } else { source.schedule(deadline: deadline) }
+        }
+    }
 }
