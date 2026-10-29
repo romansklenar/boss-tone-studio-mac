@@ -117,7 +117,8 @@ Behaviour worth knowing:
 The server can read and write files, so:
 
 1. It listens on `127.0.0.1` only and needs exactly one `Host` header, equal to `127.0.0.1:P`, on every GET, HEAD and
-   POST (DNS rebinding); `localhost` and `[::1]` are refused, and other methods get `501`.
+   POST (DNS rebinding; a second one is a `400`, rule 8); `localhost` and `[::1]` are refused, and other methods get
+   `501`.
 2. Everything lives under a per-launch token (24 random bytes, URL-safe base64), compared in constant time: the page
    `/<token>/index.html`, its files, the commands `/<token>/$$…`, `/<token>/proxy` and `/<token>/log`. Any other path
    gets `403`, so the server never gives the token away; the window opens the page with it, and `--browser` prints
@@ -174,9 +175,10 @@ The server can read and write files, so:
    as `application/json` when Roland's server said JSON, else as `text/plain`, so jQuery never runs them as script or
    HTML (`.tsl` files come as `binary/octet-stream`, and the page parses them itself); an error status passes without
    its body. YouTube's answers pass unchanged.
-8. Requests are parsed strictly: a head of at most 64 KB with CRLF line ends, no folded headers, no
-   `Transfer-Encoding`, a `Content-Length` of digits only (repeated only with the same value), bodies up to 64 MB;
-   anything else → `400`, and the connection closes. A head whose lines end in bare line feeds never completes: its
+8. Requests are parsed strictly: a head of at most 64 KB with CRLF line ends, a request target of visible ASCII
+   (raw bytes from `0x80` up are refused; XHR percent-encodes them), no folded headers, no `Transfer-Encoding`, at most
+   one `Host`, `Origin`, `Sec-Fetch-Site` and `Content-Type`, a `Content-Length` of digits only (repeated only with the
+   same value), bodies up to 64 MB; anything else → `400`, and the connection closes. A head whose lines end in bare line feeds never completes: its
    connection is closed after 30 s without a complete request, or gets `400` once the head passes 64 KB. Command
    arguments must be a JSON array of strings (`400` otherwise). Page log lines (whose error locations are the page's
    URLs) and failed requests are logged with the token removed in any spelling and with control characters,

@@ -47,7 +47,8 @@ public enum ParseResult: Sendable {
 /// Reads one request from the front of `buffer`, the bytes received so far on a connection.
 ///
 /// Strict on purpose: this is the first thing a local web page's bytes reach. Anything that could be read two ways
-/// (a bare line feed, a folded header, a repeated or odd `Content-Length`, a `Transfer-Encoding`) is refused.
+/// (a bare line feed, a folded header, a repeated or odd `Content-Length`, a `Transfer-Encoding`, a second header the
+/// router decides by, a raw byte from 0x80 up in the target) is refused.
 public func parseRequest(
     _ buffer: Data, maxHeaderBytes: Int = 65_536, maxBodyBytes: Int = 67_108_864
 ) -> ParseResult {
@@ -59,7 +60,9 @@ public func parseRequest(
     guard let lines = headLines(head[..<(headEnd - 4)]), let requestLine = parseRequestLine(lines[0]),
         let (headers, lengths) = parseHeaders(lines.dropFirst())
     else { return .invalid(status: 400) }
-    guard !headers.contains(where: { $0.name.lowercased() == "transfer-encoding" }),
+    let names = headers.map { $0.name.lowercased() }
+    guard !names.contains("transfer-encoding"),
+        singleHeaders.allSatisfy({ single in names.count { $0 == single } <= 1 }),
         let length = bodyLength(lengths, limit: maxBodyBytes)
     else { return .invalid(status: 400) }
     guard buffer.count - headEnd >= length else { return .incomplete }
@@ -77,6 +80,9 @@ private let tab = UInt8(ascii: "\t")
 
 /// HTTP's optional whitespace: space and tab only, not the Unicode spaces `.whitespaces` adds.
 private let optionalWhitespace = CharacterSet(charactersIn: " \t")
+
+/// The headers the router decides by; it reads the first, so a second one could be read differently elsewhere.
+private let singleHeaders = ["host", "origin", "sec-fetch-site", "content-type"]
 
 /// The index just past the first CRLFCRLF.
 private func indexAfterBlankLine(_ bytes: [UInt8]) -> Int? {
@@ -126,7 +132,8 @@ private func parseRequestLine(_ line: ArraySlice<UInt8>) -> (method: String, tar
     guard parts.count == 3, parts.allSatisfy({ !$0.isEmpty }) else { return nil }
     let (method, target, version) = (parts[0], parts[1], parts[2])
     let versionText = latin1(version)  // HTTP/1.x
-    guard method.allSatisfy(isTokenCharacter), target.allSatisfy({ $0 > 0x20 && $0 != 0x7F }),
+    // Visible ASCII only (RFC 9112): a raw byte from 0x80 up has no one reading; XHR percent-encodes them.
+    guard method.allSatisfy(isTokenCharacter), target.allSatisfy({ $0 > 0x20 && $0 < 0x7F }),
         versionText.hasPrefix("HTTP/1."), version.count == 8, version.last.map(isDigit) == true
     else { return nil }
     return (latin1(method), latin1(target), versionText)

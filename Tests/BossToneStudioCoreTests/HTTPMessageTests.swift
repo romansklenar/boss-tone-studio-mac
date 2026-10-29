@@ -192,6 +192,7 @@ private func isIncomplete(_ text: String) -> Bool {
         "", "GET", "GET /", "GET / ", "GET  / HTTP/1.1", " GET / HTTP/1.1", "GET / HTTP/1.1 ", "GET / HTTP/1.1 x",
         "GET / HTTP/2.0", "GET / HTTP/1", "GET / HTTP/1.10", "GET / HTTP/1.x", "GET / http/1.1", "GET / HTTP/0.9",
         "G\u{01}T / HTTP/1.1", "GET /a\u{7f}b HTTP/1.1", "GE:T / HTTP/1.1", "GET\t/ HTTP/1.1", "/ HTTP/1.1",
+        "GET /caf\u{E9} HTTP/1.1",  // raw bytes from 0x80 up (RFC 9112); XHR percent-encodes them
     ] {
         #expect(isInvalid(line + "\r\n\r\n"), "\(line.debugDescription)")
     }
@@ -212,17 +213,24 @@ private func isIncomplete(_ text: String) -> Bool {
 }
 
 @Test func headerBytesAreReadAsLatin1SoNothingFailsToDecode() throws {
-    var buffer = data("GET /caf")
-    buffer.append(0xE9)
-    buffer.append(data(" HTTP/1.1\r\nX-Name: "))
+    var buffer = data("GET /caf%C3%A9 HTTP/1.1\r\nX-Name: ")
     buffer.append(0xFF)
     buffer.append(data("\r\n\r\n"))
     guard case .request(let request, _) = parseRequest(buffer) else {
         Issue.record("non-ASCII header bytes must parse")
         return
     }
-    #expect(request.target == "/caf\u{E9}")
+    #expect(request.target == "/caf%C3%A9")
     #expect(request.header("x-name") == "\u{FF}")
+}
+
+@Test func aSecondHostOriginFetchSiteOrContentTypeIsRefused() {
+    // The router reads one of each; something in between could read the other.
+    for name in ["Host", "Origin", "Sec-Fetch-Site", "Content-Type"] {
+        #expect(isInvalid("GET / HTTP/1.1\r\n\(name): a\r\n\(name): a\r\n\r\n"), "\(name)")
+        #expect(isInvalid("GET / HTTP/1.1\r\n\(name): a\r\nX-Other: b\r\n\(name.lowercased()): c\r\n\r\n"), "\(name)")
+        #expect(parsed("GET / HTTP/1.1\r\n\(name): a\r\n\r\n") != nil, "\(name)")
+    }
 }
 
 // MARK: responses

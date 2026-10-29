@@ -44,7 +44,8 @@ Where the port had to choose, it chose:
 - Hot-plug follows CoreMIDI's setup-changed notification instead of a 1.5 s poll, and `midi\fchanged` is sent only when
   the port lists really changed.
 - A connection is closed after 30 s without a complete request, and the HTTP parser refuses anything that could be
-  read two ways (bare line feeds, folded headers, `Transfer-Encoding`, conflicting `Content-Length`).
+  read two ways (bare line feeds, folded headers, `Transfer-Encoding`, conflicting `Content-Length`, a second `Host`,
+  `Origin`, `Sec-Fetch-Site` or `Content-Type`, raw non-ASCII bytes in the request target).
 
 ## Consequences
 

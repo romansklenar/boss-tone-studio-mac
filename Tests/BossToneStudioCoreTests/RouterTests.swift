@@ -267,16 +267,33 @@ private struct TestServer {
     #expect(server.dispatcher.calls.isEmpty)
 }
 
-@Test func aMissingOrRepeatedHostIsRefused() async throws {
+@Test func aMissingHostIsRefusedAndARepeatedOneUnreadable() async throws {
     let server = try TestServer()
     defer { server.stop() }
     let path = "/\(token)/index.html"
     #expect(try await server.client.exchange("GET \(path) HTTP/1.1\r\n\r\n").status == 403)
     let host = server.client.host
     let twice = "GET \(path) HTTP/1.1\r\nHost: \(host)\r\nHost: evil.example\r\n\r\n"
-    #expect(try await server.client.exchange(twice).status == 403)
+    #expect(try await server.client.exchange(twice).status == 400)
     let reversed = "GET \(path) HTTP/1.1\r\nHost: evil.example\r\nhost: \(host)\r\n\r\n"
-    #expect(try await server.client.exchange(reversed).status == 403)
+    #expect(try await server.client.exchange(reversed).status == 400)
+}
+
+@Test func requestsThatCouldBeReadTwoWaysNeverReachTheBridge() async throws {
+    let server = try TestServer()
+    defer { server.stop() }
+    let path = "/\(token)/$$app_storage2"
+    let head = "POST \(path) HTTP/1.1\r\nHost: \(server.client.host)\r\nContent-Length: 2\r\n"
+    for repeated in [
+        "Origin: \(server.origin)\r\nOrigin: https://evil.example\r\n",
+        "Sec-Fetch-Site: same-origin\r\nSec-Fetch-Site: cross-site\r\n",
+        "Content-Type: application/json\r\nContent-Type: text/plain\r\n",
+    ] {
+        #expect(try await server.client.exchange(head + repeated + "\r\n[]").status == 400, "\(repeated)")
+    }
+    let raw = "GET /\(token)/caf\u{E9}.html HTTP/1.1\r\nHost: \(server.client.host)\r\n\r\n"
+    #expect(try await server.client.exchange(raw).status == 400)
+    #expect(server.dispatcher.calls.isEmpty)
 }
 
 @Test func nearMissesOfTheTokenAreRefused() async throws {

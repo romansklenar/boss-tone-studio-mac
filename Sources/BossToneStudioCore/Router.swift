@@ -66,10 +66,9 @@ public final class Router: Sendable {
 
     private func route(_ request: HTTPRequest) async -> HTTPResponse {
         guard ["GET", "HEAD", "POST"].contains(request.method) else { return .error(501) }
-        // DNS rebinding: a page on another name that resolves here sends its own name. A second `Host` could be read
-        // differently by something in between, so there must be exactly one.
-        let hosts = request.headers.filter { $0.name.lowercased() == "host" }
-        guard hosts.count == 1, hosts[0].value == host else { return .error(403) }
+        // DNS rebinding: a page on another name that resolves here sends its own name. The parser has refused a
+        // second `Host`, which something in between could read instead.
+        guard request.header("Host") == host else { return .error(403) }
         guard let path = pathUnderToken(request.path) else { return .error(403) }
         // Other web pages in the user's browser must neither drive the bridge nor open the editor.
         if let requestOrigin = request.header("Origin"), requestOrigin != origin { return .error(403) }
