@@ -27,7 +27,8 @@ public func pyList(_ items: [String]) -> String {
 }
 
 /// Single-quoted, with `\`, `'` and control characters escaped as Python's `repr` escaped them in 0.1.1's logs: the
-/// page and MIDI devices choose these texts, and a raw newline or escape sequence in them would forge log lines.
+/// page and MIDI devices choose these texts, and a raw newline or escape sequence in them would forge log lines, as
+/// would a bidirectional control or a line separator reordering or splitting one in the terminal.
 public func escaped(_ text: String) -> String {
     var result = "'"
     for scalar in text.unicodeScalars {
@@ -38,10 +39,17 @@ public func escaped(_ text: String) -> String {
         case "\r": result += "\\r"
         case "\t": result += "\\t"
         case "\u{00}"..."\u{1f}", "\u{7f}"..."\u{9f}":
-            let hex = String(scalar.value, radix: 16)
-            result += "\\x" + (hex.count < 2 ? "0" : "") + hex
+            result += "\\x" + hexDigits(scalar, count: 2)
+        case "\u{061C}", "\u{200E}", "\u{200F}", "\u{2028}"..."\u{202E}", "\u{2066}"..."\u{2069}", "\u{FEFF}":
+            result += "\\u" + hexDigits(scalar, count: 4)
         default: result.unicodeScalars.append(scalar)
         }
     }
     return result + "'"
+}
+
+/// Lowercase, zero-padded to `count` digits, as in Python's `\x1b` and `\u202e`.
+private func hexDigits(_ scalar: Unicode.Scalar, count: Int) -> String {
+    let hex = String(scalar.value, radix: 16)
+    return String(repeating: "0", count: max(0, count - hex.count)) + hex
 }

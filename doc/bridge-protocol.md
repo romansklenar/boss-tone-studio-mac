@@ -179,8 +179,8 @@ The server can read and write files, so:
    anything else → `400`, and the connection closes. A head whose lines end in bare line feeds never completes: its
    connection is closed after 30 s without a complete request, or gets `400` once the head passes 64 KB. Command
    arguments must be a JSON array of strings (`400` otherwise). Page log lines (whose error locations are the page's
-   URLs) and failed requests are logged with the token removed in any spelling and control characters escaped; page
-   log lines are then cut at 500 characters.
+   URLs) and failed requests are logged with the token removed in any spelling and with control characters,
+   bidirectional controls and line separators escaped; page log lines are then cut at 500 characters.
 
 The unit tests (target `BossToneStudioCoreTests`, in `Tests/BossToneStudioCoreTests/`) cover each rule except the
 window's part of rule 6, which lives in the app and is checked by hand. The router's rules (1–3, and the request side
