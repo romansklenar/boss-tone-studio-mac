@@ -1,4 +1,5 @@
 import Testing
+import os
 
 @testable import BossToneStudioCore
 
@@ -37,7 +38,7 @@ private func sysExStatuses(_ words: [UInt32]) -> [UInt32] {
     #expect(umpWords(for: [0xF2, 0x10, 0x20]) == [0x10F2_1020])
     #expect(umpWords(for: [0xF3, 4]) == [0x10F3_0400])
     #expect(umpWords(for: [0xF6]) == [0x10F6_0000])
-    for message: [UInt8] in [[0xF1, 5], [0xF2, 0x10, 0x20], [0xF3, 4], [0xF6], [0xFA], [0xFB], [0xFC], [0xFF]] {
+    for message: [UInt8] in [[0xF2, 0x10, 0x20], [0xF3, 4], [0xF6], [0xFA], [0xFB], [0xFC], [0xFF]] {
         #expect(roundTrip(message) == [message])
     }
 }
@@ -143,14 +144,31 @@ private func sysExStatuses(_ words: [UInt32]) -> [UInt32] {
     #expect(reassembler.feed(Array(first[0..<2]) + second) == [sysEx(payloadCount: 9)])
 }
 
-@Test func clockAndActiveSensingAreDropped() {
+@Test func timeCodeClockAndActiveSensingAreDropped() {
+    // As 0.1.1's `ignore_types(timing=True, active_sense=True)` dropped them.
     var reassembler = UMPReassembler()
+    #expect(reassembler.feed(umpWords(for: [0xF1, 5])) == [])
     #expect(reassembler.feed(umpWords(for: [0xF8])) == [])
     #expect(reassembler.feed(umpWords(for: [0xFE])) == [])
-    #expect(
-        reassembler.feed(umpWords(for: [0xF8]) + umpWords(for: [0xFE]) + umpWords(for: [0x90, 60, 1])) == [
-            [0x90, 60, 1]
-        ])
+    let dropped = umpWords(for: [0xF1, 5]) + umpWords(for: [0xF8]) + umpWords(for: [0xFE])
+    #expect(reassembler.feed(dropped + umpWords(for: [0x90, 60, 1])) == [[0x90, 60, 1]])
+}
+
+@Test func aSysExOfUpTo1MiBIsReassembledAndALongerOneDroppedWithOneLogLine() {
+    let lines = OSAllocatedUnfairLock(initialState: [String]())
+    var reassembler = UMPReassembler { line in lines.withLock { $0.append(line) } }
+    let largest = sysEx(payloadCount: 1_048_576 - 2)  // F0 and F7 count
+    #expect(reassembler.feed(umpWords(for: largest)) == [largest])
+    #expect(lines.withLock { $0 } == [])
+
+    // Over by one byte at the end packet, and by many in the middle: each is dropped once, logged once.
+    for payloadCount in [1_048_576 - 1, 1_100_000] {
+        lines.withLock { $0.removeAll() }
+        #expect(reassembler.feed(umpWords(for: sysEx(payloadCount: payloadCount))) == [], "\(payloadCount)")
+        #expect(lines.withLock { $0 } == ["[bts] dropped an incoming SysEx longer than 1048576 bytes"])
+    }
+    // Nothing of the dropped one is left behind.
+    #expect(reassembler.feed(umpWords(for: [0xF0, 0x01, 0xF7])) == [[0xF0, 0x01, 0xF7]])
 }
 
 @Test func otherMessageTypesAreSkippedBySize() {

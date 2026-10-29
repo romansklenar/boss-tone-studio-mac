@@ -97,8 +97,9 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
   stored `KATANA` as the device's `MIDIEndpointUIDKey` (ADR-0005: the name is the UID). They are built as rtmidi's
   `CreateEndpointName`; ports with connections drawn in Audio MIDI Setup are the only ones python-rtmidi named
   otherwise (ADR-0011). Both amps reconnected to the stored device without the device picker.
-- Incoming: one event per whole message, SysEx reassembled across packets, timing clock (`F8`) and active sensing
-  (`FE`) dropped, hex uppercase, timestamp in milliseconds since the epoch.
+- Incoming: one event per whole message, SysEx reassembled across packets, MIDI time code quarter frames (`F1`),
+  timing clock (`F8`) and active sensing (`FE`) dropped as in 0.1.1, a SysEx longer than 1 MiB dropped, hex
+  uppercase, timestamp in milliseconds since the epoch.
 - Outgoing: hex → bytes → whole messages (0.1.1's splitting rules) → packets → CoreMIDI.
 - Hot-plug: CoreMIDI's setup-changed notification instead of 0.1.x's 1.5 s poll; `midi\fchanged` only when the port
   lists really changed.

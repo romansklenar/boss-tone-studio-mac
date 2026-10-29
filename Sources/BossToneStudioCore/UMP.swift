@@ -38,12 +38,25 @@ private func sysExWords(_ message: ArraySlice<UInt8>, group: UInt32) -> [UInt32]
 /// Turns incoming packets back into whole MIDI 1.0 messages. Words may arrive in any slices: a packet cut off at
 /// the end of one `feed` is completed by the next, and so is a SysEx.
 public struct UMPReassembler: Sendable {
+    /// F0 and F7 included. An All Data Backup is about 81 KB; a device sending without end must not fill the memory.
+    static let maxSysExBytes = 1_048_576
+
     private var unread: [UInt32] = []
     private var sysEx: [UInt8]?
+    private let output: @Sendable (String) -> Void
 
-    public init() {}
+    public init() {
+        self.init { print($0) }
+    }
 
-    /// Clock (`F8`) and active sensing (`FE`) are dropped, as are message types and packets this app has no use for.
+    /// `output` prints one log line.
+    init(output: @escaping @Sendable (String) -> Void) {
+        self.output = output
+    }
+
+    /// MIDI time code quarter frames (`F1`), clock (`F8`) and active sensing (`FE`) are dropped, as 0.1.1's
+    /// `ignore_types(timing=True, active_sense=True)` dropped them; so are message types and packets this app has no
+    /// use for, and a SysEx longer than `maxSysExBytes` (logged once).
     public mutating func feed(_ words: [UInt32]) -> [[UInt8]] {
         let words = unread + words
         unread = []
@@ -92,8 +105,8 @@ public struct UMPReassembler: Sendable {
 
     private static func systemMessage(_ word: UInt32) -> [UInt8]? {
         let status = (word >> 16) & 0xFF
-        // F0 and F7 are SysEx's own packets, never system messages here.
-        return status < 0xF1 || [0xF7, 0xF8, 0xFE].contains(status) ? nil : message(word)
+        // F0 and F7 are SysEx's own packets, never system messages here; F1, F8 and FE are dropped (see `feed`).
+        return status < 0xF1 || [0xF1, 0xF7, 0xF8, 0xFE].contains(status) ? nil : message(word)
     }
 
     private mutating func sysExPacket(_ first: UInt32, _ second: UInt32) -> [UInt8]? {
@@ -108,13 +121,24 @@ public struct UMPReassembler: Sendable {
             sysEx = [0xF0] + payload
         case 2:
             sysEx?.append(contentsOf: payload)
+            if let count = sysEx?.count, count + 1 > Self.maxSysExBytes { dropLongSysEx() }  // F7 is still to come
         case 3:
             guard let start = sysEx else { return nil }
             sysEx = nil
+            guard start.count + payload.count + 1 <= Self.maxSysExBytes else {
+                dropLongSysEx()
+                return nil
+            }
             return start + payload + [0xF7]
         default:
             break
         }
         return nil
+    }
+
+    /// Its later packets find no SysEx to continue, so they are dropped without another line.
+    private mutating func dropLongSysEx() {
+        sysEx = nil
+        output("[bts] dropped an incoming SysEx longer than \(Self.maxSysExBytes) bytes")
     }
 }

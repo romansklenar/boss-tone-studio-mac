@@ -77,8 +77,9 @@ Behaviour worth knowing:
   else its entity's, with the device's name in front unless the name already starts with it.
 - Ports whose names contain any of `<>&"'` are neither listed nor opened, since the page renders names as HTML.
 - Incoming MIDI: event `midi\fmessage\f<HEX, uppercase, no spaces>\f<timestamp ms>`; one whole message per event,
-  sysex reassembled across packets; timing clock (`F8`) and active sensing (`FE`) are dropped. CoreMIDI carries MIDI
-  1.0 as Universal MIDI Packets (sysex as SysEx7), converted to and from bytes in the app.
+  sysex reassembled across packets; MIDI time code quarter frames (`F1`), timing clock (`F8`) and active sensing (`FE`)
+  are dropped, and so is a sysex longer than 1 MiB (with one log line; an All Data Backup is about 81 KB). CoreMIDI
+  carries MIDI 1.0 as Universal MIDI Packets (sysex as SysEx7), converted to and from bytes in the app.
 - Hot-plug: CoreMIDI's setup-changed notification → the port lists are compared → event `midi\fchanged` when they
   differ.
 - The page sends its MIDI queue one message at a time, paced by its own interval.
