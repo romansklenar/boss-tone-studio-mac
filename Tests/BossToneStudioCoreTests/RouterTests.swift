@@ -279,6 +279,22 @@ private struct TestServer {
     #expect(try await server.client.exchange(reversed).status == 403)
 }
 
+@Test func nearMissesOfTheTokenAreRefused() async throws {
+    let server = try TestServer()
+    defer { server.stop() }
+    let split = "\(token.prefix(4))%2F\(token.dropFirst(4))"
+    for segment in [String(token.dropLast()), token.uppercased(), "%2F\(token)", split] {
+        #expect(try await server.client.command("/\(segment)/$$app_storage2").status == 403, "\(segment)")
+        #expect(try await server.client.status("GET", "/\(segment)/index.html") == 403, "\(segment)")
+    }
+    for path in ["/", "/index.html", "/js/lib/native.js"] {
+        #expect(try await server.client.status("HEAD", path) == 403, "\(path)")
+    }
+    #expect(server.dispatcher.calls.isEmpty)
+    // The path is decoded once before it is split, as in 0.1.1: this is `/<token>/…`, the whole token, by design.
+    #expect(try await server.client.command("/\(token)%2F$$app_storage2").status == 200)
+}
+
 @Test func otherOriginsAreRefused() async throws {
     let server = try TestServer()
     defer { server.stop() }
