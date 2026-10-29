@@ -141,8 +141,9 @@ addressed as follows; the rules themselves are in that document:
 3. **MIDI port names with markup skipped**: names containing any of `<>&"'` are neither listed nor opened.
 4. **External links**: the web view opens no new windows. A clicked `http(s)` link goes to the default browser, other
    schemes are dropped, and `window.open` without a user gesture does nothing. Top-level navigation stays on the page's
-   origin; subframes (the YouTube player) load only `https` or stay blank. `fs_exec` refuses links back to this Mac,
-   whose URLs would hand the browser the token.
+   origin; subframes (the YouTube player) load only `https` or stay blank. Neither `fs_exec` nor the window lets a
+   link back to this Mac through, in any spelling (one function in the library): its URLs would hand the browser the
+   token.
 5. **CSP, proxy narrowed.**
    - `index.html` gets a `Content-Security-Policy` with a nonce, new for every response, on the injected script.
      Roland's code needs `'unsafe-eval'` (knob and spinner controls use `eval`; jQuery 1.12 evaluates the proxied

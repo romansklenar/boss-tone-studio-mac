@@ -53,6 +53,6 @@ Where the port had to choose, it chose:
   ad-hoc signed, now with the hardened runtime.
 - Building needs only Apple's Command Line Tools ([ADR-0012](ADR-0012-swift-toolchain-without-dependencies.md)).
 - The window's own behaviour (navigation, dialogs, closing) lives in the executable, which has no unit tests; it is
-  checked by hand (`doc/testing.md`).
+  checked by hand (`doc/testing.md`). The link rule it shares with `fs_exec` lives in the library and is tested.
 - The native app installs over 0.1.x under the same name. The fallback is the `v0.1.1` tag (`make setup app install`
   on it).

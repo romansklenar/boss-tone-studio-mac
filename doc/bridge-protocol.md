@@ -159,14 +159,15 @@ The server can read and write files, so:
    ancestor, so no link leads out of a folder; a dangling link at any level, and a NUL byte, are refused. The file is
    then read or written at the resolved path. The save dialog's extension must be 1–10 ASCII letters and digits, since
    it is appended to the picked path.
-6. `fs_exec` opens `http(s)://` links to other machines only, since the page's own URLs carry the token. Refused are
-   links without a host or with userinfo, and links to `localhost` or `*.localhost`, to an IPv4 address in `127.0.0.0/8`
-   or `0.0.0.0/8` in any spelling `inet_aton` accepts (`127.1`, `0x7f000001`, `2130706433`), or to `[::1]`, `[::]` or
-   another IPv6 form of those addresses (`[::ffff:127.0.0.1]`); letter case and a trailing dot change nothing. The
-   window opens no new windows: a clicked link with a new target, or a `window.open` after a click, goes to the default
-   browser if it is an `http(s)` URL off the page's origin (whose URLs carry the token) and is dropped otherwise;
-   `window.open` without a click does nothing. The window itself stays on `http://127.0.0.1:P` (other web pages go to
-   the browser), and subframes load only `https` (the YouTube player) or `about:` URLs.
+6. Only `http(s)` links to other machines leave for the default browser, since the page's own URLs carry the token;
+   `fs_exec` and the window apply the same rule. Not passed on are links without a host or with userinfo, and links to
+   `localhost` or `*.localhost`, to an IPv4 address in `127.0.0.0/8` or `0.0.0.0/8` in any spelling `inet_aton` accepts
+   (`127.1`, `0x7f000001`, `2130706433`), or to `[::1]`, `[::]` or another IPv6 form of those addresses
+   (`[::ffff:127.0.0.1]`); letter case, of the scheme too, and a trailing dot change nothing. `fs_exec` refuses such a
+   link with an error. The window opens no new windows: a clicked link with a new target, or a `window.open` after a
+   click, goes to the browser if the rule lets it and is dropped otherwise; `window.open` without a click does nothing.
+   The window itself stays on `http://127.0.0.1:P`: a navigation anywhere else goes to the browser by the same rule or
+   is dropped, and subframes load only `https` (the YouTube player) or `about:` URLs.
 7. The proxy fetches GET requests only (POST → `204`), from `api.roland.com`, `bosstonecentral.com` and
    `www.youtube.com`. It rebuilds the URL from `https`, the host name, path and query, dropping userinfo, port and
    fragment, and holds every redirect to the same list and rebuilds it the same way; a refused URL or redirect → `403`,
@@ -184,6 +185,7 @@ The server can read and write files, so:
    locations are the page's URLs) and failed requests are logged with the token removed in any spelling and with control
    characters, bidirectional controls and line separators escaped; page log lines are then cut at 500 characters.
 
-The unit tests (target `BossToneStudioCoreTests`, in `Tests/BossToneStudioCoreTests/`) cover each rule except the
-window's part of rule 6, which lives in the app and is checked by hand. The router's rules (1–3, and the request side
-of 8) run against a real loopback server with a stand-in bridge.
+The unit tests (target `BossToneStudioCoreTests`, in `Tests/BossToneStudioCoreTests/`) cover each rule. Of the
+window's part of rule 6, the link rule it shares with `fs_exec` is tested; the WebKit delegate that applies it lives in
+the app and is checked by hand. The router's rules (1–3, and the request side of 8) run against a real loopback server
+with a stand-in bridge.

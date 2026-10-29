@@ -254,30 +254,12 @@ public final class Bridge: CommandDispatching {
     }
 
     /// The MkII only opens web pages (driver download, Roland links); nothing local is launched, and no link leads
-    /// back to this Mac, where the page's own URLs would hand the browser its token. Roland's links name public sites
-    /// without userinfo, which could make the browser read another host than Foundation does.
+    /// back to this Mac (`isWebLinkOffThisMac`, the window's rule as well).
     private func exec(_ url: String) throws {
-        guard url.hasPrefix("https://") || url.hasPrefix("http://"), let target = URL(string: url), target.user == nil,
-            let host = target.host(percentEncoded: false), !Self.isThisMac(host)
-        else { throw BridgeError(description: "refusing to open \(escaped(url))") }
+        guard let target = URL(string: url), isWebLinkOffThisMac(target) else {
+            throw BridgeError(description: "refusing to open \(escaped(url))")
+        }
         openURL(target)
-    }
-
-    /// An empty host, a `localhost` name, or any spelling a browser reads as a loopback or unspecified address:
-    /// `inet_aton` takes `127.1` and `0x7f000001` as browsers do, and `::1`, `::` and `::ffff:127.0.0.1` end in one.
-    private static func isThisMac(_ host: String) -> Bool {
-        var name = host.lowercased()
-        if name.hasSuffix(".") { name.removeLast() }
-        if name.isEmpty || name == "localhost" || name.hasSuffix(".localhost") { return true }
-        let localFirstOctets: Set<UInt32> = [0, 127]
-        var ipv4 = in_addr()
-        if inet_aton(name, &ipv4) == 1 { return localFirstOctets.contains(UInt32(bigEndian: ipv4.s_addr) >> 24) }
-        var ipv6 = in6_addr()
-        guard inet_pton(AF_INET6, name, &ipv6) == 1 else { return false }
-        let bytes = withUnsafeBytes(of: ipv6) { Array($0) }
-        let mapped: [UInt8] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF]
-        let embedsIPv4 = bytes[..<12].allSatisfy { $0 == 0 } || bytes[..<12].elementsEqual(mapped)
-        return embedsIPv4 && localFirstOctets.contains(UInt32(bytes[12]))
     }
 
     private func readString(_ path: String) throws -> String {

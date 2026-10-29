@@ -375,7 +375,9 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         #expect(opened.all == [])
         #expect(try call(bridge, "fs_exec", "https://www.roland.com/support/") == nil)
         #expect(try call(bridge, "fs_exec", "http://example.com/a?b=c") == nil)
-        #expect(opened.all.map(\.absoluteString) == ["https://www.roland.com/support/", "http://example.com/a?b=c"])
+        #expect(try call(bridge, "fs_exec", "HTTPS://www.roland.com/") == nil)  // a scheme has no letter case
+        let expected = ["https://www.roland.com/support/", "http://example.com/a?b=c", "HTTPS://www.roland.com/"]
+        #expect(opened.all.map(\.absoluteString) == expected)
         #expect(throws: BridgeError(description: "refusing to open '-a\\nCalc'")) {  // escaped, as it reaches logs
             try call(bridge, "fs_exec", "-a\nCalc")
         }
@@ -391,7 +393,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             "http://0x7f000001/", "http://2130706433/", "http://%31%32%37.0.0.1/", "http://0.0.0.0/",
             "http://localhost:8080/", "http://LOCALHOST./", "http://app.localhost/", "http://[::1]:8080/",
             "http://[::]/", "http://[::ffff:127.0.0.1]/", "http:///127.0.0.1/", "http://example.com\\@127.0.0.1/",
-            "http://user@example.com/",
+            "http://user@example.com/", "HTTP://127.0.0.1:8080/token/", "Https://localhost/",
         ]
         for target in refused {
             #expect(throws: BridgeError(description: "refusing to open \(escaped(target))"), "\(target)") {

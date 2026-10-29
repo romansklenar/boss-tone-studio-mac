@@ -29,9 +29,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The window opens no new windows: a clicked web link goes to the default browser, other schemes are dropped, and
   `window.open` without a click does nothing. The window stays on the page's origin, and frames load only `https` (or
   stay blank).
-- Links the page opens in the browser (`fs_exec`) must lead to another machine, since the page's own URLs carry the
-  token: `localhost`, loopback and unspecified addresses in any spelling, links without a host and links with userinfo
-  are refused (bridge protocol, rule 6).
+- A link reaches the browser only if it leads to another machine, since the page's own URLs carry the token: whether
+  the page opens it with `fs_exec`, a click or a navigation, `localhost`, loopback and unspecified addresses in any
+  spelling, links without a host and links with userinfo are refused (bridge protocol, rule 6).
 - A file picked in the open dialog is read only; only paths picked in the save dialog are writable. A dangling link
   in a path is refused.
 - The proxy rebuilds every URL and redirect from `https`, the host name, path and query, dropping userinfo, port and

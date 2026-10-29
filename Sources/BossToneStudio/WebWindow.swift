@@ -119,12 +119,12 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         present(alert) { completionHandler($0 == .alertFirstButtonReturn ? field.stringValue : nil) }
     }
 
-    /// No new windows: a clicked web link off the page's origin opens in the default browser, anything else is dropped.
+    /// No new windows: a clicked web link off this Mac opens in the default browser, anything else is dropped.
     func webView(
         _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
         for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if let url = navigationAction.request.url, Self.isWeb(url), !isPage(url) { NSWorkspace.shared.open(url) }
+        if let url = navigationAction.request.url, isWebLinkOffThisMac(url) { NSWorkspace.shared.open(url) }
         return nil
     }
 
@@ -137,25 +137,22 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         decisionHandler(policy(for: navigationAction))
     }
 
-    /// The window stays on the page's origin; other web pages go to the default browser. Subframes may load `https`
-    /// only (the YouTube player), or stay empty (`about:`).
+    /// The window stays on the page's origin; web links off this Mac go to the default browser, as `fs_exec`'s do, and
+    /// anything else is dropped: another spelling of this Mac (`127.1`, `localhost`…) would hand the browser the token.
+    /// Subframes may load `https` only (the YouTube player), or stay empty (`about:`).
     private func policy(for action: WKNavigationAction) -> WKNavigationActionPolicy {
         guard let url = action.request.url else { return .cancel }
         guard action.targetFrame?.isMainFrame ?? true else {
             return ["https", "about"].contains(url.scheme?.lowercased()) ? .allow : .cancel
         }
         if isPage(url) { return .allow }
-        if Self.isWeb(url) { NSWorkspace.shared.open(url) }
+        if isWebLinkOffThisMac(url) { NSWorkspace.shared.open(url) }
         return .cancel
     }
 
     /// `http://127.0.0.1:<port>`: the page's origin, whose URLs carry the token, so they never leave the window.
     private func isPage(_ url: URL) -> Bool {
         url.scheme?.lowercased() == "http" && url.host == "127.0.0.1" && url.port == port
-    }
-
-    private static func isWeb(_ url: URL) -> Bool {
-        ["http", "https"].contains(url.scheme?.lowercased())
     }
 
     private static func alert(_ message: String, buttons: [String]) -> NSAlert {
