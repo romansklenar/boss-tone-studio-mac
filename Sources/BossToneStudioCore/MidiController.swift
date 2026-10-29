@@ -155,7 +155,7 @@ public final class MidiController: Sendable {
 
     private func report(_ failure: String?, of name: String?, _ endpointJSON: String?) {
         guard let failure else { return }
-        output("[bts] opening MIDI port \(name.map(escaped) ?? "None") failed: \(escaped(failure))")
+        output("[bts] opening MIDI port \(name.map { escaped($0) } ?? "None") failed: \(escaped(failure))")
         emit("midi", "connectfailed", [endpointJSON ?? ""])
     }
 

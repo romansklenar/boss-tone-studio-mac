@@ -37,16 +37,22 @@ public func splitMessages(_ data: [UInt8]) -> [[UInt8]] {
 
 /// Whitespace is ignored, so a page that formats its hex with spaces still works.
 public func bytes(fromHex hex: String) throws -> [UInt8] {
-    let digits = try hex.utf8.filter { ![0x20, 0x09, 0x0A, 0x0B, 0x0C, 0x0D].contains($0) }.map { byte -> UInt8 in
-        switch byte {
-        case UInt8(ascii: "0")...UInt8(ascii: "9"): byte - UInt8(ascii: "0")
-        case UInt8(ascii: "A")...UInt8(ascii: "F"): byte - UInt8(ascii: "A") + 10
-        case UInt8(ascii: "a")...UInt8(ascii: "f"): byte - UInt8(ascii: "a") + 10
-        default: throw HexError.notHexadecimal
-        }
+    let digits = try hex.utf8.filter { ![0x20, 0x09, 0x0A, 0x0B, 0x0C, 0x0D].contains($0) }.map { byte in
+        guard let value = hexValue(byte) else { throw HexError.notHexadecimal }
+        return value
     }
     guard digits.count.isMultiple(of: 2) else { throw HexError.oddLength }
     return stride(from: 0, to: digits.count, by: 2).map { digits[$0] << 4 | digits[$0 + 1] }
+}
+
+/// One hex digit's value, either case; nil for anything else.
+func hexValue(_ byte: UInt8) -> UInt8? {
+    switch byte {
+    case UInt8(ascii: "0")...UInt8(ascii: "9"): byte - UInt8(ascii: "0")
+    case UInt8(ascii: "a")...UInt8(ascii: "f"): byte - UInt8(ascii: "a") + 10
+    case UInt8(ascii: "A")...UInt8(ascii: "F"): byte - UInt8(ascii: "A") + 10
+    default: nil
+    }
 }
 
 private let hexDigits = Array("0123456789ABCDEF".utf8)

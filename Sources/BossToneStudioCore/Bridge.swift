@@ -152,7 +152,7 @@ public final class Bridge: CommandDispatching {
     public func dispatch(_ command: String, _ args: [String]) throws -> String? {
         guard let entry = Self.table[command] else {
             // Without the quotes, so a name that passes the server's route check reads as it did in 0.1.1.
-            log("unimplemented $$\(escaped(command).dropFirst().dropLast()) \(pyList(args))")
+            log("unimplemented $$\(escaped(command, quoted: false)) \(pyList(args))")
             return nil
         }
         if command != "app_getevent" { trace("->", "$$\(command)", args) }

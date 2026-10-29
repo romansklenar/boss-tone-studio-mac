@@ -216,10 +216,10 @@ public final class Router: Sendable {
 
     // MARK: logs
 
-    /// The request line with the token removed and control characters escaped (as `escaped` does, without its
-    /// quotes), so a failed request neither leaks the token nor forges a log line.
+    /// The request line with the token removed and control characters escaped (without quotes), so a failed request
+    /// neither leaks the token nor forges a log line.
     private func loggable(_ requestLine: String) -> String {
-        String(escaped(redacted(requestLine)).dropFirst().dropLast())
+        escaped(redacted(requestLine), quoted: false)
     }
 
     /// `text` percent-decoded and with the token, in any percent-encoded spelling, replaced by `<token>`.
@@ -262,15 +262,6 @@ private func percentDecodedBytes(_ text: String) -> [UInt8] {
 /// As 0.1.1's `unquote`: bytes that are not UTF-8 become U+FFFD.
 private func percentDecoded(_ text: String) -> String {
     String(decoding: percentDecodedBytes(text), as: UTF8.self)
-}
-
-private func hexValue(_ byte: UInt8) -> UInt8? {
-    switch byte {
-    case UInt8(ascii: "0")...UInt8(ascii: "9"): byte - UInt8(ascii: "0")
-    case UInt8(ascii: "a")...UInt8(ascii: "f"): byte - UInt8(ascii: "a") + 10
-    case UInt8(ascii: "A")...UInt8(ascii: "F"): byte - UInt8(ascii: "A") + 10
-    default: nil
-    }
 }
 
 /// `S_IFREG`, `S_IFDIR`…, following links; nil when the path does not exist.

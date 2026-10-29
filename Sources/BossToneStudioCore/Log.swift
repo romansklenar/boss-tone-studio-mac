@@ -23,14 +23,15 @@ func traceLine(_ arrow: String, _ label: String, _ args: [String]) -> String {
 
 /// Python's list repr, so traces keep the 0.1.1 shape: `['a', 'b']`.
 public func pyList(_ items: [String]) -> String {
-    "[" + items.map(escaped).joined(separator: ", ") + "]"
+    "[" + items.map { escaped($0) }.joined(separator: ", ") + "]"
 }
 
-/// Single-quoted, with `\`, `'` and control characters escaped as Python's `repr` escaped them in 0.1.1's logs: the
-/// page and MIDI devices choose these texts, and a raw newline or escape sequence in them would forge log lines, as
-/// would a bidirectional control or a line separator reordering or splitting one in the terminal.
-public func escaped(_ text: String) -> String {
-    var result = "'"
+/// Single-quoted (unless `quoted` is false), with `\`, `'` and control characters escaped as Python's `repr` escaped
+/// them in 0.1.1's logs: the page and MIDI devices choose these texts, and a raw newline or escape sequence in them
+/// would forge log lines, as would a bidirectional control or a line separator reordering or splitting one in the
+/// terminal.
+public func escaped(_ text: String, quoted: Bool = true) -> String {
+    var result = quoted ? "'" : ""
     for scalar in text.unicodeScalars {
         switch scalar {
         case "\\": result += "\\\\"
@@ -45,7 +46,7 @@ public func escaped(_ text: String) -> String {
         default: result.unicodeScalars.append(scalar)
         }
     }
-    return result + "'"
+    return quoted ? result + "'" : result
 }
 
 /// Lowercase, zero-padded to `count` digits, as in Python's `\x1b` and `\u202e`.
