@@ -463,6 +463,10 @@ private struct TestServer {
     #expect(try await server.client.status("POST", "/\(token)/index.html", body: Data("stats".utf8)) == 204)
     let url = "https%3A%2F%2Fapi.roland.com%2Fapp%2Fbtc%2F1%2Fstatuslogs%2F"
     #expect(try await server.client.status("POST", "/\(token)/proxy?url=\(url)", body: Data("stats".utf8)) == 204)
+    // As in 0.1.1, any other path under the token takes it too, a file there or not.
+    for path in ["js/lib/native.js", "missing/stats", ""] {
+        #expect(try await server.client.status("POST", "/\(token)/\(path)", body: Data("stats".utf8)) == 204, "\(path)")
+    }
     #expect(try await server.client.status("POST", "/index.html", body: Data("stats".utf8)) == 403)
     #expect(server.dispatcher.calls.isEmpty)
     #expect(server.proxy.urls.isEmpty)
