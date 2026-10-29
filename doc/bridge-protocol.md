@@ -170,11 +170,11 @@ The server can read and write files, so:
 7. The proxy fetches GET requests only (POST → `204`), from `api.roland.com`, `bosstonecentral.com` and
    `www.youtube.com`. It rebuilds the URL from `https`, the host name, path and query, dropping userinfo, port and
    fragment, and holds every redirect to the same list and rebuilds it the same way; a refused URL or redirect → `403`,
-   a failed fetch → `502`. A fetch times out after 20 s without data and sends the User-Agent
-   `Mozilla/5.0 (Macintosh)`. Answers from Roland's hosts pass only if they parse as JSON (`502` otherwise) and go out
-   as `application/json` when Roland's server said JSON, else as `text/plain`, so jQuery never runs them as script or
-   HTML (`.tsl` files come as `binary/octet-stream`, and the page parses them itself); an error status passes without
-   its body. YouTube's answers pass unchanged.
+   a failed fetch → `502`. A fetch times out after 20 s without data or 60 s in all, sends the User-Agent
+   `Mozilla/5.0 (Macintosh)`, and neither sends nor keeps cookies. Answers from Roland's hosts pass only if they parse
+   as JSON (`502` otherwise) and go out as `application/json` when Roland's server said JSON, else as `text/plain`, so
+   jQuery never runs them as script or HTML (`.tsl` files come as `binary/octet-stream`, and the page parses them
+   itself); an error status passes without its body. YouTube's answers pass unchanged.
 8. Requests are parsed strictly: a head of at most 64 KB with CRLF line ends, a request target of visible ASCII
    (raw bytes from `0x80` up are refused; XHR percent-encodes them), no folded headers, no `Transfer-Encoding`, at most
    one `Host`, `Origin`, `Sec-Fetch-Site` and `Content-Type`, a `Content-Length` of digits only (repeated only with the

@@ -94,6 +94,15 @@ private let plain = "text/plain; charset=utf-8"
     #expect(Proxy().session.configuration.timeoutIntervalForRequest == 20)
 }
 
+@Test func theSessionSendsNoCookiesAndGivesUpAfter60s() {
+    // As 0.1.1's urllib: no cookies either way. A server trickling bytes cannot hold a connection forever.
+    let configuration = Proxy().session.configuration
+    #expect(configuration.httpShouldSetCookies == false)
+    #expect(configuration.httpCookieAcceptPolicy == .never)
+    #expect(configuration.httpCookieStorage == nil)
+    #expect(configuration.timeoutIntervalForResource == 60)
+}
+
 // MARK: redirects
 
 private let someResponse = HTTPURLResponse(

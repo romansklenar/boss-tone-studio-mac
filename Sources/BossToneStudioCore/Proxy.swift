@@ -27,6 +27,8 @@ public struct Proxy: ProxyFetching {
         "www.youtube.com",  // iframe API for preview videos
     ]
     static let timeout: TimeInterval = 20
+    /// The whole fetch, so a server that trickles its answer cannot hold a connection of the page's forever.
+    static let resourceTimeout: TimeInterval = 60
     static let userAgent = "Mozilla/5.0 (Macintosh)"
 
     let session: URLSession
@@ -34,6 +36,11 @@ public struct Proxy: ProxyFetching {
     public init() {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = Self.timeout
+        configuration.timeoutIntervalForResource = Self.resourceTimeout
+        // As 0.1.1's urllib: no cookies sent or kept, so one fetch cannot shape the next.
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpCookieStorage = nil
         session = URLSession(configuration: configuration)
     }
 

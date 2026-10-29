@@ -162,7 +162,7 @@ addressed as follows; the rules themselves are in that document:
    nearest existing ancestor, and a dangling link is refused.
 7. **Proxy URLs rebuilt** from scheme `https`, the host name, path and query only; userinfo, port and fragment are
    dropped. Redirects are held to the allowlist and rebuilt the same way. GET only, POST still dropped with `204`. 20 s
-   timeout, the same User-Agent.
+   timeout without data and 60 s in all, the same User-Agent, no cookies.
 8. **`make app` re-extracts** Roland's web app from the verified zip into the bundle on every build, instead of
    trusting `build/roland/html`.
 9. **Hardened runtime**: `codesign --force --sign - --options runtime`; `make install` verifies the signature
