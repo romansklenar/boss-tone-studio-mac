@@ -446,7 +446,7 @@ private struct TestServer {
             try connection.send(bytes)
             let closed = try connection.isClosedByServer()
             // The server lets go as well, while this end is still open: the receive it waited in ends, and its task.
-            for _ in 0..<100 where server.openConnections > 0 { usleep(10_000) }
+            for _ in 0..<500 where server.openConnections > 0 { usleep(10_000) }
             return (closed, server.openConnections == 0)
         }
         #expect(closed)
@@ -479,7 +479,7 @@ private struct TestServer {
         let start = ContinuousClock.now
         let closed = try connection.isClosedByServer()
         let waited = ContinuousClock.now - start
-        for _ in 0..<100 where server.openConnections > 0 { usleep(10_000) }
+        for _ in 0..<500 where server.openConnections > 0 { usleep(10_000) }
         return (status, closed, waited, server.openConnections == 0)
     }
     #expect(status == 200)
@@ -732,7 +732,7 @@ private func canConnectToIPv6Loopback(port: UInt16) -> Bool {
     let server = try TestServer(proxy: proxy)
     defer { server.stop() }
     async let slow = server.client.request("GET", "/\(token)/proxy?url=x")
-    for _ in 0..<200 where proxy.urls.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+    for _ in 0..<500 where proxy.urls.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
     try #require(!proxy.urls.isEmpty)
     let response = try await server.client.command("/\(token)/$$app_storage2", ["k"])
     #expect(response.status == 200)

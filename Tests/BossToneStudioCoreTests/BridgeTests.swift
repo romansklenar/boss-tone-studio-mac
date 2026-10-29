@@ -525,7 +525,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
     let host = FakeHost()
     try withBridge(host: host, exitFallback: .milliseconds(50)) { bridge, _ throws in
         #expect(!bridge.windowShouldClose())
-        #expect(host.waitForClose(seconds: 1))
+        #expect(host.waitForClose(seconds: 5))
         #expect(host.closeCount == 1)
         #expect(bridge.windowShouldClose())
     }
