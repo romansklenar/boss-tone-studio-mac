@@ -3,6 +3,42 @@
 Notable changes per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-29
+
+### Changed
+
+- The app is native Swift: an AppKit window with a WKWebView, an HTTP server on Network.framework and CoreMIDI, with no
+  third-party code. The bundle shrinks from 38 MB to 14 MB, 13 MB of which is Roland's web app.
+- Building needs only Apple's Command Line Tools with Swift 6; `make setup` checks the version.
+- The same app name, bundle identifier, icon, data folder and file formats as 0.1.x, and MIDI ports named as before,
+  since the page stores the name as the device's ID.
+- MIDI hot-plug follows CoreMIDI's notifications instead of polling every 1.5 s.
+- Storage and file reads keep line endings as stored.
+- The version lives in `VERSION`.
+
+### Security
+
+- The page and its files are served under the per-launch token as well, so the server no longer gives the token to
+  any local program that asks.
+- The server binds `127.0.0.1` only and refuses `localhost` and `[::1]`; the window opens the page on `127.0.0.1`.
+- The page runs under a Content-Security-Policy that admits the bridge script by a per-response nonce. SoundCloud left
+  the proxy's allowlist, and Roland's hosts must answer with JSON, which goes to the page as `application/json` or
+  `text/plain`.
+- MIDI ports whose names contain `<>&"'` are neither listed nor opened.
+- The window opens no new windows: a clicked web link goes to the default browser, other schemes are dropped, and
+  `window.open` without a click does nothing. The window stays on the page's origin, and frames load `https` only.
+- A file picked in the open dialog is read only; only paths picked in the save dialog are writable. A dangling link
+  in a path is refused.
+- The proxy rebuilds every URL and redirect from `https`, the host name, path and query, dropping userinfo, port and
+  fragment.
+- `make app` extracts Roland's web app again from the SHA-256-checked installer zip on every build.
+- The bundle is signed with the hardened runtime, and `make install` checks the signature and the runtime flag.
+- A connection is closed after 30 s without a complete request, and requests that could be read two ways are refused.
+
+### Removed
+
+- The Python shell (pywebview, python-rtmidi, PyInstaller) and its tooling: mise, uv, ruff and the lock files.
+
 ## [0.1.1] - 2026-10-28
 
 ### Changed
@@ -33,5 +69,6 @@ First release.
 - A standalone `.app` built from Roland's installer download, checked against a pinned SHA-256.
 - Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
 
+[0.2.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.2.0
 [0.1.1]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.1
 [0.1.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.0

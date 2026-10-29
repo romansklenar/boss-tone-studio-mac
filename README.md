@@ -1,6 +1,6 @@
 # BOSS TONE STUDIO for KATANA MkII — Apple Silicon
 
-A native (arm64) shell for Roland's BOSS TONE STUDIO for KATANA MkII 2.1.0 web app. Roland ships it for Intel
+A native (arm64) Swift shell for Roland's BOSS TONE STUDIO for KATANA MkII 2.1.0 web app. Roland ships it for Intel
 (`x86_64`) only; on macOS 27.2 the original no longer connects to the amp even under Rosetta (see
 [Why this port exists](#why-this-port-exists)).
 
@@ -33,17 +33,23 @@ Rosetta, so macOS 28 removing it should not affect it.
 
 Roland's `js/lib/native.js` hands every `$native.*` call to `window.$$app`, `$$midi`, `$$fs`… when the page defines
 them. This project defines them so that each call becomes a synchronous `POST /<token>/$$command` to a local server,
-and does what Roland's native shell does:
+and does what Roland's native shell does. It is a Swift app with no third-party code:
 
-- `bts/server.py` — a local HTTP server on loopback (IPv4 and IPv6). It serves Roland's HTML unchanged, adds one
-  `<script>` block to the `index.html` response to connect the page to it, and implements the commands the MkII app
-  calls: storage, files, MIDI, events.
-- `bts/midi.py` — CoreMIDI through `python-rtmidi` (arm64).
-- `bts/storage.py` — the page's `app.storage2` (one file per key), written atomically; shared with the import.
-- `bts/proxy.py` — fetches Tone Central's content from Roland's servers, which the page cannot reach directly (CORS).
-- `bts/roland_import.py` — takes over the Librarian from Roland's app on the first launch.
-- `bts/__main__.py` — the window, through `pywebview` (Cocoa/WKWebView). When the window closes, the page first takes
-  the amp out of editor mode, as in the original.
+- `Sources/BossToneStudioCore/` — everything that needs neither a window nor a MIDI client, covered by unit tests:
+  - `HTTPServer.swift`, `HTTPMessage.swift`, `Router.swift` — a small HTTP/1.1 server on `127.0.0.1` that serves
+    Roland's web app unchanged under a per-launch token and applies the security rules.
+  - `PageScript.swift` — the one `<script>` block added to the `index.html` response to connect the page to the
+    bridge, and the page's Content-Security-Policy.
+  - `Bridge.swift` — the commands the MkII app calls: storage, files, dialogs, MIDI, events, the close handshake;
+    `FileAccess.swift` — which files the page may read and write.
+  - `MidiController.swift`, `MidiMessages.swift`, `UMP.swift` — MIDI ports and messages, and their conversion to and
+    from CoreMIDI's Universal MIDI Packets.
+  - `Storage.swift` — the page's `app.storage2` (one file per key), written atomically; shared with the import.
+  - `Proxy.swift` — fetches Tone Central's content from Roland's servers, which the page cannot reach directly (CORS).
+  - `RolandImport.swift` — takes over the Librarian from Roland's app on the first launch.
+- `Sources/BossToneStudio/` — the app: the AppKit window with a WKWebView, alerts and file dialogs
+  (`WebWindow.swift`), CoreMIDI (`CoreMIDIBackend.swift`) and the command line (`main.swift`). When the window closes,
+  the page first takes the amp out of editor mode, as in the original.
 
 The protocol is described in [`doc/bridge-protocol.md`](doc/bridge-protocol.md), the design decisions in
 [`doc/decisions/`](doc/decisions/) and the background research in [`doc/research/`](doc/research/).
@@ -51,33 +57,33 @@ Inspired by the [Linux port for KATANA Gen 3](https://github.com/Shesherd/BOSS-T
 
 ## How the build works
 
-1. **Toolchain** (`make setup`) — mise installs the pinned Python 3.13.18, ruff and uv (`mise.toml`), creates `.venv`
-   and installs the locked packages (`requirements.txt`: pywebview, python-rtmidi, pyobjc). python-rtmidi is compiled
-   for macOS 14 (`MACOSX_DEPLOYMENT_TARGET`).
+1. **Toolchain** (`make setup`) — Apple's Command Line Tools: Swift 6, the macOS SDK, Swift Testing and
+   `swift format`. No other tool or package is installed; `make swift-version` stops on any other major version of
+   Swift ([ADR-0012](doc/decisions/ADR-0012-swift-toolchain-without-dependencies.md)).
 2. **Roland's web app** (`make roland-assets`, part of setup) — `packaging/fetch-roland-assets.sh` downloads Roland's
    own macOS installer, `bts_katana2_m210.zip` from `static.roland.com` (the file BOSS's download page serves),
    checks its pinned SHA-256, expands the `.pkg` inside with `pkgutil --expand-full` — **nothing is installed or run**
    — and copies the web app (`html/`, 263 files, byte-identical to an installed copy) and the icon to `build/roland/`.
    The installer zip stays there as the backup copy; later builds reuse it and need no network.
-3. **App bundle** (`make app`) — installs the build-only packages (`requirements-app.txt`: PyInstaller, Pillow),
-   recolours Roland's icon (`packaging/make_icon.py`) and runs PyInstaller (`packaging/app.spec`), which bundles
-   Python, our code, the native modules and Roland's web app into
-   `dist/BOSS TONE STUDIO for KATANA MkII (Apple Silicon).app` (arm64, ad-hoc signed, ~38 MB).
-4. **Install** (`make install`) — copies the bundle to `~/Applications`.
+3. **App bundle** (`make app`) — extracts Roland's web app again from the verified zip, recolours Roland's icon
+   (`packaging/make-icon.swift`), builds the release executable for arm64 (compiler warnings are errors) and assembles
+   `dist/BOSS TONE STUDIO for KATANA MkII (Apple Silicon).app`: the executable, `Info.plist` (`packaging/Info.plist`
+   with the version from `VERSION`), the icon and Roland's web app. It signs the bundle ad hoc with the hardened
+   runtime. The bundle is 14 MB, 13 MB of which is Roland's web app.
+4. **Install** (`make install`) — checks the signature and the hardened runtime, then copies the bundle to
+   `~/Applications`.
 
-At runtime the app imports Roland's Librarian on the first launch, starts the local server, serves the bundled web
-app with the bridge script injected into the `index.html` response, and opens a WKWebView window on it. Nothing in
-`build/`, `dist/` or `tmp/` is committed.
+At runtime the app imports Roland's Librarian on the first launch, starts the local server on `127.0.0.1`, serves the
+bundled web app with the bridge script injected into the `index.html` response, and opens a WKWebView window on
+`http://127.0.0.1:<port>/<token>/index.html`. Nothing in `build/`, `dist/` or `tmp/` is committed.
 
 ## Setup and usage
 
-Requirements: macOS on Apple Silicon, [mise](https://mise.jdx.dev), the Xcode Command Line Tools (`python-rtmidi`
-builds from source), and Roland's KATANA USB driver for the amp (its installer, "KATANA Driver Setup", is native
-arm64).
+Requirements: macOS 14 or later on Apple Silicon, Apple's Command Line Tools with Swift 6 (`xcode-select --install`),
+and Roland's KATANA USB driver for the amp (its installer, "KATANA Driver Setup", is native arm64).
 
 ```bash
-mise trust          # once: lets mise apply mise.toml, which sets environment variables
-make setup          # toolchain, packages and Roland's web app (see How the build works)
+make setup          # check the Swift toolchain, take Roland's web app out of its installer (see How the build works)
 make run            # the app window; `make browser` serves it to a browser, `make trace` logs the bridge
 make app install    # build the standalone .app and copy it to ~/Applications
 make help           # every target
@@ -86,20 +92,22 @@ make help           # every target
 On the first launch the app offers a device picker — choose **KATANA** (not "KATANA DAW CTRL"). It reconnects on its
 own after that.
 
-The bundle carries its own Python 3.13 and Roland's web app, so it needs neither the system Python nor Roland's
-installed app; its slate-grey icon tells it apart from Roland's. The web app is looked up in `BTS_HTML_DIR`, then in
-the bundle, then in `build/roland/html`, then in Roland's installed app.
+The bundle carries Roland's web app, so it needs no installed copy of Roland's app; its slate-grey icon tells it apart
+from Roland's. The web app is looked up in `BTS_HTML_DIR`, then in the bundle, then in `build/roland/html`, then in
+Roland's installed app. The executable (`Contents/MacOS/BossToneStudio`) also takes `--browser` (serve only and print
+the page's URL) and `--import-roland` (see below); `BTS_TRACE=1` logs bridge commands and MIDI messages and enables the
+Web Inspector.
 
 ### Other Macs
 
-The bundle is arm64 only and every binary in it targets macOS 14 or older (`MACOSX_DEPLOYMENT_TARGET` in
-`mise.toml`), so it should run on any Apple Silicon Mac with macOS 14 to 27 — checked from the binaries' metadata,
-tested only on macOS 27.2. The other Mac needs only Roland's KATANA USB driver, not Roland's editor. The bundle is
-ad-hoc signed, not notarized: if it arrives with a quarantine flag (download, AirDrop), open it once with right-click
-→ Open.
+The bundle is arm64 only and targets macOS 14 (`minos 14.0` in the executable, `LSMinimumSystemVersion` 14.0), so it
+should run on any Apple Silicon Mac with macOS 14 or later — tested only on macOS 27.2. The other Mac needs only
+Roland's KATANA USB driver, not Roland's editor. The bundle is ad-hoc signed, not notarized: if it arrives with a
+quarantine flag (download, AirDrop), open it once with right-click → Open.
 
 Data (settings, livesets) lives in `~/Library/Application Support/BOSS TONE STUDIO for KATANA MkII (Apple Silicon)/`,
-apart from Roland's app. `BTS_HTML_DIR` and `BTS_DATA_DIR` override the paths.
+apart from Roland's app, in the same folder and file formats as 0.1.x. `BTS_HTML_DIR` and `BTS_DATA_DIR` override the
+paths.
 
 ### Coming from Roland's app
 
@@ -112,7 +120,9 @@ is not taken over.
 
 ## Verified amplifiers
 
-Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver.
+Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the 0.1.x Python shell. The
+native app (0.2.0) has not been run with an amp yet: its run with both amps is pending, and until then this table is
+the record of 0.1.x.
 
 | Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
 |---|---|---|---|---|---|---|---|---|
@@ -128,6 +138,12 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 `KATANA`; connect one amp at a time.
 
 ## Status
+
+The table records 0.1.x. The native app (0.2.0) has so far been checked without an amp: run with `--browser` and
+opened in a WKWebView, Roland's page loads under its security policy without errors, and offline mode and Tone Central
+(catalogue, a liveset's `.tsl`, the YouTube player) work; the import took over Roland's 29 livesets; the built bundle
+serves its own copy of the web app; and with an amp attached, but not connected, the port list shows `KATANA` and
+`KATANA DAW CTRL` as before. SoundCloud is no longer proxied.
 
 | Area | Status |
 |---|---|
@@ -148,8 +164,6 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
    other way round; Gen 3 presets store some effects per colour (green/red/yellow) and use different amp types, so a
    conversion would be lossy in known places.
 2. **Gen 3 amps** — out of scope: Roland ships a native Apple Silicon editor for the Gen 3.
-3. **Native rewrite** (later; [ADR-0001](doc/decisions/ADR-0001-python-shell-around-rolands-web-app.md)) — WKWebView +
-   embedded HTTP server + CoreMIDI, no Python: a small signed app instead of a 38 MB bundle with its own Python.
 
 ## Licensing
 
@@ -189,27 +203,30 @@ How this project relates to each point:
 - **Roland's download can disappear or change.** New builds then fail on the SHA-256 check rather than use an
   unknown file. The kept `build/roland/bts_katana2_m210.zip` and any built app keep working.
 - **Roland's online services can stop.** Tone Central depends on `api.roland.com` and `bosstonecentral.com` (live on
-  2026-10-28); SoundCloud previews already fail (Roland's API key is rejected). Everything else works offline.
+  2026-10-28); SoundCloud previews never worked (Roland's API key is rejected), so SoundCloud is not proxied.
+  Everything else works offline.
 - **The USB driver is Roland's.** `RDUSB01D8Midi.plugin` is universal today; if a future macOS drops that kind of
   CoreMIDI driver, the amp disappears from the port list and only Roland can fix it.
 - **Web platform drift.** Roland's page relies on synchronous `XMLHttpRequest` (deprecated in browsers) and on
-  WKWebView behaviour; a future WebKit could break it. pywebview, pyobjc and PyInstaller are pinned; updating them
-  needs a rebuild and a re-test.
+  WKWebView behaviour; a future WebKit could break it. The app uses only Apple's frameworks and toolchain, so a macOS
+  or Command Line Tools update is what changes them; a release is re-tested with an amp.
 - **Partial bridge.** Only the commands the MkII app calls are implemented. A call to anything else throws in the page,
   and the error is logged.
-- **Limited testing.** Two amps on macOS 27.2 (see Verified amplifiers); other MkII models and macOS 14–26 are
-  untested.
-- **Signing.** The bundle is ad-hoc signed, not notarized. Built locally it opens normally; copied from elsewhere it
-  needs right-click → Open, and a stricter future Gatekeeper could refuse it.
-- **Local server with file access.** Mitigated as described under Security; any local program that is not a browser,
-  including other user accounts and sandboxed apps, can read the token from `index.html` (see
+- **Limited testing.** Two amps on macOS 27.2 with 0.1.x, and the native app's amp run is still pending (see Verified
+  amplifiers); other MkII models and macOS 14–26 are untested.
+- **Signing.** The bundle is ad-hoc signed with the hardened runtime, not notarized. Built locally it opens normally;
+  copied from elsewhere it needs right-click → Open, and a stricter future Gatekeeper could refuse it.
+- **Local server with file access.** Mitigated as described under Security: nothing outside the page gets the token.
+  Whatever runs in the page can still use the bridge: Roland's code, YouTube's player scripts, and any `<script>` in
+  Tone Central's content, which jQuery runs (see the residual risks in
   [ADR-0003](doc/decisions/ADR-0003-bridge-security.md)).
 - **Legal grey zone.** The runtime script injection is the point that rests on interoperability rather than on
   Roland's terms (see Licensing). Keeping the built app private keeps the exposure small.
 
 ## Security
 
-The server can read and write files, so it listens on loopback only, checks the `Host`, accepts commands only with a
-per-launch secret token carried by the served page, reaches files only in the app's own folders or where the
-user pointed a file dialog, and opens only web links. The rules are in
+The server can read and write files, so it listens on `127.0.0.1` only, checks the `Host`, serves the page, its files
+and the bridge only under a per-launch secret token that it never hands out, holds the page to a
+Content-Security-Policy, reaches files only in the app's own folders or where the user pointed a file dialog (a file
+picked to open is read only), fetches only from Tone Central's hosts, and opens only web links. The rules are in
 [`doc/bridge-protocol.md`](doc/bridge-protocol.md#security), their tests in [`doc/testing.md`](doc/testing.md).

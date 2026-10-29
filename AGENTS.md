@@ -1,35 +1,38 @@
 # AGENTS.md
 
-Native arm64 shell for Roland's BOSS TONE STUDIO for KATANA MkII web app: a Python HTTP bridge speaking Roland's
-`$native` protocol, CoreMIDI through python-rtmidi, a pywebview (WKWebView) window. Personal use; Roland's HTML is
-never modified or committed — `make roland-assets` takes it out of Roland's installer download into `build/roland/`
-and `make app` bundles it.
+Native arm64 shell for Roland's BOSS TONE STUDIO for KATANA MkII web app, written in Swift with no dependencies: an
+HTTP bridge on `127.0.0.1` speaking Roland's `$native` protocol, CoreMIDI, an AppKit window with a WKWebView. Personal
+use; Roland's HTML is never modified or committed — `make roland-assets` takes it out of Roland's installer download
+into `build/roland/` and `make app` bundles it.
 
 Start with [`doc/bridge-protocol.md`](doc/bridge-protocol.md) (the protocol and security rules — the source of truth
-for `bts/`), then [`doc/decisions/`](doc/decisions/) and [`doc/research/`](doc/research/); status and verified amps are
-in the README.
+for `Sources/`), then [`doc/decisions/`](doc/decisions/) and [`doc/research/`](doc/research/); status and verified amps
+are in the README.
 
 ## Commands
 
 ```bash
 make help           # every target
-mise trust          # once, by the user: mise.toml sets environment variables
-make setup          # make deps (toolchain + locked packages into .venv) + make roland-assets
-make lock           # re-resolve requirements*.txt (with hashes) after changing pins in pyproject.toml
-make check          # lint + test — run before committing; CI runs the same on PRs and main
+make setup          # make swift-version (fails unless Swift 6) + make roland-assets
+make check          # lint (swift format) + test (swift test) — run before committing; CI runs the same
+make app            # the signed .app in dist/, Roland's web app re-extracted from the verified zip
+make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases)
 ```
+
+Until the Python code is removed, `make setup` also runs `make deps`, which needs mise.
 
 ## Workflow
 
 - `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `docs/…`).
-- CI (`.github/workflows/ci.yml`) runs `make lint` on Ubuntu and `make deps` + `make test` on macOS 15 (Apple
-  Silicon) for every pull request and push to `main`; actions are pinned to commit SHAs.
+- CI (`.github/workflows/ci.yml`) runs `make lint` on Ubuntu in a digest-pinned Swift container for every pull request,
+  drafts included, and `make test` on macOS 26 only for pull requests ready for review; both run on pushes to `main`.
+  Actions are pinned to commit SHAs. After a local Swift minor update, run `make format` and bump the container's tag
+  and digest together.
 - Push only `main` and feature branches — never `--all`/`--mirror`, and never a local `archive/*` branch.
 
 ## Releases
 
-- Semantic Versioning. The version lives only in `pyproject.toml`; `make app` copies it into the bundle's
-  `Info.plist`.
+- Semantic Versioning. The version lives only in `VERSION`; `make app` copies it into the bundle's `Info.plist`.
 - A pull request with a user-visible change is its own release: it bumps the version and adds a dated entry for it to
   `CHANGELOG.md` (no Unreleased section). After the merge, tag that `main` commit with an annotated tag
   (`git tag -a vX.Y.Z -m vX.Y.Z`) and push it; fix the date in the PR if the merge slips to another day.
@@ -42,7 +45,7 @@ make check          # lint + test — run before committing; CI runs the same on
 
 - Code, comments, docs and commit messages in English; talk to the user in Czech.
 - Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend.
-- 120-character lines (ruff). Lean comments: say why, not what.
+- 120-character lines (`swift format`, `.swift-format`). Lean comments: say why, not what.
 - A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
   consequences); research findings go to `doc/research/YYYY-MM-DD-<topic>.md`.
 - Never write to Roland's app or its plist; scratch work and personal backups go to `tmp/` (gitignored).
@@ -50,11 +53,13 @@ make check          # lint + test — run before committing; CI runs the same on
 
 ## Sandbox notes
 
-- The Claude Code sandbox cannot create a CoreMIDI client (`RtMidiError … -10833`) — anything touching MIDI, and
-  running the app, needs the sandbox off. Test with `BTS_DATA_DIR=$PWD/tmp/<name>` instead of the real data folder.
-- python-rtmidi builds from source (no cp313 arm64 wheel) and needs `xcrun`, which cannot write its cache inside the
-  sandbox: run `make setup` / `make app` outside it. Inside, `UV_CACHE_DIR=$TMPDIR/uv-cache` avoids `~/.cache`.
+- `swift` and `xcrun` keep caches outside the project, which the Claude Code sandbox cannot write: run `make setup`,
+  `make build`, `make test`, `make check`, `make app` and `make run`/`browser`/`trace` with the sandbox off.
+- The sandbox cannot create a CoreMIDI client (`MIDIClientCreateWithBlock failed (OSStatus -10833)`) nor the app's
+  temp folder, so the app only runs outside it. The unit tests never create a MIDI client. Run the app with
+  `BTS_DATA_DIR=$PWD/tmp/<name>` instead of the real data folder.
 - `$TMPDIR` differs inside and outside the sandbox; write logs to the project's `tmp/`.
 - `open`/`osascript` and `ps`/`pgrep` fail inside the sandbox; check processes outside it (`ps`, `lsof -iTCP`).
-- The browser pane reaches `http://localhost:<port>` (`make browser`) for visual checks; the native window cannot be
-  seen — verify it through `make trace` logs and written storage.
+- The server answers only `http://127.0.0.1:<port>/<token>/…` (`localhost` is refused): open the URL `make browser`
+  prints in the browser pane for visual checks. The native window cannot be seen — verify it through `make trace`
+  logs and written storage.

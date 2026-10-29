@@ -1,6 +1,6 @@
 # ADR-0001: A Python shell around Roland's unchanged web app
 
-Status: accepted, 2026-10-27
+Status: superseded by [ADR-0011](ADR-0011-native-swift-app.md), 2026-10-29
 
 ## Context
 
