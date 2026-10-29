@@ -48,7 +48,9 @@ import Testing
             #expect(throws: StorageError.self) { try storage.write(key, "x") }
             #expect(throws: StorageError.self) { try storage.write(key, "") }
         }
-        #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("x").path))
+        // A refused key reaches no file: nothing in the folder, and nothing next to it.
+        #expect(try FileManager.default.contentsOfDirectory(atPath: storage.directory.path) == [])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path) == ["storage2"])
     }
 }
 

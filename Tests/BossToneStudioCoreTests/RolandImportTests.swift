@@ -44,7 +44,7 @@ private func withFixture(_ body: (Fixture) throws -> Void) throws {
     try withTemporaryFolder { folder in
         let fixture = Fixture(folder: folder)
         try fixture.writePrefs([
-            "ID_LIST": "{\"list\":[2,1]}",
+            "ID_LIST": "{\"list\":[2,0,1]}",  // `0` is listed but empty: skipped
             "1": liveset("Foo"),
             "2": liveset("Bar"),
             "0": "",
@@ -66,6 +66,16 @@ private func withFixture(_ body: (Fixture) throws -> Void) throws {
         #expect(try fixture.read("CONFIRM_FLAG") == "true")
         #expect(!fixture.exists("pref"))
         #expect(!fixture.exists("0"))
+    }
+}
+
+@Test func aConfirmFlagAlreadyHereIsKept() throws {
+    try withFixture { fixture in
+        try fixture.write("CONFIRM_FLAG", "false")
+        try RolandImport.importLibrarian(dataDir: fixture.dataDir, prefs: fixture.prefs)
+
+        #expect(try fixture.read("CONFIRM_FLAG") == "false")
+        #expect(try fixture.ids() == [2, 1])
     }
 }
 
