@@ -559,9 +559,10 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
     }
 }
 
+// The fallback is `withBridge`'s 60 s, so it cannot fire during the test; `theExitFallbackClosesTheWindow` covers it.
 @Test func closingLetsThePageAnswerAndClosesTheWindowOnce() throws {
     let host = FakeHost()
-    try withBridge(host: host, exitFallback: .milliseconds(100)) { bridge, _ throws in
+    try withBridge(host: host) { bridge, _ throws in
         #expect(!bridge.windowShouldClose())  // the first close waits for the page
         #expect(try call(bridge, "app_getevent") == "app\(formFeed)command\(formFeed)exit")
         #expect(!bridge.windowShouldClose())  // so does a second click before the page answers
@@ -569,13 +570,10 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         #expect(host.closeCount == 0)
 
         #expect(try call(bridge, "app_exit") == nil)  // the page's $$app_exit
-        bridge.appExit()  // the fallback, had it not been cancelled
+        bridge.appExit()  // the fallback, had it fired after all
         #expect(host.closeCount == 1)
         #expect(bridge.host == nil)
         #expect(bridge.windowShouldClose())
-
-        Thread.sleep(forTimeInterval: 0.4)  // well past the fallback
-        #expect(host.closeCount == 1)
         #expect(try call(bridge, "app_getevent") == nil)
     }
 }
