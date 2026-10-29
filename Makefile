@@ -15,7 +15,7 @@ APP        = dist/$(APP_NAME).app
 APP_VERSION = $(shell cat VERSION)
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help setup swift-version deps roland-assets roland-reextract lock run browser trace roland-import build app \
+.PHONY: help setup swift-version deps roland-assets roland-fresh lock run browser trace roland-import build app \
 	install release-notes test lint format check
 
 help:
@@ -28,6 +28,7 @@ help:
 	@echo "  swift-version  Print the Swift version; fail unless it is major version 6"
 	@echo "  deps           Install pinned tools (mise.toml) and locked packages (requirements.txt) into .venv"
 	@echo "  roland-assets  Take Roland's web app and icon out of its installer download (no install, no Rosetta)"
+	@echo "  roland-fresh   Extract them again from the verified download (what app does first)"
 	@echo "  lock           Re-resolve requirements*.txt from the pins in pyproject.toml"
 	@echo "  run            Open the app window"
 	@echo "  browser        Serve the app only; open the printed URL in a browser (no file dialogs)"
@@ -84,11 +85,14 @@ build: swift-version
 
 # Roland's web app goes into the bundle from the SHA-256-checked installer zip every time, never as it stands in
 # build/roland/html (the fetch script skips a folder that already has an index.html).
-roland-reextract:
+roland-fresh:
 	@rm -rf build/roland/html
 	@packaging/fetch-roland-assets.sh build/roland
 
-app: swift-version roland-reextract build/AppIcon.icns
+# The icon is built by a sub-make: it must see the timestamp of the icon `roland-fresh` has just replaced.
+# cp -X: extended attributes (Finder info, resource forks) would break the bundle's seal.
+app: swift-version roland-fresh
+	@$(MAKE) --no-print-directory build/AppIcon.icns
 	@swift build -c release --arch arm64 $(SWIFT_FLAGS)
 	@rm -rf "$(APP)"
 	@mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
