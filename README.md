@@ -120,18 +120,29 @@ is not taken over.
 
 ## Verified amplifiers
 
-Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the 0.1.x Python shell. The
-native app (0.2.0) has not been run with an amp yet: its run with both amps is pending, and until then this table is
-the record of 0.1.x.
+Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the native app (0.2.0): the
+signed bundle from `make app`, run with `BTS_TRACE=1` on a copy of the data folder, with the trace logs read afterwards.
 
-| Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
-|---|---|---|---|---|---|---|---|---|
-| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
-| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-28 |
+| Amplifier | Identity Reply (model code) | Connects | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
+|---|---|---|---|---|---|---|---|
+| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
+| KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
 
-The KATANA-ARTIST MkII row was re-run on the `$$app` transport of 0.1.1 in the app window: connect, MIDI both ways,
-Tone Central, `.tsl` round trip, deleting a liveset, All Data Backup saved and restored, and closing. The checks used a
-`make trace` log. The KATANA-HEAD MkII row dates from 0.1.0.
+Run with both amps, the trace logs and the window showed:
+
+- The app reconnected to the stored `KATANA` on launch without the device picker; editor mode went on after connecting
+  and off before `$$app_exit`; MIDI worked both ways (the amp's knobs and the app).
+- `.tsl` export and re-import; All Data Backup (`.alb`) and its restore; a deleted patch and liveset stayed deleted
+  after reopening; Tone Central's liveset details and adding a liveset; the page's `alert` showed (an invalid `.tsl`
+  import).
+- Copy and paste in text fields worked, right click opened no context menu, and a web link opened in the default
+  browser.
+- Cmd-Q and the window's close button each closed the app through the handshake.
+- Unplugging and replugging the HEAD MkII reconnected it (`midi.changed`, a new Identity Reply).
+- The logs had no `[js]` or `failed` lines; the only refused requests were SoundCloud's, by design.
+
+The same two amps were checked with the 0.1.x Python shell on 2026-10-28 (the HEAD MkII with 0.1.0, the ARTIST MkII
+again with 0.1.1).
 
 Other MkII models (KATANA-50 MkII, -100 MkII, -100/212 MkII) use model codes in the same range the editor accepts but
 are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps above show up as the CoreMIDI port
@@ -139,23 +150,23 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 
 ## Status
 
-The table records 0.1.x. The native app (0.2.0) has so far been checked without an amp: run with `--browser` and
-opened in a WKWebView, Roland's page loads under its security policy without errors, and offline mode and Tone Central
-(catalogue, a liveset's `.tsl`, the YouTube player) work; the import took over Roland's 29 livesets; the built bundle
-serves its own copy of the web app; and with an amp attached, but not connected, the port list shows `KATANA` and
-`KATANA DAW CTRL` as before. SoundCloud is no longer proxied.
+The table records the native app (0.2.0), run with both amps (see Verified amplifiers). Without an amp it had also
+been checked with `--browser` and in a WKWebView: Roland's page loads under its security policy without errors, offline
+mode and Tone Central (catalogue, a liveset's `.tsl`, the YouTube player) work, the import took over Roland's 29
+livesets, and the built bundle serves its own copy of the web app. SoundCloud is no longer proxied.
 
 | Area | Status |
 |---|---|
 | Editor UI, offline mode | ✅ checked visually in a browser; in the window, start-up verified through the bridge |
 | Storage (`app.storage`, `app.storage2`) | ✅ |
-| MIDI with the amp (KATANA MkII over USB) | ✅ connecting, reading patches, changes from the app and from the amp's knobs |
+| MIDI with the amp (KATANA MkII over USB) | ✅ Identity Reply, connecting, editor mode, changes from the app and from the amp's knobs; unplugging and replugging reconnects (HEAD MkII) |
 | Remembering the chosen device | ✅ reconnects on the next launch |
-| Closing the window (editor mode off, `$$app_exit`) | ✅ the page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
+| Closing the window (editor mode off, `$$app_exit`) | ✅ Cmd-Q and the close button, each through the handshake: the page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
 | Librarian taken over from Roland's app | ✅ 29 livesets / 254 patches loaded in the original order |
-| File dialogs | ✅ `.tsl` export and import (round trip identical), All Data Backup (81 KB) saved and restored to the amp; a Gen 3 `.tsl` is refused by Roland's code ("UNSUPPORTED DATA") |
-| Deleting livesets/patches | ✅ fixed (the page passes numeric IDs); liveset delete verified in the window, patch delete in the browser (persists across reload) |
+| File dialogs | ✅ `.tsl` export and re-import, All Data Backup (`.alb`) saved and restored; an invalid `.tsl` import shows the page's `alert`; with 0.1.x a Gen 3 `.tsl` was refused by Roland's code ("UNSUPPORTED DATA") |
+| Deleting livesets/patches | ✅ a deleted patch and liveset stay deleted after reopening |
 | Tone Central | ✅ through a local proxy: catalogue, details, YouTube preview, adding a liveset; SoundCloud previews ❌ (Roland's old API key returns 401) |
+| Window | ✅ copy and paste in text fields, no context menu on right click, a web link opens in the default browser |
 | `.app` bundle | ✅ `make app`: standalone (serves the bundled web app, nothing open under `/Applications/BOSS`), arm64, "(Apple Silicon)" name, grey icon |
 
 ## Next steps
@@ -212,8 +223,8 @@ How this project relates to each point:
   or Command Line Tools update is what changes them; a release is re-tested with an amp.
 - **Partial bridge.** Only the commands the MkII app calls are implemented. A call to anything else throws in the page,
   and the error is logged.
-- **Limited testing.** Two amps on macOS 27.2 with 0.1.x, and the native app's amp run is still pending (see Verified
-  amplifiers); other MkII models and macOS 14–26 are untested.
+- **Limited testing.** Two amps on macOS 27.2 with the native app (see Verified amplifiers); other MkII models and
+  macOS 14–26 are untested.
 - **Signing.** The bundle is ad-hoc signed with the hardened runtime, not notarized. Built locally it opens normally;
   copied from elsewhere it needs right-click → Open, and a stricter future Gatekeeper could refuse it.
 - **Local server with file access.** Mitigated as described under Security: nothing outside the page gets the token.

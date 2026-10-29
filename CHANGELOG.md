@@ -15,6 +15,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - MIDI hot-plug follows CoreMIDI's notifications instead of polling every 1.5 s.
 - Storage and file reads keep line endings as stored.
 - The version lives in `VERSION`.
+- Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
 
 ### Security
 

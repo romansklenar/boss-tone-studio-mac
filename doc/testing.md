@@ -42,4 +42,7 @@ output; every bridge command (`-> $$…`) except the `$$app_getevent` poll and e
 
 Then try in the window: export a liveset to `.tsl` and import it back, an All Data Backup, deleting a patch and a
 liveset (they must stay deleted after reopening), Tone Central, and closing with Cmd-Q as well as the close button; any
-`alert()` of the page shows as a sheet. Record new amplifiers in the README's "Verified amplifiers".
+`alert()` of the page shows as a sheet — import a `.tsl` whose JSON lacks the page's header (any `{"name":"x"}` file
+named `*.tsl`) to trigger one. Check that a web link opens in the default browser and that nothing opens a new window.
+Unplug and replug the amp: it must reconnect (the trace shows `midi.changed` and a new Identity Reply). Record new
+amplifiers in the README's "Verified amplifiers".
