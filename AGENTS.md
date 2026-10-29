@@ -24,8 +24,8 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 - `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `docs/…`).
 - CI (`.github/workflows/ci.yml`) runs `make lint` on Ubuntu in a digest-pinned Swift container for every pull request,
   drafts included, and `make test` on macOS 26 only for pull requests ready for review; both run on pushes to `main`.
-  Actions are pinned to commit SHAs. After a local Swift minor update, run `make format` and bump the container's tag
-  and digest together.
+  The test job switches to the Command Line Tools first. Actions are pinned to commit SHAs. After a local Swift minor
+  update, run `make format` and bump the container's tag and digest together.
 - Push only `main` and feature branches — never `--all`/`--mirror`, and never a local `archive/*` branch.
 
 ## Releases

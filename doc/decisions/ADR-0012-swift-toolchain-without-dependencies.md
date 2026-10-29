@@ -28,9 +28,10 @@ download it on every macOS run.
 - CI (`.github/workflows/ci.yml`): `make lint` on Ubuntu in the official `swift` container, pinned by digest to the
   minor version the code was last formatted with (swift-format's output can change between minors), whenever a pull
   request is opened, updated or marked ready, drafts included, and on every push to `main`. `make test` on macOS
-  (`macos-26`, the runner's default Xcode) only for pull requests that are not drafts and for pushes to `main`:
-  Network.framework, CoreMIDI and AppKit exist only on macOS, where minutes cost ten times as much. Actions stay
-  pinned to commit SHAs; on a pull request a newer run cancels an older one, and every push to `main` runs to the end.
+  (`macos-26`, switched to its Command Line Tools, the toolchain the project supports) only for pull requests that are
+  not drafts and for pushes to `main`: Network.framework, CoreMIDI and AppKit exist only on macOS, where minutes cost
+  ten times as much. Actions stay pinned to commit SHAs; on a pull request a newer run cancels an older one, and every
+  push to `main` runs to the end.
 
 ## Consequences
 
@@ -38,6 +39,7 @@ download it on every macOS run.
 - A Command Line Tools update can change the compiler's minor version under the project; `make check` shows whether
   that matters, and a release is still re-tested with an amp. Swift 7 stops the build with a clear message until the
   project moves.
-- After a local minor update, `make format` and the lint container's tag and digest move together.
+- After a local minor update, `make format` and the lint container's tag and digest move together (the Command Line
+  Tools' swift-format reports its version as `main`, so `make lint` cannot check it).
 - Draft pull requests get no macOS test run, so `make check` runs locally before one is marked ready.
 - The `-plugin-path` workaround comes out by hand once a Command Line Tools release has the upstream fix.
