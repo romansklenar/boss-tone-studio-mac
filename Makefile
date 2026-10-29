@@ -15,7 +15,7 @@ INSTALL_DIR ?= $(HOME)/Applications
 RELEASE_BUILD = swift build -c release --arch arm64 $(SWIFT_FLAGS)
 
 .PHONY: help setup swift-version roland-assets roland-fresh run browser trace roland-import build app \
-	install release-notes test lint format check
+	install release-notes test lint format check clean
 
 help:
 	@echo "BOSS TONE STUDIO for KATANA MkII — Apple Silicon"
@@ -39,6 +39,7 @@ help:
 	@echo "  lint           Check the code (swift format lint --strict)"
 	@echo "  format         Fix the code (swift format --in-place)"
 	@echo "  check          lint + test"
+	@echo "  clean          Remove the builds (.build, dist, the icon); Roland's download in build/roland stays"
 
 setup: swift-version roland-assets
 
@@ -110,3 +111,7 @@ format:
 	@swift format format --in-place --recursive --parallel $(SWIFT_SOURCES)
 
 check: lint test
+
+# Never build/roland: it holds the SHA-256-verified installer zip, the copy `make app` extracts Roland's files from.
+clean:
+	@rm -rf .build dist build/AppIcon.icns

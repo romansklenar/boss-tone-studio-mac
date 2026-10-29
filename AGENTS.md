@@ -47,6 +47,8 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 - A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
   consequences); research findings go to `doc/research/YYYY-MM-DD-<topic>.md`.
 - Never write to Roland's app or its plist; scratch work and personal backups go to `tmp/` (gitignored).
+- Builds take hundreds of MB: build only into the repo's `.build` (no extra `--scratch-path` builds or copies of it),
+  delete any scratch build you make, and run `make clean` when a piece of work is finished.
 - Claim only what was verified; say how (curl, browser pane, `make trace` log, the user in the window).
 
 ## Sandbox notes
