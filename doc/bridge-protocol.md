@@ -65,7 +65,7 @@ complete request.
 | `midi_inendpoints`, `midi_outendpoints` | JSON array of `{"MIDIEntityNameKey", "MIDIDeviceNameKey", "MIDIEndpointUIDKey"}`, all three the port name |
 | `midi_inconnect(json)`, `midi_outconnect(json)` | open the listed port named by `MIDIEntityNameKey`; failure → event `midi\fconnectfailed\f<json>` |
 | `midi_indisconnect`, `midi_outdisconnect` | close |
-| `midi_send(HEX)` | hex without spaces → bytes → split into whole messages (sysex `F0…F7`) → Universal MIDI Packets → send |
+| `midi_send(HEX)` | hex without spaces → bytes → split into whole messages (sysex `F0…F7`) → Universal MIDI Packets → send; a message CoreMIDI fails to send is logged, not raised |
 | `midi_panel` | no-op |
 
 Behaviour worth knowing:

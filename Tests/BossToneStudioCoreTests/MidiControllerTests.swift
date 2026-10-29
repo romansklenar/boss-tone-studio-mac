@@ -6,6 +6,10 @@ import os
 
 private struct PortFailure: Error {}
 
+private struct SendFailure: Error, CustomStringConvertible {
+    let description = "MIDISendEventList failed (OSStatus -10)"
+}
+
 /// Records what the controller does and lets a test play the part of CoreMIDI.
 private final class FakeMidiBackend: MidiBackend {
     private struct State {
@@ -14,6 +18,7 @@ private final class FakeMidiBackend: MidiBackend {
         var calls: [String] = []
         var sent: [[UInt8]] = []
         var openError: (any Error)?
+        var sendError: (any Error)?
         var onMessage: (@Sendable ([UInt8]) -> Void)?
         var onSetupChanged: (@Sendable () -> Void)?
     }
@@ -36,6 +41,10 @@ private final class FakeMidiBackend: MidiBackend {
 
     func failOpening(with error: any Error) {
         state.withLock { $0.openError = error }
+    }
+
+    func failSending(with error: any Error) {
+        state.withLock { $0.sendError = error }
     }
 
     /// What CoreMIDI does when the notification thread reports a changed setup.
@@ -77,8 +86,9 @@ private final class FakeMidiBackend: MidiBackend {
     }
 
     func send(_ message: [UInt8]) throws {
-        state.withLock {
+        try state.withLock {
             $0.calls.append("send")
+            if let error = $0.sendError { throw error }
             $0.sent.append(message)
         }
     }
@@ -106,10 +116,19 @@ private final class Events: Sendable {
     func clear() { recorded.withLock { $0.removeAll() } }
 }
 
+/// What the controller printed, line by line.
+private final class LogLines: Sendable {
+    private let lines = OSAllocatedUnfairLock(initialState: [String]())
+
+    var all: [String] { lines.withLock { $0 } }
+
+    func append(_ line: String) { lines.withLock { $0.append(line) } }
+}
+
 private func controller(
-    _ backend: FakeMidiBackend?, _ events: Events
+    _ backend: FakeMidiBackend?, _ events: Events, log: LogLines = LogLines()
 ) -> MidiController {
-    MidiController(backend: backend, emit: events.emit)
+    MidiController(backend: backend, emit: events.emit, output: log.append)
 }
 
 @Test func aMissingOrUnopenablePortReportsConnectfailed() {
@@ -182,6 +201,20 @@ private func controller(
     midi.disconnectOutput()
     try midi.send("B00764")
     #expect(backend.sent.isEmpty)
+}
+
+@Test func aFailedSendIsLoggedAndTheNextMessageStillGoesOut() throws {
+    // python-rtmidi reported CoreMIDI's send errors as warnings: the page never saw one.
+    let backend = FakeMidiBackend()
+    let log = LogLines()
+    let midi = controller(backend, Events(), log: log)
+    midi.connectOutput(endpointsJSON(["KATANA"]).trimmingBrackets)
+    backend.failSending(with: SendFailure())
+    try midi.send("B00764F07E7FF7")
+    #expect(backend.calls.filter { $0 == "send" }.count == 2)
+    let line = "[bts] sending MIDI failed: 'MIDISendEventList failed (OSStatus -10)'"
+    #expect(log.all == [line, line])
+    #expect(throws: HexError.notHexadecimal) { try midi.send("zz") }  // the page's own mistake still is one
 }
 
 @Test func sendRejectsTextThatIsNotHexOnceAnOutputIsOpen() {

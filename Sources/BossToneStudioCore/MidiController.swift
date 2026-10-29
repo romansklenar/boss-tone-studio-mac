@@ -17,7 +17,7 @@ public protocol MidiBackend: AnyObject, Sendable {
     func disconnectInput()
     func connectOutput(named name: String) throws
     func disconnectOutput()
-    /// One whole MIDI 1.0 message.
+    /// One whole MIDI 1.0 message. The controller logs a failure; the page never hears of it.
     func send(_ message: [UInt8]) throws
     /// The handler may run on any thread, and also for changes that leave the port lists alone.
     func onSetupChanged(_ handler: @escaping @Sendable () -> Void)
@@ -43,14 +43,21 @@ public final class MidiController: Sendable {
 
     private let backend: MidiBackend?
     private let emit: Emit
+    private let output: @Sendable (String) -> Void
     // Held across backend calls, as in 0.1.1: a send is never interleaved with another send or with a disconnect.
     // The controller's own events are emitted after it is released.
     private let state: OSAllocatedUnfairLock<State>
 
     /// A nil backend stands for a Mac without CoreMIDI: nothing is listed and every connect fails.
-    public init(backend: MidiBackend?, emit: @escaping Emit) {
+    public convenience init(backend: MidiBackend?, emit: @escaping Emit) {
+        self.init(backend: backend, emit: emit) { print($0) }
+    }
+
+    /// `output` prints one log line.
+    init(backend: MidiBackend?, emit: @escaping Emit, output: @escaping @Sendable (String) -> Void) {
         self.backend = backend
         self.emit = emit
+        self.output = output
         state = OSAllocatedUnfairLock(initialState: State(ports: Self.ports(of: backend)))
         backend?.onSetupChanged { [weak self] in self?.setupChanged() }
     }
@@ -106,12 +113,17 @@ public final class MidiController: Sendable {
         disconnectOutput()
     }
 
-    /// Without an open output this does nothing, and the hex is not checked either.
+    /// Without an open output this does nothing, and the hex is not checked either. Only bad hex throws: a message
+    /// CoreMIDI fails to send is logged and the rest go out, as python-rtmidi's warnings had it in 0.1.1.
     public func send(_ hex: String) throws {
         try state.withLock { state in
             guard state.outputOpen, let backend else { return }
             for message in splitMessages(try bytes(fromHex: hex)) {
-                try backend.send(message)
+                do {
+                    try backend.send(message)
+                } catch {
+                    output("[bts] sending MIDI failed: \(escaped(String(describing: error)))")
+                }
             }
         }
     }
@@ -143,7 +155,7 @@ public final class MidiController: Sendable {
 
     private func report(_ failure: String?, of name: String?, _ endpointJSON: String?) {
         guard let failure else { return }
-        log("opening MIDI port \(name.map(escaped) ?? "None") failed: \(escaped(failure))")
+        output("[bts] opening MIDI port \(name.map(escaped) ?? "None") failed: \(escaped(failure))")
         emit("midi", "connectfailed", [endpointJSON ?? ""])
     }
 
