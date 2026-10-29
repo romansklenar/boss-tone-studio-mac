@@ -37,6 +37,15 @@ func importRoland(into dataDir: URL, locked: Bool) -> Never {
     exit(0)
 }
 
+/// nil when another process holds the folder; a folder that cannot be locked at all ends the process.
+func lockDataDir(_ dataDir: URL) -> DataDirLock? {
+    do {
+        return try DataDirLock.acquire(dataDir.appendingPathComponent("app.lock"))
+    } catch {
+        fail("Cannot lock the data folder (\(error))")
+    }
+}
+
 func startBridge(dataDir: URL) -> Bridge {
     let midi: CoreMIDIBackend?
     do {
@@ -94,7 +103,7 @@ let arguments = CommandLine.arguments.dropFirst()
 let environment = ProcessInfo.processInfo.environment
 let dataDir = AppPaths.dataDir(env: environment)
 // Held, and so locked, until the process exits: one process per data folder.
-let dataDirLock = DataDirLock.acquire(dataDir.appendingPathComponent("app.lock"))
+let dataDirLock = lockDataDir(dataDir)
 
 if arguments.contains("--import-roland") { importRoland(into: dataDir, locked: dataDirLock != nil) }
 guard dataDirLock != nil else { fail("Another instance already uses \(dataDir.path).") }
