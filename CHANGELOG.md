@@ -31,7 +31,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   stay blank).
 - Links the page opens in the browser (`fs_exec`) must lead to another machine, since the page's own URLs carry the
   token: `localhost`, loopback and unspecified addresses in any spelling, links without a host and links with userinfo
-  are refused ([rule 6](doc/bridge-protocol.md#security)).
+  are refused (bridge protocol, rule 6).
 - A file picked in the open dialog is read only; only paths picked in the save dialog are writable. A dangling link
   in a path is refused.
 - The proxy rebuilds every URL and redirect from `https`, the host name, path and query, dropping userinfo, port and

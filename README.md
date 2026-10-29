@@ -168,7 +168,7 @@ also ran with the ARTIST MkII. SoundCloud is no longer proxied.
 
 | Area | Status |
 |---|---|
-| Editor UI, offline mode | ✅ the editor in the window with both amps; offline mode without an amp, in a WKWebView |
+| Editor UI, offline mode | ✅ the editor in the window; offline mode without an amp, in a WKWebView |
 | Storage (`app.storage`, `app.storage2`) | ✅ |
 | MIDI with the amp (KATANA MkII over USB) | ✅ Identity Reply, connecting, reading patches, editor mode, changes from the app and from the amp's knobs; unplugging and replugging reconnects |
 | Remembering the chosen device | ✅ reconnects on the next launch |
