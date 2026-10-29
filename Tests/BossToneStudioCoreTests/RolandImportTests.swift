@@ -39,7 +39,7 @@ private struct Fixture {
     }
 }
 
-/// Roland's settings as the Python tests set them up, with the folder removed afterwards.
+/// Roland's settings as 0.1.1's Python tests set them up, with the folder removed afterwards.
 private func withFixture(_ body: (Fixture) throws -> Void) throws {
     try withTemporaryFolder { folder in
         let fixture = Fixture(folder: folder)

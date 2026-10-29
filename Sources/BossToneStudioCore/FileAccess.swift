@@ -2,14 +2,14 @@ import Darwin
 import Foundation
 import os
 
-/// The text is the Python bridge's. It carries a path the page chose, so a caller logs it through `escaped`.
+/// The text is 0.1.1's Python bridge's. It carries a path the page chose, so a caller logs it through `escaped`.
 public struct FileAccessError: Error, Equatable, LocalizedError {
     public let message: String
 
     public var errorDescription: String? { message }
 }
 
-/// Which files the page may reach (`doc/bridge-protocol.md`, rule 4): the app's data and temp folders, plus exactly
+/// Which files the page may reach (`doc/bridge-protocol.md`, rule 5): the app's data and temp folders, plus exactly
 /// what the user picked in a file dialog. A picked file to open is readable only; a picked path to save is both, since
 /// the page writes a backup and may read it back. Dialog results arrive on the main thread and commands on connection
 /// queues, so the picked paths sit behind a lock.

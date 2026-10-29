@@ -260,7 +260,7 @@ public func makeToken() -> String {
         .replacingOccurrences(of: "=", with: "")
 }
 
-/// The per-launch script nonce: 16 random bytes, base64 (what a CSP nonce is).
+/// The script nonce, new for every page response: 16 random bytes, base64 (what a CSP nonce is).
 public func makeNonce() -> String {
     randomBytes(16).base64EncodedString()
 }
