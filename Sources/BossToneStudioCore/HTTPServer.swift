@@ -6,35 +6,34 @@ import os
 /// order; connections run concurrently, so a slow request (a proxy fetch, a pending command) holds up only its own.
 /// Keep-alive matters: the page polls `$$app_getevent` every 50 ms with synchronous XHR.
 public final class HTTPServer: Sendable {
+    public typealias Handler = @Sendable (HTTPRequest) async -> HTTPResponse
+
     private struct State {
         var listener: NWListener?
+        var handler: Handler?
         var connections: [ObjectIdentifier: NWConnection] = [:]
         var stopped = false
     }
 
-    private let handler: @Sendable (HTTPRequest) async -> HTTPResponse
     private let idleTimeout: DispatchTimeInterval
     private let output: @Sendable (String) -> Void
     private let queue = DispatchQueue(label: "bts.http")
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    public convenience init(handler: @escaping @Sendable (HTTPRequest) async -> HTTPResponse) {
-        self.init(handler: handler, idleTimeout: .seconds(30)) { print($0) }
+    public convenience init() {
+        self.init(idleTimeout: .seconds(30)) { print($0) }
     }
 
     /// A connection is closed after `idleTimeout` without a complete request, so a stalled request (or a head with
     /// bare line feeds, which never completes) cannot hold it forever. `output` prints one log line.
-    init(
-        handler: @escaping @Sendable (HTTPRequest) async -> HTTPResponse, idleTimeout: DispatchTimeInterval,
-        output: @escaping @Sendable (String) -> Void
-    ) {
-        self.handler = handler
+    init(idleTimeout: DispatchTimeInterval, output: @escaping @Sendable (String) -> Void) {
         self.idleTimeout = idleTimeout
         self.output = output
     }
 
-    /// Binds `127.0.0.1:0`, waits until the listener is ready and returns its port.
-    public func start() throws -> UInt16 {
+    /// Binds `127.0.0.1:0`, waits until the listener is ready, then answers with the handler `makeHandler` builds for
+    /// that port (the router checks `Host` and `Origin` against it) and returns the port.
+    public func start(makeHandler: (UInt16) -> Handler) throws -> UInt16 {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true  // answers are one write each; the page's polls should not wait for Nagle
         let parameters = NWParameters(tls: nil, tcp: tcp)
@@ -69,7 +68,11 @@ public final class HTTPServer: Sendable {
         listener.start(queue: queue)
         _ = settled.wait(timeout: .now() + 10)
         let result = outcome.withLock { $0 }
-        if case .success = result, let port = listener.port?.rawValue, port != 0 { return port }
+        if case .success = result, let port = listener.port?.rawValue, port != 0 {
+            let handler = makeHandler(port)
+            state.withLock { $0.handler = handler }
+            return port
+        }
         stop()
         if case .failure(let error) = result { throw ServerError(description: "cannot listen on 127.0.0.1: \(error)") }
         throw ServerError(description: "cannot listen on 127.0.0.1: no port within 10 s")
@@ -91,21 +94,22 @@ public final class HTTPServer: Sendable {
 
     private func accept(_ connection: NWConnection) {
         let id = ObjectIdentifier(connection)
-        let accepted = state.withLock { state in
-            guard !state.stopped else { return false }
+        // Until `start` returns nobody has been told the port, so a connection without a handler yet is a stranger's.
+        let handler = state.withLock { state -> Handler? in
+            guard !state.stopped, let handler = state.handler else { return nil }
             state.connections[id] = connection
-            return true
+            return handler
         }
-        guard accepted else { return connection.cancel() }
+        guard let handler else { return connection.cancel() }
         connection.start(queue: queue)
         Task {
-            await serve(connection)
+            await serve(connection, handler)
             connection.cancel()
             state.withLock { _ = $0.connections.removeValue(forKey: id) }
         }
     }
 
-    private func serve(_ connection: NWConnection) async {
+    private func serve(_ connection: NWConnection, _ handler: Handler) async {
         let timer = IdleTimer()
         var buffer = Data()
         timer.arm(closing: connection, after: idleTimeout, on: queue)

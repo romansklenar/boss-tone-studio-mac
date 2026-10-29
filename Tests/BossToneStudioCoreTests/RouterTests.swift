@@ -92,16 +92,12 @@ private struct TestServer {
             to: html.appendingPathComponent("index.html"), atomically: true, encoding: .utf8)
         try nativeJS.write(to: html.appendingPathComponent("js/lib/native.js"), atomically: true, encoding: .utf8)
 
-        // The router needs the port, which the server only knows once it listens.
         let log = log
-        let router = OSAllocatedUnfairLock<Router?>(initialState: nil)
-        let server = HTTPServer(
-            handler: { request in await router.withLock { $0 }!.handle(request) }, idleTimeout: .seconds(30),
-            output: log.append)
-        let port = try server.start()
-        router.withLock {
-            $0 = Router(
+        let server = HTTPServer(idleTimeout: .seconds(30), output: log.append)
+        let port = try server.start { port in
+            let router = Router(
                 port: port, token: token, htmlDir: html, dispatcher: dispatcher, proxy: proxy, output: log.append)
+            return { await router.handle($0) }
         }
         (self.server, self.html, self.dispatcher, self.proxy) = (server, html, dispatcher, proxy)
         client = RawHTTPClient(port: port)
@@ -436,9 +432,21 @@ private struct TestServer {
     #expect(server.log.all == Array(repeating: #"[bts] "<unreadable request>" 400"#, count: 3))
 }
 
+@Test func theHandlerIsBuiltForThePortTheServerListensOn() async throws {
+    let server = HTTPServer(idleTimeout: .seconds(30), output: { _ in })
+    defer { server.stop() }
+    var built: UInt16?
+    let port = try server.start { port in
+        built = port
+        return { _ in .text("") }
+    }
+    #expect(built == port)
+    #expect(try await RawHTTPClient(port: port).status("GET", "/") == 200)
+}
+
 @Test func aStalledRequestIsDroppedAfterTheIdleTimeout() async throws {
-    let server = HTTPServer(handler: { _ in .text("") }, idleTimeout: .milliseconds(300), output: { _ in })
-    let port = try server.start()
+    let server = HTTPServer(idleTimeout: .milliseconds(300), output: { _ in })
+    let port = try server.start { _ in { _ in .text("") } }
     defer { server.stop() }
     // Half a head, and a head with bare line feeds, which never completes.
     for bytes in ["GET / HTTP/1.1\r\nHost: x", "GET / HTTP/1.1\nHost: x\n\n"] {

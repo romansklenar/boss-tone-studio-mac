@@ -1,7 +1,6 @@
 import AppKit
 import BossToneStudioCore
 import Foundation
-import os
 
 // Runs Roland's BOSS TONE STUDIO for KATANA MkII web app natively on Apple Silicon.
 //
@@ -67,20 +66,17 @@ func startBridge(dataDir: URL) -> Bridge {
 /// Serves the web app and the bridge on 127.0.0.1; returns the server, its port and the page's URL.
 func serve(_ html: URL, _ bridge: Bridge) -> (HTTPServer, UInt16, URL) {
     let token = makeToken()
-    // The router needs the port, which the server knows only once it listens.
-    let slot = OSAllocatedUnfairLock<Router?>(initialState: nil)
-    let server = HTTPServer { request in
-        guard let router = slot.withLock({ $0 }) else { return .error(503) }
-        return await router.handle(request)
-    }
+    let server = HTTPServer()
     let port: UInt16
     do {
-        port = try server.start()
+        port = try server.start { port in
+            let router = Router(port: port, token: token, htmlDir: html, dispatcher: bridge, proxy: Proxy())
+            return { await router.handle($0) }
+        }
     } catch {
         bridge.removeTempDir()
         fail("\(error)")
     }
-    slot.withLock { $0 = Router(port: port, token: token, htmlDir: html, dispatcher: bridge, proxy: Proxy()) }
     guard let page = URL(string: "http://127.0.0.1:\(port)/\(token)/index.html") else {
         bridge.removeTempDir()
         fail("no page URL for port \(port)")
