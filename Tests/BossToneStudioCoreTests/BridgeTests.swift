@@ -21,7 +21,7 @@ private final class FakeHost: BridgeHost {
     private struct State {
         var closeCount = 0
         var openRequests: [[String]] = []
-        var saveRequests: [String] = []
+        var saveRequests: [[String]] = []  // the suggested name and the extension
         var openAnswer: String?
         var saveAnswer: String?
         var held: [@Sendable (String?) -> Void]?  // non-nil: dialogs wait for `answerHeldDialog`
@@ -37,7 +37,7 @@ private final class FakeHost: BridgeHost {
 
     var closeCount: Int { state.withLock { $0.closeCount } }
     var openRequests: [[String]] { state.withLock { $0.openRequests } }
-    var saveRequests: [String] { state.withLock { $0.saveRequests } }
+    var saveRequests: [[String]] { state.withLock { $0.saveRequests } }
 
     var saveAnswer: String? {
         get { state.withLock { $0.saveAnswer } }
@@ -63,8 +63,10 @@ private final class FakeHost: BridgeHost {
         answer(completion) { $0.openAnswer }
     }
 
-    func chooseFileToSave(suggestedName: String, completion: @escaping @Sendable (String?) -> Void) {
-        state.withLock { $0.saveRequests.append(suggestedName) }
+    func chooseFileToSave(
+        suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void
+    ) {
+        state.withLock { $0.saveRequests.append([suggestedName, ext]) }
         answer(completion) { $0.saveAnswer }
     }
 
@@ -455,7 +457,8 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
                 #expect(try call(bridge, "fs_savefilename", "Backup", "tsl") == nil)
                 #expect(try call(bridge, "app_getevent") == "fs\(formFeed)savefilename\(formFeed)\(event)", "\(answer)")
             }
-            #expect(host.saveRequests == Array(repeating: "Backup.tsl", count: cases.count))
+            // The dialog gets the extension too, so it adds it itself and asks before replacing that file.
+            #expect(host.saveRequests == Array(repeating: ["Backup.tsl", "tsl"], count: cases.count))
 
             // The page writes its backup to the chosen path and may read it back; nothing else opens up.
             host.saveAnswer = outside.appendingPathComponent("name").path
@@ -527,7 +530,10 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         for ext in ["a", "TSL", "abcdefghij", "tsl2"] {
             #expect(try call(bridge, "fs_savefilename", "Backup", ext) == nil, "\(ext)")
         }
-        #expect(host.saveRequests == ["Backup.a", "Backup.TSL", "Backup.abcdefghij", "Backup.tsl2"])
+        let requests = [
+            ["Backup.a", "a"], ["Backup.TSL", "TSL"], ["Backup.abcdefghij", "abcdefghij"], ["Backup.tsl2", "tsl2"],
+        ]
+        #expect(host.saveRequests == requests)
     }
 }
 

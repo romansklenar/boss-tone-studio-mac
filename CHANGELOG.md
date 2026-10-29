@@ -17,6 +17,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The version lives in `VERSION`.
 - Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
 
+### Fixed
+
+- The save dialog adds the file's extension itself, so its question before replacing a file is about the file that is
+  written; when the typed name lacked the extension, the bridge used to add it only after the dialog had closed.
+
 ### Security
 
 - The page and its files are served under the per-launch token as well, so the server no longer gives the token to

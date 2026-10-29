@@ -10,7 +10,10 @@ public protocol BridgeHost: AnyObject, Sendable {
     /// `completion` gets the chosen path, or nil when the user cancelled. It must be called exactly once, from any
     /// thread, and may be called after this method has returned.
     func chooseFileToOpen(extensions: [String], completion: @escaping @Sendable (String?) -> Void)
-    func chooseFileToSave(suggestedName: String, completion: @escaping @Sendable (String?) -> Void)
+    /// The dialog should add `ext` (1–10 ASCII letters and digits) itself, so it asks before replacing the file that
+    /// will really be written; the bridge appends it to a path that still lacks it.
+    func chooseFileToSave(
+        suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void)
 }
 
 public protocol CommandDispatching: Sendable {
@@ -296,7 +299,7 @@ public final class Bridge: CommandDispatching {
         let isPlain = (1...10).contains(ext.utf8.count) && ext.utf8.allSatisfy(Self.isASCIIAlphanumeric)
         guard isPlain else { throw BridgeError(description: "refusing extension \(escaped(ext))") }
         guard let host = hostForDialog("savefilename") else { return }
-        host.chooseFileToSave(suggestedName: "\(name).\(ext)") { [weak self] picked in
+        host.chooseFileToSave(suggestedName: "\(name).\(ext)", extension: ext) { [weak self] picked in
             guard let self else { return }
             let path = picked ?? ""
             let named = path.isEmpty || path.lowercased().hasSuffix(".\(ext.lowercased())") ? path : "\(path).\(ext)"

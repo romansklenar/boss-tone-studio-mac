@@ -113,7 +113,8 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
   `$$app_exit`); closing the window quits the app.
 - `alert()`/`confirm()`/`prompt()` shown as native sheets: Roland's page uses `alert()`.
 - File dialogs: `NSOpenPanel`/`NSSavePanel` sheets on the main thread, answered asynchronously through `fs` events; the
-  name the page suggests only fills the save panel's name field.
+  name the page suggests only fills the save panel's name field, and the panel adds the page's extension itself, so it
+  asks before replacing the file that is really written.
 - No context menu: Roland's own inline handler is allowed by the policy (Security, 5), and the web view drops its menu
   items as well.
 - Web Inspector enabled only with `BTS_TRACE=1`.

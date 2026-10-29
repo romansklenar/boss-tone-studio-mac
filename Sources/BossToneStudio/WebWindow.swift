@@ -63,11 +63,15 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         }
     }
 
-    /// The page chose `suggestedName`, so it only fills the name field; the user picks the folder.
-    nonisolated func chooseFileToSave(suggestedName: String, completion: @escaping @Sendable (String?) -> Void) {
+    /// The page chose `suggestedName`, so it only fills the name field; the user picks the folder. The panel adds `ext`
+    /// itself, so its question before replacing a file is about the file the page will write.
+    nonisolated func chooseFileToSave(
+        suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void
+    ) {
         DispatchQueue.main.async {
             let panel = NSSavePanel()
             panel.nameFieldStringValue = suggestedName
+            panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .data]
             panel.canCreateDirectories = true
             self.present(panel, completion: completion)
         }
