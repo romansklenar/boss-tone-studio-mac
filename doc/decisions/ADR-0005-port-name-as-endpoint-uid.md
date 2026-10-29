@@ -15,3 +15,8 @@ Report the port name as `MIDIEndpointUIDKey` (and as the entity and device names
 
 - The app reconnects to the amp the user picked. Two amps with the same port name (`KATANA`) cannot be told apart, so
   one amp is connected at a time.
+- The native app ([ADR-0011](ADR-0011-native-swift-app.md)) calls CoreMIDI directly and could report real unique IDs,
+  but keeps the name, built as rtmidi built it for ports without connections drawn in Audio MIDI Setup: the page
+  stored that name as the device's UID, and a different one would send 0.1.x users back to the device picker. A name
+  with non-ASCII characters is the exception: python-rtmidi decoded it as MacRoman (`encoding='auto'`), the native app
+  reads it as CoreMIDI holds it, so such a device goes through the picker once.

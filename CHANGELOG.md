@@ -3,6 +3,59 @@
 Notable changes per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-10-29
+
+### Added
+
+- When WebKit ends the page's process (a crash, or memory pressure), the window loads the page again, which reconnects
+  to the amp, instead of staying blank.
+
+### Changed
+
+- The app is native Swift: an AppKit window with a WKWebView, an HTTP server on Network.framework and CoreMIDI, with no
+  third-party code. The bundle shrinks from 38 MB to 14 MB, 13 MB of which is Roland's web app.
+- Building needs only Apple's Command Line Tools with Swift 6; `make setup` checks the version.
+- The same app name, bundle identifier, icon, data folder and file formats as 0.1.x, and MIDI ports named as before,
+  since the page stores the name as the device's ID. Ports with connections drawn in Audio MIDI Setup and names with
+  non-ASCII characters, which python-rtmidi decoded as MacRoman, are named differently: such a device goes through the
+  device picker once.
+- MIDI hot-plug follows CoreMIDI's notifications instead of polling every 1.5 s.
+- Storage and file reads keep line endings as stored.
+- The version lives in `VERSION`.
+- Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
+
+### Fixed
+
+- The save dialog adds the file's extension itself, so its question before replacing a file is about the file that is
+  written; when the typed name lacked the extension, the bridge used to add it only after the dialog had closed.
+
+### Security
+
+- The page and its files are served under the per-launch token as well, so the server no longer gives the token to
+  any local program that asks.
+- The server binds `127.0.0.1` only and refuses `localhost` and `[::1]`; the window opens the page on `127.0.0.1`.
+- The page runs under a Content-Security-Policy that admits the bridge script by a per-response nonce. SoundCloud left
+  the proxy's allowlist, and Roland's hosts must answer with JSON, which goes to the page as `application/json` or
+  `text/plain`.
+- MIDI ports whose names contain `<>&"'` are neither listed nor opened.
+- The window opens no new windows: a clicked web link goes to the default browser, other schemes are dropped, and
+  `window.open` without a click does nothing. The window stays on the page's origin, and frames load only `https` (or
+  stay blank).
+- A link reaches the browser only if it leads to another machine, since the page's own URLs carry the token: whether
+  the page opens it with `fs_exec`, a click or a navigation, `localhost`, loopback and unspecified addresses in any
+  spelling, links without a host and links with userinfo are refused (bridge protocol, rule 6).
+- A file picked in the open dialog is read only; only paths picked in the save dialog are writable. A dangling link
+  in a path is refused.
+- The proxy rebuilds every URL and redirect from `https`, the host name, path and query, dropping userinfo, port and
+  fragment.
+- `make app` extracts Roland's web app again from the SHA-256-checked installer zip on every build.
+- The bundle is signed with the hardened runtime, and `make install` checks the signature and the runtime flag.
+- A connection is closed after 30 s without a complete request, and requests that could be read two ways are refused.
+
+### Removed
+
+- The Python shell (pywebview, python-rtmidi, PyInstaller) and its tooling: mise, uv, ruff and the lock files.
+
 ## [0.1.1] - 2026-10-28
 
 ### Changed
@@ -33,5 +86,6 @@ First release.
 - A standalone `.app` built from Roland's installer download, checked against a pinned SHA-256.
 - Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
 
+[1.0.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v1.0.0
 [0.1.1]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.1
 [0.1.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.0

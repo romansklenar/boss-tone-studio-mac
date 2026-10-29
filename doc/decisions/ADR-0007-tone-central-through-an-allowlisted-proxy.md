@@ -1,6 +1,7 @@
 # ADR-0007: Tone Central through an allowlisted proxy
 
-Status: accepted, 2026-10-28
+Status: accepted, 2026-10-28; amended in 1.0.0 by [ADR-0003](ADR-0003-bridge-security.md) and
+[ADR-0011](ADR-0011-native-swift-app.md): SoundCloud left the allowlist, and Roland's hosts are held to JSON
 
 ## Context
 

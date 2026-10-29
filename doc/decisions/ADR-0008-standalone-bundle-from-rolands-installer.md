@@ -1,6 +1,6 @@
 # ADR-0008: A standalone app bundle built from Roland's installer download
 
-Status: accepted, 2026-10-28
+Status: accepted, 2026-10-28; the PyInstaller part superseded by [ADR-0011](ADR-0011-native-swift-app.md)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0009: Pinned toolchain and dependencies
 
-Status: accepted, 2026-10-28
+Status: superseded by [ADR-0012](ADR-0012-swift-toolchain-without-dependencies.md), 2026-10-29
 
 ## Context
 

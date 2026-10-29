@@ -1,11 +1,6 @@
-# Security updates only for packages; grouped weekly updates for the pinned actions.
+# Grouped weekly updates for the actions pinned to commit SHAs; the package has no dependencies.
 version: 2
 updates:
-  - package-ecosystem: pip
-    directory: "/"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 0 # security updates only; version updates stay off
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

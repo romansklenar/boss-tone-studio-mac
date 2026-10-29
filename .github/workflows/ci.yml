@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
 
@@ -9,28 +10,28 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request replaces its run. Each push to main gets a group of its own, since a group keeps
+  # only one pending run and would drop the rest.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    # swift-format's output can differ between minors: this moves together with a local Swift minor update (run
+    # `make format`, then bump the tag and the digest here).
+    container: swift:6.4@sha256:82152e9f18ee21fc997fd4580b93a14097e465cb10d7a7eee3f2dc85364dd135
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
-        with:
-          install_args: ruff
+      - run: apt-get -q update && apt-get -q install -y --no-install-recommends make # the Swift image has none
       - run: make lint
 
   test:
-    # The app targets Apple Silicon, and python-rtmidi builds against CoreMIDI.
-    runs-on: macos-15
+    # Network.framework, CoreMIDI and AppKit exist only on macOS, where minutes cost ten times Linux ones: drafts wait.
+    if: github.event_name == 'push' || !github.event.pull_request.draft
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/uv # keeps the python-rtmidi wheel built from source
-          key: uv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements.txt') }}
-      - run: make deps
+      # Test with the toolchain the project supports, Apple's Command Line Tools, not the runner's Xcode.
+      - run: sudo xcode-select --switch /Library/Developer/CommandLineTools
       - run: make test
