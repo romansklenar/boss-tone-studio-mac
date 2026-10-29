@@ -10,8 +10,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The app is native Swift: an AppKit window with a WKWebView, an HTTP server on Network.framework and CoreMIDI, with no
   third-party code. The bundle shrinks from 38 MB to 14 MB, 13 MB of which is Roland's web app.
 - Building needs only Apple's Command Line Tools with Swift 6; `make setup` checks the version.
-- The same app name, bundle identifier, icon, data folder and file formats as 0.1.x, and MIDI ports named as before,
-  since the page stores the name as the device's ID.
+- The same app name, bundle identifier, icon, data folder and file formats as 0.1.x, and MIDI ports named as before
+  (ports with connections drawn in Audio MIDI Setup aside), since the page stores the name as the device's ID.
 - MIDI hot-plug follows CoreMIDI's notifications instead of polling every 1.5 s.
 - Storage and file reads keep line endings as stored.
 - The version lives in `VERSION`.

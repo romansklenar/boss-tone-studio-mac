@@ -28,8 +28,8 @@ Rewrite the shell as one Swift package with no package dependencies, only Apple'
 - Users carry on: the same app name, bundle identifier, icon, data folder and on-disk formats (`storage.json`,
   `storage2/<key>` with the key quoted as Python's `quote(key, safe="")` did, `roland-librarian-imported`, `app.lock`),
   port names ([ADR-0005](ADR-0005-port-name-as-endpoint-uid.md)) and log lines (`[bts]`, `[trace]`, `[js]`).
-- ADR-0003's weak points are fixed in the rewrite (see its table). Every Python test gets a Swift Testing counterpart,
-  and the Python code goes in the same branch once the native app has passed the amp run.
+- ADR-0003's weak points are addressed in the rewrite (see its table and residual risks). Every Python test gets a
+  Swift Testing counterpart, and the Python code goes in the same branch once the native app has passed the amp run.
 
 Where the port had to choose, it chose:
 
