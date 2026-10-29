@@ -122,7 +122,7 @@ public final class HTTPServer: Sendable {
                     HTTPResponse.error(status).serialized(keepAlive: false, includeBody: true), on: connection)
                 return
             case .request(let request, let consumed):
-                timer.disarm()  // a proxy fetch may take its 20 s
+                timer.disarm()  // a proxy fetch may take up to 60 s
                 buffer = Data(buffer.dropFirst(consumed))
                 let response = await handler(request)
                 timer.arm(closing: connection, after: idleTimeout, on: queue)  // also bounds a client that never reads
