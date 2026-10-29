@@ -651,8 +651,12 @@ private func canConnectToIPv6Loopback(port: UInt16) -> Bool {
 }
 
 @Test func aSlowRequestDoesNotBlockOtherConnections() async throws {
+    // The slow fetch answers only once the fast request has been answered: a server that took one connection at a
+    // time would leave the fast one waiting, and the client's 5 s receive timeout would fail the test.
+    let (gate, open) = AsyncStream.makeStream(of: Never.self)
+    defer { open.finish() }
     let proxy = StubProxy { _ in
-        try? await Task.sleep(for: .seconds(1))
+        for await _ in gate {}  // until the gate opens
         return .response(status: 200, contentType: "application/json", body: Data("{}".utf8))
     }
     let server = try TestServer(proxy: proxy)
@@ -660,10 +664,8 @@ private func canConnectToIPv6Loopback(port: UInt16) -> Bool {
     async let slow = server.client.request("GET", "/\(token)/proxy?url=x")
     for _ in 0..<200 where proxy.urls.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
     try #require(!proxy.urls.isEmpty)
-    let clock = ContinuousClock()
-    let started = clock.now
     let response = try await server.client.command("/\(token)/$$app_storage2", ["k"])
-    #expect(clock.now - started < .milliseconds(500))
     #expect(response.status == 200)
+    open.finish()
     #expect(try await slow.status == 200)
 }
