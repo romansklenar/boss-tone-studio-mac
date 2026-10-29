@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 import Testing
 import os
@@ -7,13 +6,6 @@ import os
 
 /// The form feed (`\f`) the page splits events on.
 private let formFeed = "\u{0C}"
-
-/// What the file system says a path is: `realpath` directly, so these tests do not lean on the code they check.
-private func onDisk(_ path: String) -> String {
-    guard let resolved = realpath(path, nil) else { return path }
-    defer { free(resolved) }
-    return String(cString: resolved)
-}
 
 /// The app window. Dialogs answer inside the call unless a test holds them back, which also proves that the bridge
 /// holds none of its locks while it calls the host: they are not reentrant.

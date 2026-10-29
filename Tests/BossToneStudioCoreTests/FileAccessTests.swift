@@ -1,15 +1,7 @@
-import Darwin
 import Foundation
 import Testing
 
 @testable import BossToneStudioCore
-
-/// What the file system says a path is: `realpath` directly, so these tests do not lean on the code they check.
-private func onDisk(_ path: String) -> String {
-    guard let resolved = realpath(path, nil) else { return path }
-    defer { free(resolved) }
-    return String(cString: resolved)
-}
 
 private struct Folders {
     let access: FileAccess

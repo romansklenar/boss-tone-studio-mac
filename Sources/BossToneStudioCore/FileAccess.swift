@@ -59,7 +59,7 @@ public final class FileAccess: Sendable {
     private func inAppFolder(_ canonical: String) -> Bool {
         [dataDir, tempDir].contains { folder in
             guard let root = Self.canonical(folder.path) else { return false }
-            return canonical.hasPrefix(root.hasSuffix("/") ? root : root + "/")
+            return isInside(canonical, folder: root)
         }
     }
 
@@ -84,10 +84,16 @@ public final class FileAccess: Sendable {
         }
         return standardised.path  // unreachable while "/" resolves
     }
+}
 
-    private static func realPath(_ path: String) -> String? {
-        guard let resolved = realpath(path, nil) else { return nil }
-        defer { free(resolved) }
-        return String(cString: resolved)
-    }
+/// `realpath`: links, `.` and `..` resolved; nil when the path does not exist.
+func realPath(_ path: String) -> String? {
+    guard let resolved = realpath(path, nil) else { return nil }
+    defer { free(resolved) }
+    return String(cString: resolved)
+}
+
+/// Whether `path` lies below `folder`, both resolved: a sibling whose name only starts with the folder's is not.
+func isInside(_ path: String, folder: String) -> Bool {
+    path.hasPrefix(folder.hasSuffix("/") ? folder : folder + "/")
 }

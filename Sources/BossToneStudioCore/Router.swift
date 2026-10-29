@@ -32,8 +32,8 @@ public final class Router: Sendable {
         self.token = token
         host = "127.0.0.1:\(port)"
         origin = "http://127.0.0.1:\(port)"
-        root = resolvedPath(htmlDir.path) ?? htmlDir.standardizedFileURL.path
-        index = resolvedPath(root + "/index.html") ?? root + "/index.html"
+        root = realPath(htmlDir.path) ?? htmlDir.standardizedFileURL.path
+        index = realPath(root + "/index.html") ?? root + "/index.html"
         self.dispatcher = dispatcher
         self.proxy = proxy
         self.output = output
@@ -183,14 +183,14 @@ public final class Router: Sendable {
     private func staticFile(_ path: String, _ request: HTTPRequest) -> HTTPResponse {
         if request.method == "POST" { return HTTPResponse(status: 204) }  // the page's usage telemetry goes nowhere
         // A NUL would end the C string `realpath` sees, so `index.html%00.png` would name `index.html`.
-        guard !path.unicodeScalars.contains("\0"), let file = resolvedPath(root + "/" + path) else {
+        guard !path.unicodeScalars.contains("\0"), let file = realPath(root + "/" + path) else {
             return .error(404)
         }
         // Any spelling of the page (`/`, `./index.html`, `%69ndex.html`…) gets the page with the bridge script.
-        if file == index || (fileType(file) == S_IFDIR && resolvedPath(file + "/index.html") == index) {
+        if file == index || (fileType(file) == S_IFDIR && realPath(file + "/index.html") == index) {
             return page()
         }
-        guard file.hasPrefix(root.hasSuffix("/") ? root : root + "/"), fileType(file) == S_IFREG,
+        guard isInside(file, folder: root), fileType(file) == S_IFREG,
             let body = FileManager.default.contents(atPath: file)
         else { return .error(404) }
         let pathExtension = (file as NSString).pathExtension
@@ -271,13 +271,6 @@ private func hexValue(_ byte: UInt8) -> UInt8? {
     case UInt8(ascii: "A")...UInt8(ascii: "F"): byte - UInt8(ascii: "A") + 10
     default: nil
     }
-}
-
-/// `realpath`: links, `.` and `..` resolved; nil when the path does not exist.
-private func resolvedPath(_ path: String) -> String? {
-    guard let resolved = realpath(path, nil) else { return nil }
-    defer { free(resolved) }
-    return String(cString: resolved)
 }
 
 /// `S_IFREG`, `S_IFDIR`…, following links; nil when the path does not exist.
