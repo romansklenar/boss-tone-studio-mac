@@ -27,9 +27,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `text/plain`.
 - MIDI ports whose names contain `<>&"'` are neither listed nor opened.
 - The window opens no new windows: a clicked web link goes to the default browser, other schemes are dropped, and
-  `window.open` without a click does nothing. The window stays on the page's origin, and frames load `https` only.
-- Links the page opens in the browser (`fs_exec`) must lead off this Mac: `localhost`, a loopback address in any
-  spelling, a missing host and userinfo are refused, since the page's own URLs carry the token.
+  `window.open` without a click does nothing. The window stays on the page's origin, and frames load only `https` (or
+  stay blank).
+- Links the page opens in the browser (`fs_exec`) must lead to another machine, since the page's own URLs carry the
+  token: `localhost`, loopback and unspecified addresses in any spelling, links without a host and links with userinfo
+  are refused ([rule 6](doc/bridge-protocol.md#security)).
 - A file picked in the open dialog is read only; only paths picked in the save dialog are writable. A dangling link
   in a path is refused.
 - The proxy rebuilds every URL and redirect from `https`, the host name, path and query, dropping userinfo, port and

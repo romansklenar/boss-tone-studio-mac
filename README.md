@@ -93,10 +93,10 @@ On the first launch the app offers a device picker — choose **KATANA** (not "K
 own after that.
 
 The bundle carries Roland's web app, so it needs no installed copy of Roland's app; its slate-grey icon tells it apart
-from Roland's. The web app is looked up in `BTS_HTML_DIR`, then in the bundle, then in `build/roland/html`, then in
-Roland's installed app. The executable (`Contents/MacOS/BossToneStudio`) also takes `--browser` (serve only and print
-the page's URL) and `--import-roland` (see below); `BTS_TRACE=1` logs bridge commands and MIDI messages and enables the
-Web Inspector.
+from Roland's. The web app comes from `BTS_HTML_DIR` when it is set, else from the first of the bundle,
+`build/roland/html` and Roland's installed app that holds one. The executable (`Contents/MacOS/BossToneStudio`) also
+takes `--browser` (serve only and print the page's URL) and `--import-roland` (see below); `BTS_TRACE=1` logs bridge
+commands and MIDI messages and enables the Web Inspector.
 
 ### Other Macs
 
@@ -168,16 +168,16 @@ also ran with the ARTIST MkII. SoundCloud is no longer proxied.
 
 | Area | Status |
 |---|---|
-| Editor UI, offline mode | ✅ checked visually in a browser; in the window, start-up verified through the bridge |
+| Editor UI, offline mode | ✅ the editor in the window with both amps; offline mode without an amp, in a WKWebView |
 | Storage (`app.storage`, `app.storage2`) | ✅ |
-| MIDI with the amp (KATANA MkII over USB) | ✅ Identity Reply, connecting, reading patches, editor mode, changes from the app and from the amp's knobs; unplugging and replugging reconnects (HEAD MkII) |
+| MIDI with the amp (KATANA MkII over USB) | ✅ Identity Reply, connecting, reading patches, editor mode, changes from the app and from the amp's knobs; unplugging and replugging reconnects |
 | Remembering the chosen device | ✅ reconnects on the next launch |
-| Closing the window (editor mode off, `$$app_exit`) | ✅ three clean closes through the handshake (two with the ARTIST MkII, one with the HEAD MkII), one of them with Cmd-Q and one with the close button. The page sends DT1 `7F 00 00 01 = 00` and calls `$$app_exit` itself |
+| Closing the window (editor mode off, `$$app_exit`) | ✅ through the handshake, with Cmd-Q and with the close button; the page turns editor mode off and calls `$$app_exit` itself |
 | Librarian taken over from Roland's app | ✅ 29 livesets / 254 patches loaded in the original order |
-| File dialogs | ✅ `.tsl` export and re-import, All Data Backup (`.alb`) saved and restored (ARTIST MkII); an invalid `.tsl` import shows the page's `alert` (HEAD MkII); with 0.1.x a Gen 3 `.tsl` was refused by Roland's code ("UNSUPPORTED DATA") |
-| Deleting livesets/patches | ✅ a deleted patch and liveset were still gone on the ARTIST MkII's second launch |
+| File dialogs | ✅ `.tsl` export and re-import, All Data Backup (`.alb`) saved and restored; an invalid `.tsl` import shows the page's `alert`; with 0.1.x a Gen 3 `.tsl` was refused by Roland's code ("UNSUPPORTED DATA") |
+| Deleting livesets/patches | ✅ a deleted patch and liveset stay gone after reopening the app |
 | Tone Central | ✅ through a local proxy: catalogue, details, adding a liveset; the YouTube preview player loads (playback not checked); SoundCloud previews ❌ (Roland's old API key returns 401) |
-| Window | ✅ copy and paste in text fields, no context menu on right click (confirmed in the window); a web link opens in the default browser (ARTIST MkII run) |
+| Window | ✅ copy and paste in text fields, no context menu on right click; a web link opens in the default browser |
 | `.app` bundle | ✅ `make app`: standalone (serves the bundled web app, nothing open under `/Applications/BOSS`), arm64, "(Apple Silicon)" name, grey icon |
 
 ## Next steps

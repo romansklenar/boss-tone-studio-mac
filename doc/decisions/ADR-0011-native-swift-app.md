@@ -48,7 +48,7 @@ Where the port had to choose, it chose:
 
 ## Consequences
 
-- The bundle is 14 MB, 13 MB of which is Roland's web app and 676 KB the executable; 0.1.1's was 38 MB. It is still
+- The bundle is 14 MB, 13 MB of which is Roland's web app and under 1 MB the executable; 0.1.1's was 38 MB. It is still
   ad-hoc signed, now with the hardened runtime.
 - Building needs only Apple's Command Line Tools ([ADR-0012](ADR-0012-swift-toolchain-without-dependencies.md)).
 - The window's own behaviour (navigation, dialogs, closing) lives in the executable, which has no unit tests; it is
