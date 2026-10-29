@@ -463,6 +463,20 @@ private struct TestServer {
     }
 }
 
+@Test func aSlowAnswerIsNotCutByTheIdleTimeout() async throws {
+    let server = HTTPServer(idleTimeout: .milliseconds(200), output: { _ in })
+    let port = try server.start { _ in
+        { _ in
+            try? await Task.sleep(for: .milliseconds(500))  // as a proxy fetch may take its time
+            return .text("late")
+        }
+    }
+    defer { server.stop() }
+    let response = try await RawHTTPClient(port: port).exchange("GET / HTTP/1.1\r\nHost: x\r\n\r\n")
+    #expect(response.status == 200)
+    #expect(response.text == "late")
+}
+
 @Test func aConnectionLeftIdleAfterARequestIsDroppedAfterTheIdleTimeout() async throws {
     let server = HTTPServer(idleTimeout: .milliseconds(300), output: { _ in })
     let port = try server.start { _ in { _ in .text("") } }
