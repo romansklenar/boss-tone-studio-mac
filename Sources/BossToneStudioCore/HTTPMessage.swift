@@ -113,8 +113,10 @@ private func headLines(_ head: ArraySlice<UInt8>) -> [ArraySlice<UInt8>]? {
 }
 
 /// Header bytes as ISO-8859-1, the one-to-one reading, so decoding cannot fail or differ from the bytes' meaning.
+/// ASCII, which nearly every head is, reads the same as UTF-8, and that decoding is the faster one.
 private func latin1(_ bytes: ArraySlice<UInt8>) -> String {
-    String(String.UnicodeScalarView(bytes.map { Unicode.Scalar($0) }))
+    if bytes.allSatisfy({ $0 < 0x80 }) { return String(decoding: bytes, as: UTF8.self) }
+    return String(String.UnicodeScalarView(bytes.map { Unicode.Scalar($0) }))
 }
 
 private func isTokenCharacter(_ byte: UInt8) -> Bool {
@@ -228,7 +230,10 @@ public struct HTTPResponse: Sendable {
     }
 
     private static func singleLine(_ text: String) -> String {
-        String(String.UnicodeScalarView(text.unicodeScalars.map { $0 == "\r" || $0 == "\n" || $0 == "\0" ? " " : $0 }))
+        // By UTF-8 byte, not by Character: "\r\n" is one Character.
+        guard text.utf8.contains(where: { $0 == 0x0D || $0 == 0x0A || $0 == 0 }) else { return text }
+        let scalars = text.unicodeScalars.map { $0 == "\r" || $0 == "\n" || $0 == "\0" ? " " : $0 }
+        return String(String.UnicodeScalarView(scalars))
     }
 
     private static func reasonPhrase(_ status: Int) -> String {
