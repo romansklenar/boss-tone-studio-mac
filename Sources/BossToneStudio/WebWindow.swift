@@ -8,6 +8,7 @@ import WebKit
 @MainActor
 final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKNavigationDelegate {
     private let bridge: Bridge
+    private let page: URL
     private let port: Int
     private let window: NSWindow
     private let webView: WKWebView
@@ -15,6 +16,7 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
 
     init(bridge: Bridge, page: URL, port: UInt16) {
         self.bridge = bridge
+        self.page = page
         self.port = Int(port)
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
@@ -139,6 +141,13 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
     ) {
         decisionHandler(policy(for: navigationAction))
+    }
+
+    /// Without its process (a crash, or WebKit ending it under memory pressure) the window would stay blank; the
+    /// reloaded page reconnects to the stored amp by itself.
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        log("the web page's process ended; reloading")
+        webView.load(URLRequest(url: page))
     }
 
     /// The window stays on the page's origin; web links off this Mac go to the default browser, as `fs_exec`'s do, and

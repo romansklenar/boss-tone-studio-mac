@@ -45,5 +45,8 @@ liveset (they must stay deleted after reopening), Tone Central, and closing with
 `alert()` of the page shows as a sheet — import a `.tsl` whose JSON lacks the page's header (any `{"name":"x"}` file
 named `*.tsl`) to trigger one. Check that a web link opens in the default browser and that nothing opens a new window;
 with `BTS_TRACE=1`, `location.href = 'http://localhost:' + location.port + '/'` in the Web Inspector's console must open
-nothing. Unplug and replug the amp: it must reconnect (the trace shows `midi.changed` and a new Identity Reply). Record
-new amplifiers in the README's "Verified amplifiers".
+nothing. Unplug and replug the amp: it must reconnect (the trace shows `midi.changed` and a new Identity Reply). End the
+page's process, `BossToneStudio Web Content` under `make trace` (in Activity Monitor, or `kill` the `pid =` that
+`lsappinfo list | grep -A12 '"BossToneStudio Web Content"'` prints): the trace shows `[bts] the web page's process
+ended; reloading`, then the page's start-up commands, and the amp connects again. Record new amplifiers in the README's
+"Verified amplifiers".

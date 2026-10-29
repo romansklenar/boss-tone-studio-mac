@@ -5,6 +5,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.0] - 2026-10-29
 
+### Added
+
+- When WebKit ends the page's process (a crash, or memory pressure), the window loads the page again, which reconnects
+  to the amp, instead of staying blank.
+
 ### Changed
 
 - The app is native Swift: an AppKit window with a WKWebView, an HTTP server on Network.framework and CoreMIDI, with no
