@@ -10,8 +10,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  # A newer push to a pull request replaces its run; every push to main is checked to the end.
+  # A newer push to a pull request replaces its run. Each push to main gets a group of its own, since a group keeps
+  # only one pending run and would drop the rest.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
