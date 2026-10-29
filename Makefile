@@ -1,7 +1,6 @@
 .DEFAULT_GOAL := help
 
-# `tests`, not `Tests`, until Python's tests/ goes: only the former exists in the case-sensitive lint container.
-SWIFT_SOURCES := $(wildcard Package.swift Sources tests packaging/make-icon.swift)
+SWIFT_SOURCES := $(wildcard Package.swift Sources Tests packaging/make-icon.swift)
 SWIFT_FLAGS := -Xswiftc -warnings-as-errors
 # Command Line Tools' build system sometimes leaves the Swift Testing macro plugin out of the compiler call after a
 # clean build (swiftlang/swift-build#1870, fixed upstream, not yet in the CLT release); drop this once a CLT has it.

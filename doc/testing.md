@@ -4,7 +4,7 @@
 
 `make check` runs `swift format lint --strict` and the unit tests (`swift test`, Swift Testing, with compiler warnings
 as errors), as CI does (lint on every pull request, tests once it is ready for review, both on pushes to `main`). The
-tests live in the `BossToneStudioCoreTests` target (`tests/BossToneStudioCoreTests/`) and cover the library: the
+tests live in the `BossToneStudioCoreTests` target (`Tests/BossToneStudioCoreTests/`) and cover the library: the
 bridge's security rules (over a real loopback server with a stand-in bridge), the HTTP parser and responses, the page
 script and its policy, storage, file access, the close flow, the proxy, MIDI message splitting and Universal MIDI
 Packets, the MIDI controller over a stand-in backend, the Librarian import and the data-folder lock. They never create

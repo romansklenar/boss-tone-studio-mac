@@ -176,6 +176,6 @@ The server can read and write files, so:
    otherwise). Page log lines are printed escaped and cut at 500 characters, and failed requests are logged with the
    token removed in any spelling and control characters escaped.
 
-The unit tests (target `BossToneStudioCoreTests`, in `tests/BossToneStudioCoreTests/`) cover each rule except the
+The unit tests (target `BossToneStudioCoreTests`, in `Tests/BossToneStudioCoreTests/`) cover each rule except the
 window's part of rule 6, which lives in the app and is checked by hand. The router's rules (1–3, and the request side
 of 8) run against a real loopback server with a stand-in bridge.
