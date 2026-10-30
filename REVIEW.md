@@ -1,4 +1,4 @@
-# Review instructions
+# Code review instructions
 
 Write every review comment and suggestion in English.
 
