@@ -4,7 +4,7 @@ import os
 
 /// HTTP/1.1 on `127.0.0.1` only, at a port the system picks. Each connection answers its requests one at a time and in
 /// order; connections run concurrently, so a slow request (a proxy fetch, a pending command) holds up only its own.
-/// Keep-alive matters: the page polls `$$app_getevent` every 50 ms with synchronous XHR.
+/// Keep-alive matters: the page polls `$$app_getevents` every 50 ms with synchronous XHR.
 public final class HTTPServer: Sendable {
     public typealias Handler = @Sendable (HTTPRequest) async -> HTTPResponse
 

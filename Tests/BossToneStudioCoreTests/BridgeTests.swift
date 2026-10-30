@@ -102,9 +102,10 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         "fs_writeString", "midi_inconnect", "midi_indisconnect", "midi_inendpoints", "midi_outconnect",
         "midi_outdisconnect", "midi_outendpoints", "midi_panel", "midi_send",
     ]
+    let bridgeOwn = ["app_getevents"]  // the injected script's batch fetch; the app never calls it
     try withBridge { bridge, _ throws in
-        #expect(bridge.commands.count == 23 && !bridge.commands.contains("app_startevent"))
-        #expect(bridge.commands == expected.sorted())
+        #expect(bridge.commands.count == 24 && !bridge.commands.contains("app_startevent"))
+        #expect(bridge.commands == (expected + bridgeOwn).sorted())
     }
 }
 
@@ -125,7 +126,8 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
 @Test func wrongArgumentCountsThrow() throws {
     let wrong: [(command: String, args: [String])] = [
         ("app_storage2", []), ("app_storage2", ["a", "b", "c"]), ("app_storage", ["a", "b"]),
-        ("app_getevent", ["x"]), ("app_exit", ["x"]), ("fs_separator", ["x"]), ("fs_path", []),
+        ("app_getevent", ["x"]), ("app_getevents", ["x"]), ("app_exit", ["x"]), ("fs_separator", ["x"]),
+        ("fs_path", []),
         ("fs_path", ["temporary", "x"]), ("fs_exec", []), ("fs_readString", []), ("fs_writeString", ["a"]),
         ("fs_openfilename", ["[]", "x"]), ("fs_savefilename", ["name"]), ("fs_savefilename", ["a", "b", "c"]),
         ("midi_inendpoints", ["x"]), ("midi_outendpoints", ["x"]), ("midi_inconnect", []),
@@ -188,6 +190,28 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         #expect(try call(bridge, "app_getevent") == "midi\(formFeed)message\(formFeed)F07EF7\(formFeed)1700000000000")
         #expect(try call(bridge, "app_getevent") == "app\(formFeed)command\(formFeed)exit")
         #expect(try call(bridge, "app_getevent") == nil)
+    }
+}
+
+@Test func getEventsAnswersTheWholeQueueInOrderAndEmptiesIt() throws {
+    try withBridge { bridge, _ throws in
+        for name in ["a", "b", "c"] { bridge.emit("test", "n", [name]) }
+        let batch = try #require(try call(bridge, "app_getevents"))
+        #expect(
+            try JSONDecoder().decode([String].self, from: Data(batch.utf8))
+                == ["a", "b", "c"].map { "test\(formFeed)n\(formFeed)\($0)" })
+        #expect(try call(bridge, "app_getevents") == "[]")
+        #expect(try call(bridge, "app_getevent") == nil)
+    }
+}
+
+@Test func getEventsAndGetEventShareOneQueue() throws {
+    try withBridge { bridge, _ throws in
+        bridge.emit("test", "n", ["a"])
+        bridge.emit("test", "n", ["b"])
+        #expect(try call(bridge, "app_getevent") == "test\(formFeed)n\(formFeed)a")
+        let batch = try #require(try call(bridge, "app_getevents"))
+        #expect(try JSONDecoder().decode([String].self, from: Data(batch.utf8)) == ["test\(formFeed)n\(formFeed)b"])
     }
 }
 

@@ -13,10 +13,11 @@ loads. Its first branch applies whenever `window.$$app` exists, whatever the use
   `window.$$midi.send(…)` gets `a1, a2` when `a2` is defined, else `a1` when it is defined, else nothing. Its return
   value is used as is (no `decode`).
 - If `window.$$app.startevent` is defined, `native.js` switches to pushed events (`$event.trigger`). Otherwise the
-  default `$event.start` stays: `setInterval(pumpevent, 50)`, which calls `$$app_getevent` until it returns
-  `undefined`.
+  default `$event.start` stays: `setInterval(pumpevent, 50)`, which calls `$$app.getevent` until it returns
+  `undefined`. The injected script serves that from a queue of its own (see below), so a poll costs one request
+  when nothing happened and two when something did.
 
-An event from `$$app_getevent` is `prop\ftype\farg1\farg2…` (form-feed separated), dispatched to
+An event from `$$app.getevent` (or `$$app_getevent`) is `prop\ftype\farg1\farg2…` (form-feed separated), dispatched to
 `$native[prop].event[type](args…)`.
 
 The other branches (a `roland.quattro` user agent with `$$xhrport` → synchronous `GET /$$cmd;a1,a2` with typed
@@ -35,8 +36,10 @@ block defines:
   `POST /<token>/$$<command>` with `Content-Type: application/json` and the arguments as a JSON array of strings
   (`String(arg)`, as the URL transport would send them). The answer is the JSON-encoded result, and `null` becomes
   `undefined`. A `500` throws an `Error` with the bridge's message; any other status throws
-  `bridge answered HTTP <status>`. There is no `app_startevent` command, so events are polled. A call the bridge does
-  not implement throws a `TypeError` in the page, which the error listener logs.
+  `bridge answered HTTP <status>`. There is no `app_startevent` command, so events are polled: the script defines
+  `window.$$app.getevent` over a local queue, which it refills with `JSON.parse` of one `$$app_getevents` answer when
+  it is empty (ADR-0014). A call the bridge does not implement throws a `TypeError` in the page, which the error
+  listener logs.
 - a `window` `error` listener → `POST /<token>/log` (JS errors logged on the server).
 - a `$.ajaxPrefilter` that sends absolute URLs to `/<token>/proxy?url=…` (Tone Central, see below).
 
@@ -51,7 +54,8 @@ complete request.
 | Command | Behaviour |
 |---|---|
 | `app_ready`, `app_control` | no-op (`'indicator start/stop'`, `'set_window_size:{"mode":"min","width":1160}'`) |
-| `app_getevent` | pop one queued event, or `undefined` |
+| `app_getevent` | pop one queued event, or `undefined` (the injected script does not use it) |
+| `app_getevents` | pop every queued event: a JSON array of event texts as a string (`"[]"` when none); the bridge's own, `native.js` never calls it |
 | `app_storage(data?)` | no argument: read the whole JSON (empty if missing); with an argument: write (`storage.json`) |
 | `app_storage2(key, data?)` | per-key storage (`storage2/<key>`, percent-encoded); `data == ''` deletes; keys such as `ID_LIST`, `CONFIRM_FLAG`, `0`… |
 | `app_importfile`, `app_exportfile` | no-op (cloud import/export) |

@@ -56,6 +56,7 @@ public final class Bridge: CommandDispatching {
     private static let table: [String: Command] = [
         "app_ready": Command { _, _ in nil },
         "app_getevent": Command(0...0) { bridge, _ in bridge.popEvent() },
+        "app_getevents": Command(0...0) { bridge, _ in try bridge.popEvents() },
         "app_storage": Command(0...1) { bridge, args in try bridge.appStorage(args.first) },
         "app_storage2": Command(1...2) { bridge, args in try bridge.appStorage2(args[0], args.dropFirst().first) },
         "app_control": Command { _, _ in nil },  // 'indicator start|stop', 'set_window_size:…'
@@ -156,7 +157,7 @@ public final class Bridge: CommandDispatching {
             log("unimplemented $$\(escaped(command, quoted: false)) \(pyList(args))")
             return nil
         }
-        if command != "app_getevent" { trace("->", "$$\(command)", args) }
+        if command != "app_getevent" && command != "app_getevents" { trace("->", "$$\(command)", args) }
         guard entry.arguments.contains(args.count) else {
             let (low, high) = (entry.arguments.lowerBound, entry.arguments.upperBound)
             let expected = low == high ? "\(high)" : "\(low) to \(high)"
@@ -234,6 +235,15 @@ public final class Bridge: CommandDispatching {
 
     private func popEvent() -> String? {
         events.withLock { $0.isEmpty ? nil : $0.removeFirst() }
+    }
+
+    /// Everything queued as a JSON array of event texts, `"[]"` when there is nothing.
+    private func popEvents() throws -> String {
+        let batch = events.withLock { queue in
+            defer { queue.removeAll() }
+            return queue
+        }
+        return String(decoding: try JSONEncoder().encode(batch), as: UTF8.self)
     }
 
     private func appStorage(_ data: String?) throws -> String? {

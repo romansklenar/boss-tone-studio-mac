@@ -9,7 +9,8 @@ public enum PageScript {
     /// `native.js` checks for `window.$$app` before anything else and then calls `window['$$' + object][method](args)`
     /// for every command, using the result as is. This script defines those methods, one per bridge command, each
     /// forwarding the call behind a per-launch token. The bridge has no `app_startevent`, so `native.js` keeps polling
-    /// `$$app_getevent`. It is 0.1.1's script with the nonce on its opening tag.
+    /// `$$app.getevent`; the script serves that from a local queue it refills with one `$$app_getevents` request
+    /// (ADR-0014). Otherwise it is 0.1.1's script with the nonce on its opening tag.
     ///
     /// `token` must be URL-safe (`makeToken()`): it goes into a JS string and a URL path unescaped.
     public static func preNative(token: String, nonce: String, commands: [String]) -> String {
@@ -33,6 +34,11 @@ public enum PageScript {
                   return call('$$' + command, Array.prototype.slice.call(arguments));
                 };
               });
+              var pending = [];
+              window.$$app.getevent = function () {
+                if (!pending.length) pending = JSON.parse(call('$$app_getevents', []));
+                return pending.length ? pending.shift() : undefined;
+              };
               window.addEventListener('error', function (e) {
                 var x = new XMLHttpRequest();
                 x.open('POST', base + 'log', true);

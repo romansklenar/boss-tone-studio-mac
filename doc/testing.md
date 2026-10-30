@@ -27,8 +27,8 @@ Without the token, with a foreign `Host` or `Origin`, or for a path outside the 
 ## With an amp
 
 Run `make trace` (or the built app's executable with `BTS_TRACE=1`, which also enables the Web Inspector) and keep its
-output; every bridge command (`-> $$…`) except the `$$app_getevent` poll and every incoming MIDI message
-(`<- midi.message`) is logged.
+output; every bridge command (`-> $$…`) except the `$$app_getevent` and `$$app_getevents` polls and every incoming
+MIDI message (`<- midi.message`) is logged.
 
 | Check | What the trace shows |
 |---|---|

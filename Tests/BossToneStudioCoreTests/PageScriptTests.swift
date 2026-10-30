@@ -29,6 +29,16 @@ private func page(around middle: String = tag) -> String {
     #expect(injected.replacingOccurrences(of: block, with: "") == html)
 }
 
+@Test func theInjectedScriptServesGetEventFromALocalQueue() {
+    let script = PageScript.preNative(token: "T", nonce: "N", commands: commands)
+    #expect(script.contains("window.$$app.getevent = function () {"))
+    #expect(script.contains("if (!pending.length) pending = JSON.parse(call('$$app_getevents', []));"))
+    #expect(script.contains("return pending.length ? pending.shift() : undefined;"))
+    let forEach = script.range(of: ".forEach(function (command) {")
+    let override = script.range(of: "window.$$app.getevent = ")
+    #expect(forEach != nil && override != nil && forEach!.lowerBound < override!.lowerBound)
+}
+
 @Test func injectionRefusesAPageWithoutNativeJs() {
     #expect(PageScript.inject(into: "<html></html>", token: "T", nonce: "N", commands: commands) == nil)
     #expect(PageScript.inject(into: "", token: "T", nonce: "N", commands: commands) == nil)
