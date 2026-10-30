@@ -96,11 +96,14 @@ Behaviour worth knowing:
 - Hot-plug: CoreMIDI's setup-changed notification → the port lists are compared → event `midi\fchanged` when they
   differ.
 - The page sends its MIDI queue one message at a time, paced by its own interval.
+- The bridge's connects, disconnects and sends run one at a time on a serial queue, with no lock held while CoreMIDI
+  is called: a send is never interleaved with another send or a disconnect, and has reached CoreMIDI before
+  `$$midi_send` answers (ADR-0015).
 - Closing the window: the shell sends the page `app\fcommand\fexit`; the page sends DT1 `7F 00 00 01 = 00` (editor
   communication mode off) and calls `$$app_exit` 500 ms later. The close button, Cmd-W, Cmd-Q and `SIGINT`/`SIGTERM` all
   go this way: closing is refused until then, the event is queued once and a 2 s fallback is armed. `$$app_exit`
   disconnects MIDI and closes the window, which quits the app. A quit (Cmd-Q, `SIGINT`/`SIGTERM`, the Dock, logout)
-  does not cancel meanwhile: the delegate answers `.terminateLater` and replies once the window has closed.
+  does not cancel meanwhile: the delegate answers `.terminateLater` and replies once the window has closed (ADR-0017).
 - Storage and file reads return the text as stored; a file that is not UTF-8 is an error.
 - The page's usage telemetry posts to `index.html` and, through the proxy, to Roland. As in 0.1.1, a POST to any path
   under the token other than `$$…` and `log`, whether a file is there or not, gets `204` and is forwarded nowhere.
@@ -173,11 +176,16 @@ The server can read and write files, so:
    session, and a path picked in the save dialog; `fs_writeString` only the folders and save-dialog paths. Paths are
    compared resolved (`..` and links), and a path that does not exist yet is resolved through its nearest existing
    ancestor, so no link leads out of a folder; a dangling link at any level, and a NUL byte, are refused. The resolved
-   path is then opened without following a link in its last name (`O_NOFOLLOW`), and where the descriptor leads
-   (`F_GETPATH`) must pass the same rule before a byte is read, so a link swapped in after the check is refused. A
-   write opens the target's folder the same way, checks the folder's path plus the file name against the write set,
-   creates a temporary file through that folder's descriptor and renames it over the target, which replaces a link
-   there instead of following it. The save dialog's extension must be 1–10 ASCII letters and digits, since it is
+   path is then opened without following a link in its last name (`O_NOFOLLOW`, a link there is refused) and without
+   waiting (`O_NONBLOCK`, cleared before reading), and where the descriptor leads (`F_GETPATH`) must pass the same
+   rule before a byte is read, so a link swapped in after the check is refused. For a file with several hard links
+   `F_GETPATH` may name another one, so the descriptor also passes when the checked path, looked up without following
+   a link at any level, names the same file (device and inode). Only a regular file is read: a missing path, a folder,
+   a FIFO, a socket or a device is not a file (an error to `fs_readString`). A write opens the target's folder the same
+   way and checks the folder's path plus the file name against the write set, with the same fallback for the folder;
+   it creates a temporary file with a fixed-length name through that folder's descriptor, gives it the replaced file's
+   permission bits only (not setuid, setgid or sticky) and renames it over the target, which replaces a link there
+   instead of following it (ADR-0016). The save dialog's extension must be 1–10 ASCII letters and digits, since it is
    appended to the picked path.
 6. Only `http(s)` links to other machines leave for the default browser, since the page's own URLs carry the token;
    `fs_exec` and the window apply the same rule. Not passed on are links without a host or with userinfo, and links to
