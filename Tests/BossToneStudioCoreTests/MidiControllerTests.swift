@@ -188,11 +188,14 @@ private func controller(
     let events = Recorder<Event>()
     let midi = controller(backend, events)
     backend.reportSetupChangeDuringCalls()
+    // A port appears, so the handler's run inside the first call shows as a `changed` event.
+    backend.setPorts(sources: ["KATANA", "KATANA DAW CTRL"], destinations: ["KATANA"])
     midi.connectOutput(endpointsJSON(["KATANA"]).trimmingBrackets)
+    #expect(events.all == [Event(prop: "midi", kind: "changed", args: [])])
     try midi.send("F07EF7")
     midi.connectInput(endpointsJSON(["KATANA"]).trimmingBrackets)
     #expect(backend.sent == [[0xF0, 0x7E, 0xF7]])
-    #expect(!events.all.contains { $0.kind == "connectfailed" })
+    #expect(events.all.count == 1)  // no connectfailed, and the same ports report no change again
 }
 
 @Test func messagesOfOneSendAreNotInterleavedWithAnotherSend() throws {
