@@ -127,15 +127,16 @@ is not taken over.
 
 ## Verified amplifiers
 
-Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the native app (1.0.0): the
-signed bundle from `make app`, run with `BTS_TRACE=1` on a copy of the data folder, with the trace logs read afterwards.
-The two amps were run one after the other on the same data folder, and the checks that ran differ; the table ticks only
-what ran with each amp, and `–` marks what did not.
+Tested on macOS 27.2 (Apple Silicon), over USB, with Roland's KATANA USB driver, using the native app (1.0.0, and 1.0.1
+with the HEAD MkII): the signed bundle from `make app`, run with `BTS_TRACE=1` on a copy of the data folder, with the
+trace logs read afterwards. The two amps were run one after the other on the same data folder, and the checks that ran
+differ; the table ticks only what ran with each amp, and `–` marks what did not.
 
 | Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
 |---|---|---|---|---|---|---|---|---|
 | KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | – | ✅ | 2026-10-29 |
 | KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
+| KATANA-HEAD MkII (1.0.1) | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-30 |
 
 What ran with the KATANA-ARTIST MkII, over two launches:
 
@@ -152,8 +153,15 @@ What ran with the KATANA-HEAD MkII, in one launch:
 - Unplugging and replugging it reconnected it (`midi.changed`, a new Identity Reply).
 - It closed cleanly through the handshake.
 
-Not tied to an amp: the app was closed once with Cmd-Q and once with the window's close button (which run used which
-is not recorded), and a check in the window confirmed that copy and paste work in text fields and that right click
+What ran with the KATANA-HEAD MkII on 1.0.1, over several launches:
+
+- Edits and Librarian transfers both ways; a `.tsl` saved and reopened under a name with Czech diacritics; saving over
+  a file asked before replacing it.
+- It closed cleanly with Cmd-Q, the close button and `osascript -e 'quit app …'` (as at logout); with the page's
+  process stopped, the quit ended after 2.7 s through the fallback.
+
+Not tied to an amp (1.0.0): the app was closed once with Cmd-Q and once with the window's close button (which run used
+which is not recorded), and a check in the window confirmed that copy and paste work in text fields and that right click
 opens no context menu. The traces showed editor mode on after connecting and off before `$$app_exit`, no `[js]` or
 `failed` lines, and no refused request but SoundCloud's, by design.
 
@@ -166,12 +174,12 @@ are untested; [`doc/testing.md`](doc/testing.md) lists what to check. Both amps 
 
 ## Status
 
-The amp rows (MIDI, remembering the device, closing, file dialogs, deleting, window) record the native app (1.0.0) run
-with the two amps; what ran with each is under Verified amplifiers. The other rows come from earlier checks without an
-amp, with `--browser` and in a WKWebView: Roland's page loads under its security policy without errors, offline mode and
-Tone Central (catalogue, a liveset's `.tsl`) work and its YouTube player loads, the import took over Roland's 29
-livesets, and the built bundle serves its own copy of the web app. Tone Central's liveset details and adding a liveset
-also ran with the ARTIST MkII. SoundCloud is no longer proxied.
+The amp rows (MIDI, remembering the device, closing, file dialogs, deleting, window) record the native app (1.0.0,
+1.0.1) run with the two amps; what ran with each is under Verified amplifiers. The other rows come from earlier checks
+without an amp, with `--browser` and in a WKWebView: Roland's page loads under its security policy without errors,
+offline mode and Tone Central (catalogue, a liveset's `.tsl`) work and its YouTube player loads, the import took over
+Roland's 29 livesets, and the built bundle serves its own copy of the web app. Tone Central's liveset details and adding
+a liveset also ran with the ARTIST MkII. SoundCloud is no longer proxied.
 
 | Area | Status |
 |---|---|
