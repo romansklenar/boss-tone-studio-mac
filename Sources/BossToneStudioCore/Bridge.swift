@@ -17,6 +17,14 @@ public protocol BridgeHost: AnyObject, Sendable {
         suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void)
 }
 
+/// The save dialog's name field for `suggestedName`. NSSavePanel adds the extension a second time to a name that already
+/// ends with it when no app on this Mac declares the extension's type (`.tsl`, as a rule), so such a name goes in
+/// without it and the panel adds it once.
+public func saveDialogName(_ suggestedName: String, extension ext: String, typeIsDeclared: Bool) -> String {
+    guard !typeIsDeclared, suggestedName.lowercased().hasSuffix("." + ext.lowercased()) else { return suggestedName }
+    return String(suggestedName.dropLast(ext.count + 1))
+}
+
 public protocol CommandDispatching: Sendable {
     /// Sorted, e.g. `app_storage2`.
     var commands: [String] { get }
