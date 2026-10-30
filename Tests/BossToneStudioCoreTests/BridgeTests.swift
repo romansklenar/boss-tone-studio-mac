@@ -293,8 +293,12 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             "/etc/hosts", secret.path, data.path + "/../outside/secret.txt", data.path + "/../outside/new.txt",
         ]
         for path in paths {
-            #expect(throws: MessageError.self, "\(path)") { try call(bridge, "fs_readString", path) }
-            #expect(throws: MessageError.self, "\(path)") { try call(bridge, "fs_writeString", path, "x") }
+            #expect(throws: MessageError("\(path) was not chosen in a file dialog"), "\(path)") {
+                try call(bridge, "fs_readString", path)
+            }
+            #expect(throws: MessageError("\(path) was not chosen in a save dialog"), "\(path)") {
+                try call(bridge, "fs_writeString", path, "x")
+            }
         }
         #expect(try readTextOrThrow(secret) == "secret")
         #expect(!FileManager.default.fileExists(atPath: outside.appendingPathComponent("new.txt").path))
