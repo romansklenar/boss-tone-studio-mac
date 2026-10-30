@@ -350,6 +350,17 @@ private func refusedToWrite(_ path: String) -> MessageError {
     }
 }
 
+@Test func aNewFileGetsTheDefaultPermissionsLessTheUmask() throws {
+    try withFolders { folders throws in
+        let mask = umask(0)
+        umask(mask)
+        let path = folders.data.appendingPathComponent("new.json").path
+        try folders.access.writeText("x", to: path)
+        let mode = try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions] as? Int
+        #expect(mode == Int(0o666 & ~mask))
+    }
+}
+
 @Test func savingOverASetuidFileKeepsOnlyItsPermissionBits() throws {
     try withFolders { folders throws in
         let path = folders.data.appendingPathComponent("tool").path

@@ -84,20 +84,19 @@ public final class FileAccess: Sendable {
             throw Self.refusedToWrite(path)
         }
 
-        // A fixed length, so a target whose name is as long as the system allows still gets one.
-        let temporary = ".bts-\(UUID().uuidString).tmp"
-        let fd = openat(folder, temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)
-        guard fd >= 0 else { throw posixError(errno) }
-        var failure: Int32 = 0
         // The rename gives the target the new file's mode: copy the old one's permission bits only. Not its owner or
         // extended attributes (Foundation's atomic write kept neither), nor setuid, setgid or sticky: new content must
-        // not inherit those.
+        // not inherit those. Until then 0600, or a file only its owner may read is readable under its temporary name.
         var existing = stat()
-        if fstatat(folder, name, &existing, AT_SYMLINK_NOFOLLOW) == 0, existing.st_mode & S_IFMT == S_IFREG,
-            fchmod(fd, existing.st_mode & 0o777) != 0
-        {
-            failure = errno
-        }
+        let replaced =
+            fstatat(folder, name, &existing, AT_SYMLINK_NOFOLLOW) == 0 && existing.st_mode & S_IFMT == S_IFREG
+        // A fixed length, so a target whose name is as long as the system allows still gets one.
+        let temporary = ".bts-\(UUID().uuidString).tmp"
+        let fd = openat(
+            folder, temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, replaced ? 0o600 : 0o666)
+        guard fd >= 0 else { throw posixError(errno) }
+        var failure: Int32 = 0
+        if replaced, fchmod(fd, existing.st_mode & 0o777) != 0 { failure = errno }
         if failure == 0 { failure = writeAll(Data(text.utf8), to: fd) }
         if close(fd) != 0, failure == 0 { failure = errno }
         if failure == 0, renameat(folder, temporary, folder, name) != 0 { failure = errno }

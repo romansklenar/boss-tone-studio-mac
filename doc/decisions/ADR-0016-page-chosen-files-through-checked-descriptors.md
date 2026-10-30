@@ -19,9 +19,10 @@ a folder above it, was followed to wherever it led; missing parent folders were 
   set, with the same fallback for the folder. Missing folders are made from the deepest existing one, opened and
   checked the same way (its path plus the missing names and the file name), each by `mkdirat` through the descriptor
   of the one above and then opened with `O_NOFOLLOW`, never by path. The write creates a temporary file with a
-  fixed-length name through the folder's descriptor, gives it the replaced file's permission bits (not setuid, setgid
-  or sticky, owner or extended attributes), writes it and renames it over the target, which replaces a link there
-  instead of following it.
+  fixed-length name through the folder's descriptor, writes it and renames it over the target, which replaces a link
+  there instead of following it. A new file gets mode 0666 less the umask, as Foundation's atomic write gave it; in
+  place of an existing file the temporary one starts at 0600 and is then given that file's permission bits (not
+  setuid, setgid or sticky, owner or extended attributes), so it is never readable by more than the old file was.
 - Only a regular file is read: a missing path, a folder, a FIFO, a socket or a device reads as no file, as before.
 - The bridge's answers and error texts stay as they were. Storage (`storage.json`, `storage2/`), whose paths the
   bridge names itself, keeps its path API.
