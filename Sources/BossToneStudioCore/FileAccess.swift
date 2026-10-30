@@ -34,8 +34,8 @@ public final class FileAccess: Sendable {
         return URL(fileURLWithPath: canonical)
     }
 
-    /// nil when the path is not a regular file (missing, a folder, a socket); throws the refusal, `StorageError.notUTF8` or a
-    /// `POSIXError`.
+    /// nil when the path is not a regular file (missing, a folder, a FIFO, a socket, a device); throws the refusal,
+    /// `StorageError.notUTF8` or a `POSIXError`.
     public func readText(_ path: String) throws -> String? {
         try readChecked(checkRead(path), asked: path)
     }
@@ -100,7 +100,7 @@ public final class FileAccess: Sendable {
         var failure: Int32 = 0
         // The rename gives the target the new file's mode: copy the old one's permission bits only. Not its owner or
         // extended attributes (Foundation's atomic write kept neither), nor setuid, setgid or sticky: new content must
-        // not inherit those, and a non-root `fchmod` with the sticky bit fails.
+        // not inherit those.
         var existing = stat()
         if fstatat(folder, name, &existing, AT_SYMLINK_NOFOLLOW) == 0, existing.st_mode & S_IFMT == S_IFREG,
             fchmod(fd, existing.st_mode & 0o777) != 0
