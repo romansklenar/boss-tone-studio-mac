@@ -61,7 +61,7 @@ complete request.
 | `fs_exec(url)` | open in the default browser — `http(s)://` only, never this Mac (Security, rule 6) |
 | `fs_readString(path)`, `fs_writeString(path, text)` | permitted paths only (see Security) |
 | `fs_openfilename('["tsl"]'?)` | asynchronous dialog → event `fs\fopenfilename\f<path>`, empty when cancelled; window only |
-| `fs_savefilename(name, ext)` | asynchronous dialog, `name.ext` in its name field and `ext` as its file type, so the dialog adds the extension and asks before replacing that file → event `fs\fsavefilename\f<path>` (extension appended unless present); window only |
+| `fs_savefilename(name, ext)` | asynchronous dialog (see below) → event `fs\fsavefilename\f<path>`; window only |
 | `midi_inendpoints`, `midi_outendpoints` | JSON array of `{"MIDIEntityNameKey", "MIDIDeviceNameKey", "MIDIEndpointUIDKey"}`, all three the port name |
 | `midi_inconnect(json)`, `midi_outconnect(json)` | open the listed port named by `MIDIEntityNameKey`; failure → event `midi\fconnectfailed\f<json>` |
 | `midi_indisconnect`, `midi_outdisconnect` | close |
@@ -80,6 +80,10 @@ Behaviour worth knowing:
   its entity's, with the device's name in front unless the name already starts with it. A name with non-ASCII characters
   is the exception: python-rtmidi decoded CoreMIDI's names as MacRoman (`encoding='auto'`), the app reads them as
   CoreMIDI holds them, so such a device goes through the device picker once.
+- The save dialog starts with `name.ext` and gets `ext` as its file type, so it adds the extension itself and asks
+  before replacing the file that will be written. A type no app on the Mac declares (so far true of `tsl` and `alb`) is
+  left out: the dialog would add the extension a second time (`name.tsl.tsl`), so it saves the name as typed, and the
+  bridge appends a missing extension afterwards, without that question.
 - Ports whose names contain any of `<>&"'` are neither listed nor opened, since the page renders names as HTML.
 - Incoming MIDI: event `midi\fmessage\f<HEX, uppercase, no spaces>\f<timestamp ms>`; one whole message per event,
   sysex reassembled across packets; MIDI time code quarter frames (`F1`), timing clock (`F8`) and active sensing (`FE`)

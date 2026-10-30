@@ -11,8 +11,8 @@ public protocol BridgeHost: AnyObject, Sendable {
     /// `completion` gets the chosen path, or nil when the user cancelled. It must be called exactly once, from any
     /// thread, and may be called after this method has returned.
     func chooseFileToOpen(extensions: [String], completion: @escaping @Sendable (String?) -> Void)
-    /// The dialog should add `ext` (1–10 ASCII letters and digits) itself, so it asks before replacing the file that
-    /// will really be written; the bridge appends it to a path that still lacks it.
+    /// The dialog should add `ext` (1–10 ASCII letters and digits) itself where it can, so it asks before replacing the
+    /// file that will really be written; the bridge appends it to a path that still lacks it.
     func chooseFileToSave(
         suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void)
 }
