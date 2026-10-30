@@ -11,7 +11,8 @@ The 0.1.x app worked, but it was a 38 MB bundle carrying its own Python, and bui
 Python, python-rtmidi compiled from source and PyInstaller.
 [ADR-0001](../decisions/ADR-0001-python-shell-around-rolands-web-app.md) kept a native shell (WKWebView + embedded
 HTTP server + CoreMIDI) as the later step. This is that step: the same app for the user, with a much smaller bundle and
-a build that needs only the Swift toolchain from Apple's Command Line Tools. No Xcode, no third-party packages.
+a build that needs only the Swift toolchain from Apple's Command Line Tools. Xcode is not needed
+([ADR-0013](../decisions/ADR-0013-xcode-as-an-optional-way-to-run.md) makes it an option), and no third-party packages.
 
 ## Goals
 
@@ -126,8 +127,9 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
 `--browser` (serve only, print the URL), `--import-roland` (import and exit, refused while the folder is locked),
 `BTS_DATA_DIR`, `BTS_HTML_DIR`, `BTS_TRACE=1`. Log lines keep their prefixes and shapes (`[bts]`, `[trace] -> $$…`,
 `[trace] <- midi.message …`, `[js] …`), so the trace checklist in `doc/testing.md` still applies. The web app comes from
-`BTS_HTML_DIR` as given when it is set, else from the first of the bundle's `roland-html` (inside a `.app` only), the
-checkout's `build/roland/html` and Roland's installed app that has an `index.html`.
+`BTS_HTML_DIR` when it is set (a relative path resolved as in
+[ADR-0013](../decisions/ADR-0013-xcode-as-an-optional-way-to-run.md)), else from the first of the bundle's `roland-html`
+(inside a `.app` only), the checkout's `build/roland/html` and Roland's installed app that has an `index.html`.
 
 ### Security: 0.1.1's rules plus the ADR-0003 follow-ups
 
