@@ -200,3 +200,110 @@ private func refusedToWrite(_ path: String) -> MessageError {
         #expect(try folders.access.checkWrite("/nonexistent-bts/b/Foo.tsl").path == "/nonexistent-bts/b/Foo.tsl")
     }
 }
+
+@Test func aLinkSwappedInAfterTheCheckIsNotReadThrough() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("f.txt").path
+        let secret = folders.outside.appendingPathComponent("secret.txt")
+        try Data("inside".utf8).write(to: URL(fileURLWithPath: path))
+        try Data("secret".utf8).write(to: secret)
+        let checked = try folders.access.checkRead(path)
+        try FileManager.default.removeItem(atPath: path)
+        try FileManager.default.createSymbolicLink(atPath: path, withDestinationPath: secret.path)
+        #expect(throws: refusedToRead(path)) { try folders.access.readChecked(checked, asked: path) }
+    }
+}
+
+@Test func aLinkSwappedInAfterTheCheckIsNotWrittenThrough() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("f.txt").path
+        let secret = folders.outside.appendingPathComponent("secret.txt")
+        try Data("inside".utf8).write(to: URL(fileURLWithPath: path))
+        try Data("secret".utf8).write(to: secret)
+        let checked = try folders.access.checkWrite(path)
+        try FileManager.default.removeItem(atPath: path)
+        try FileManager.default.createSymbolicLink(atPath: path, withDestinationPath: secret.path)
+        do {
+            try folders.access.writeChecked("x", to: checked, asked: path)
+            // Written: the rename replaced the link itself, never what it points to.
+            let type = try FileManager.default.attributesOfItem(atPath: path)[.type] as? FileAttributeType
+            #expect(type == .typeRegular)
+        } catch let error as MessageError {
+            #expect(error == refusedToWrite(path))
+        }
+        #expect(try String(contentsOf: secret, encoding: .utf8) == "secret")
+    }
+}
+
+@Test func aFolderSwappedForALinkAfterTheCheckIsRefused() throws {
+    try withFolders { folders throws in
+        let sub = folders.data.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+        let path = sub.appendingPathComponent("f.txt").path
+        try Data("inside".utf8).write(to: URL(fileURLWithPath: path))
+        let checked = try folders.access.checkWrite(path)
+        try FileManager.default.removeItem(at: sub)
+        try FileManager.default.createSymbolicLink(atPath: sub.path, withDestinationPath: folders.outside.path)
+        #expect(throws: refusedToWrite(path)) { try folders.access.writeChecked("x", to: checked, asked: path) }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folders.outside.path).isEmpty)
+    }
+}
+
+@Test func writingCreatesMissingFoldersInsideTheDataFolder() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("new/deeper/f.txt").path
+        try folders.access.writeText("x", to: path)
+        #expect(try folders.access.readText(path) == "x")
+    }
+}
+
+@Test func aFailedWriteLeavesTheOldFileAndNoTemporaryFile() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("f.txt").path
+        try Data("old".utf8).write(to: URL(fileURLWithPath: path))
+        // A read-only folder: the temporary file next to the target cannot be created.
+        #expect(chmod(folders.data.path, 0o555) == 0)
+        defer { chmod(folders.data.path, 0o755) }
+        #expect(throws: (any Error).self) { try folders.access.writeText("new", to: path) }
+        #expect(try folders.access.readText(path) == "old")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folders.data.path) == ["f.txt"])
+    }
+}
+
+@Test func readingAndWritingKeepTheirAnswers() throws {
+    try withFolders { folders throws in
+        #expect(try folders.access.readText(folders.data.appendingPathComponent("missing.txt").path) == nil)
+        let folder = folders.data.appendingPathComponent("folder")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        #expect(try folders.access.readText(folder.path) == nil)
+        let invalid = folders.data.appendingPathComponent("invalid.txt")
+        try Data([0x41, 0xFF, 0xFE]).write(to: invalid)
+        #expect(throws: StorageError.notUTF8(onDisk(invalid.path))) { try folders.access.readText(invalid.path) }
+        let path = folders.data.appendingPathComponent("text.txt").path
+        try folders.access.writeText("ü\n", to: path)
+        #expect(try folders.access.readText(path) == "ü\n")
+    }
+}
+
+@Test func aFolderHigherUpSwappedForALinkIsCaughtByWhereTheDescriptorLeads() throws {
+    try withFolders { folders throws in
+        // O_NOFOLLOW guards only the last name: here the file and its folder open, and F_GETPATH tells.
+        let path = folders.data.appendingPathComponent("a/b/f.txt").path
+        let twin = folders.outside.appendingPathComponent("a/b/f.txt")
+        for file in [URL(fileURLWithPath: path), twin] {
+            try FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("old".utf8).write(to: file)
+        }
+        let toRead = try folders.access.checkRead(path)
+        let toWrite = try folders.access.checkWrite(path)
+        let a = folders.data.appendingPathComponent("a")
+        try FileManager.default.removeItem(at: a)
+        try FileManager.default.createSymbolicLink(
+            atPath: a.path, withDestinationPath: folders.outside.appendingPathComponent("a").path)
+        #expect(throws: refusedToRead(path)) { try folders.access.readChecked(toRead, asked: path) }
+        #expect(throws: refusedToWrite(path)) { try folders.access.writeChecked("x", to: toWrite, asked: path) }
+        #expect(try String(contentsOf: twin, encoding: .utf8) == "old")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: twin.deletingLastPathComponent().path) == ["f.txt"])
+    }
+}

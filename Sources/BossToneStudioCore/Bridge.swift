@@ -277,17 +277,14 @@ public final class Bridge: CommandDispatching {
     }
 
     private func readString(_ path: String) throws -> String {
-        let file = try files.checkRead(path)
-        guard let text = try readTextOrThrow(file) else {
+        guard let text = try files.readText(path) else {
             throw MessageError("\(escaped(path)) is not a file")
         }
         return text
     }
 
     private func writeString(_ path: String, _ text: String) throws {
-        let file = try files.checkWrite(path)
-        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try writeAtomically(text, to: file)
+        try files.writeText(text, to: path)
     }
 
     private func openFileName(filterJSON: String?) throws {

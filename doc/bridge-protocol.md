@@ -171,9 +171,13 @@ The server can read and write files, so:
 5. `fs_readString` reaches the app's data and temp folders, a file the user picked in the open dialog during this
    session, and a path picked in the save dialog; `fs_writeString` only the folders and save-dialog paths. Paths are
    compared resolved (`..` and links), and a path that does not exist yet is resolved through its nearest existing
-   ancestor, so no link leads out of a folder; a dangling link at any level, and a NUL byte, are refused. The file is
-   then read or written at the resolved path. The save dialog's extension must be 1–10 ASCII letters and digits, since
-   it is appended to the picked path.
+   ancestor, so no link leads out of a folder; a dangling link at any level, and a NUL byte, are refused. The resolved
+   path is then opened without following a link in its last name (`O_NOFOLLOW`), and where the descriptor leads
+   (`F_GETPATH`) must pass the same rule before a byte is read, so a link swapped in after the check is refused. A
+   write opens the target's folder the same way, checks the folder's path plus the file name against the write set,
+   creates a temporary file through that folder's descriptor and renames it over the target, which replaces a link
+   there instead of following it. The save dialog's extension must be 1–10 ASCII letters and digits, since it is
+   appended to the picked path.
 6. Only `http(s)` links to other machines leave for the default browser, since the page's own URLs carry the token;
    `fs_exec` and the window apply the same rule. Not passed on are links without a host or with userinfo, and links to
    `localhost` or `*.localhost`, to an IPv4 address in `127.0.0.0/8` or `0.0.0.0/8` in any spelling `inet_aton` accepts
