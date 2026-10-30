@@ -101,7 +101,7 @@ final class CoreMIDIBackend: MidiBackend {
         guard let destination = state.withLock({ $0.destination }) else { return }
         var batch: [[UInt32]] = []
         var bytes = Self.listHeaderBytes
-        for packet in Self.packets(umpWords(for: message)) {
+        for packet in umpPackets(for: message) {
             // Sized for the worst case, one event packet per UMP, so adding to the list cannot run out of room.
             let cost = Self.packetHeaderBytes + 4 * packet.count
             if bytes + cost > Self.maxListBytes {
@@ -142,18 +142,6 @@ final class CoreMIDIBackend: MidiBackend {
         var value: Unmanaged<CFString>?
         guard MIDIObjectGetStringProperty(object, kMIDIPropertyName, &value) == noErr, let value else { return "" }
         return value.takeRetainedValue() as String
-    }
-
-    /// The UMPs in `umpWords`' output: SysEx7 takes two words, everything else one.
-    private static func packets(_ words: [UInt32]) -> [[UInt32]] {
-        var packets: [[UInt32]] = []
-        var index = 0
-        while index < words.count {
-            let size = words[index] >> 28 == 0x3 ? 2 : 1
-            packets.append(Array(words[index..<min(index + size, words.count)]))
-            index += size
-        }
-        return packets
     }
 
     private func send(_ packets: [[UInt32]], bytes: Int, to destination: MIDIEndpointRef) throws {
