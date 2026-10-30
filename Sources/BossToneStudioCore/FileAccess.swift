@@ -49,8 +49,9 @@ public final class FileAccess: Sendable {
     }
 
     /// `checkRead` again on what was opened: a link swapped in for the file since then fails to open (`O_NOFOLLOW`),
-    /// and one swapped in for a folder above it shows in the descriptor's path. `O_NONBLOCK`, or a FIFO would wait for
-    /// a writer before the check below could turn it away.
+    /// and one swapped in for a folder above it shows in the descriptor's path, or, when that path is another hard link
+    /// of the file, on the checked path. `O_NONBLOCK`, or a FIFO would wait for a writer before the check below could
+    /// turn it away.
     func readChecked(_ file: URL, asked path: String) throws -> String? {
         let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
         if fd < 0 {
@@ -66,7 +67,9 @@ public final class FileAccess: Sendable {
         var info = stat()
         guard fstat(fd, &info) == 0 else { throw posixError(errno) }
         guard info.st_mode & S_IFMT == S_IFREG else { return nil }
-        guard let opened = descriptorPath(fd), mayRead(opened) else { throw Self.refusedToRead(path) }
+        guard descriptorPath(fd).map(mayRead) == true || (mayRead(file.path) && isFile(fd, at: file.path)) else {
+            throw Self.refusedToRead(path)
+        }
         // `O_NONBLOCK` was for the open only: a file system that honours it for a regular file could answer EAGAIN.
         let flags = fcntl(fd, F_GETFL)
         guard flags >= 0, fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) == 0 else { throw posixError(errno) }
@@ -85,8 +88,10 @@ public final class FileAccess: Sendable {
             throw posixError(code)
         }
         defer { close(folder) }
-        guard let opened = descriptorPath(folder),
-            mayWrite(URL(fileURLWithPath: opened).appendingPathComponent(name).path)
+        let opened = descriptorPath(folder).map { URL(fileURLWithPath: $0).appendingPathComponent(name).path }
+        guard
+            opened.map(mayWrite) == true
+                || (mayWrite(file.path) && isFile(folder, at: file.deletingLastPathComponent().path))
         else { throw Self.refusedToWrite(path) }
 
         // A fixed length, so a target whose name is as long as the system allows still gets one.
@@ -170,11 +175,21 @@ public final class FileAccess: Sendable {
     }
 }
 
-/// Where an open descriptor leads, links resolved like `canonical`'s; nil when the system cannot say.
+/// Where an open descriptor leads, links resolved like `canonical`'s; nil when the system cannot say. For a file with
+/// several hard links it is whichever name was looked up last, which may be one outside the allowed folders.
 private func descriptorPath(_ fd: Int32) -> String? {
     var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
     guard fcntl(fd, F_GETPATH, &buffer) == 0 else { return nil }
     return buffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
+}
+
+/// Whether the descriptor is the file at `path`, reached through no link at any level: a canonical path has none, so a
+/// link there was swapped in after the check.
+private func isFile(_ fd: Int32, at path: String) -> Bool {
+    var opened = stat()
+    var named = stat()
+    return fstat(fd, &opened) == 0 && fstatat(AT_FDCWD, path, &named, AT_SYMLINK_NOFOLLOW_ANY) == 0
+        && named.st_dev == opened.st_dev && named.st_ino == opened.st_ino
 }
 
 private func readAll(_ fd: Int32) throws -> Data {

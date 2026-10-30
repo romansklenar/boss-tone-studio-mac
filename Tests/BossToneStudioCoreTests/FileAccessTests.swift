@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import os
 
 @testable import BossToneStudioCore
 
@@ -337,6 +338,29 @@ private func refusedToWrite(_ path: String) -> MessageError {
         let path = folders.data.appendingPathComponent("pipe").path
         #expect(mkfifo(path, 0o600) == 0)
         #expect(try folders.access.readText(path) == nil)
+    }
+}
+
+@Test func aPickedFileWithAHardLinkElsewhereReadsUnderItsOwnNameOnly() throws {
+    try withFolders { folders throws in
+        let picked = folders.outside.appendingPathComponent("Foo.tsl")
+        let twin = folders.outside.appendingPathComponent("twin.tsl")
+        try Data("x".utf8).write(to: picked)
+        try #require(link(picked.path, twin.path) == 0)
+        folders.access.allowOpen(picked.path)
+        // F_GETPATH names whichever link was looked up last: keep looking up the other one meanwhile.
+        let stop = OSAllocatedUnfairLock(initialState: false)
+        let lookups = DispatchGroup()
+        DispatchQueue.global().async(group: lookups) {
+            var info = stat()
+            while !stop.withLock({ $0 }) { stat(twin.path, &info) }
+        }
+        var refused = 0
+        for _ in 0..<200 where (try? folders.access.readText(picked.path)) != "x" { refused += 1 }
+        stop.withLock { $0 = true }
+        lookups.wait()
+        #expect(refused == 0)
+        #expect(throws: refusedToRead(twin.path)) { try folders.access.readText(twin.path) }
     }
 }
 
