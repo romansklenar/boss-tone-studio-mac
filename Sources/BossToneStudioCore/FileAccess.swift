@@ -83,7 +83,8 @@ public final class FileAccess: Sendable {
             mayWrite(URL(fileURLWithPath: opened).appendingPathComponent(name).path)
         else { throw Self.refusedToWrite(path) }
 
-        let temporary = ".\(name).\(UUID().uuidString).tmp"
+        // A fixed length, so a target whose name is as long as the system allows still gets one.
+        let temporary = ".bts-\(UUID().uuidString).tmp"
         let fd = openat(folder, temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)
         guard fd >= 0 else { throw posixError(errno) }
         var failure: Int32 = 0

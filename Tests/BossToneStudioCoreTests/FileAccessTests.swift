@@ -327,3 +327,12 @@ private func refusedToWrite(_ path: String) -> MessageError {
         #expect(try folders.access.readText(path) == nil)
     }
 }
+
+@Test func aNameAsLongAsTheSystemAllowsCanBeSaved() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent(String(repeating: "n", count: Int(NAME_MAX))).path
+        try folders.access.writeText("x", to: path)
+        #expect(try folders.access.readText(path) == "x")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folders.data.path).count == 1)
+    }
+}
