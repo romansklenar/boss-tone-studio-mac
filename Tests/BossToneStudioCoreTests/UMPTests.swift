@@ -3,13 +3,13 @@ import Testing
 @testable import BossToneStudioCore
 
 /// The packets as one flat list of words, as CoreMIDI delivers them.
-private func flat(_ message: [UInt8]) -> [UInt32] {
-    umpPackets(for: message).flatMap { $0 }
+private func flat(_ message: [UInt8], group: UInt8 = 0) -> [UInt32] {
+    umpPackets(for: message, group: group).flatMap { $0 }
 }
 
 private func roundTrip(_ message: [UInt8], group: UInt8 = 0) -> [[UInt8]] {
     var reassembler = UMPReassembler()
-    return reassembler.feed(umpPackets(for: message, group: group).flatMap { $0 })
+    return reassembler.feed(flat(message, group: group))
 }
 
 /// A SysEx whose payload is 0, 1, 2, … so a wrong byte shows up in the comparison.
@@ -105,7 +105,7 @@ private func sysExStatuses(_ packets: [[UInt32]]) -> [UInt32] {
 @Test func sysExSplitAcrossFeedsIsReassembledOnce() {
     let message = sysEx(payloadCount: 998)
     #expect(message.count == 1000)
-    let words = umpPackets(for: message).flatMap { $0 }
+    let words = flat(message)
     // 334 words cut at 111 and 222: the cuts fall inside a packet.
     let slices = [
         words[0..<(words.count / 3)], words[(words.count / 3)..<(2 * words.count / 3)], words[(2 * words.count / 3)...],
@@ -120,7 +120,7 @@ private func sysExStatuses(_ packets: [[UInt32]]) -> [UInt32] {
 
 @Test func aPacketFedOneWordAtATimeIsDecodedWhenItsLastWordArrives() {
     var reassembler = UMPReassembler()
-    let words = umpPackets(for: [0xF0, 0x7E, 0x00, 0x06, 0x01, 0xF7]).flatMap { $0 }
+    let words = flat([0xF0, 0x7E, 0x00, 0x06, 0x01, 0xF7])
     #expect(reassembler.feed([words[0]]) == [])
     #expect(reassembler.feed([words[1]]) == [[0xF0, 0x7E, 0x00, 0x06, 0x01, 0xF7]])
     #expect(reassembler.feed([]) == [])
@@ -128,7 +128,7 @@ private func sysExStatuses(_ packets: [[UInt32]]) -> [UInt32] {
 
 @Test func messagesInsideASysExAreYieldedBeforeIt() {
     let message = sysEx(payloadCount: 10)
-    let words = umpPackets(for: message).flatMap { $0 }
+    let words = flat(message)
     var reassembler = UMPReassembler()
     #expect(
         reassembler.feed(Array(words[0..<2]) + flat([0x90, 60, 1]) + Array(words[2...])) == [
