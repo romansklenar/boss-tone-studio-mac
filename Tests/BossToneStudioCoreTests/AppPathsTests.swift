@@ -37,12 +37,39 @@ import Testing
 }
 
 @Test func dataDirHonoursBTSDataDir() {
+    let checkout = URL(fileURLWithPath: "/checkout", isDirectory: true)
+    func dataDir(_ env: [String: String]) -> String {
+        AppPaths.dataDir(env: env, bundleResources: nil, checkout: checkout).path
+    }
+
     #expect(AppPaths.appName == "BOSS TONE STUDIO for KATANA MkII (Apple Silicon)")
-    #expect(AppPaths.dataDir(env: ["BTS_DATA_DIR": "/tmp/bts data"]).path == "/tmp/bts data")
+    #expect(dataDir(["BTS_DATA_DIR": "/tmp/bts data"]) == "/tmp/bts data")
     let standard = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/BOSS TONE STUDIO for KATANA MkII (Apple Silicon)").path
-    #expect(AppPaths.dataDir(env: [:]).path == standard)
-    #expect(AppPaths.dataDir(env: ["BTS_DATA_DIR": ""]).path == standard, "empty counts as unset")
+    #expect(dataDir([:]) == standard)
+    #expect(dataDir(["BTS_DATA_DIR": ""]) == standard, "empty counts as unset")
+}
+
+@Test func relativeFoldersFollowTheCheckoutOnlyOutsideAnApp() {
+    let resources = URL(fileURLWithPath: "/Applications/BTS.app/Contents/Resources", isDirectory: true)
+    let workingDirectory = FileManager.default.currentDirectoryPath
+    let env = ["BTS_DATA_DIR": "tmp/x", "BTS_HTML_DIR": "tmp/x"]
+    func paths(bundle: URL?, checkout: URL) -> [String] {
+        [
+            AppPaths.dataDir(env: env, bundleResources: bundle, checkout: checkout).path,
+            AppPaths.htmlDir(env: env, bundleResources: bundle, checkout: checkout).path,
+        ]
+    }
+
+    let checkout = URL(fileURLWithPath: "/checkout", isDirectory: true)
+    #expect(paths(bundle: nil, checkout: checkout) == ["/checkout/tmp/x", "/checkout/tmp/x"])
+    #expect(paths(bundle: resources, checkout: checkout) == ["\(workingDirectory)/tmp/x", "\(workingDirectory)/tmp/x"])
+    let withoutSlash = URL(fileURLWithPath: "/checkout", isDirectory: false)
+    #expect(paths(bundle: nil, checkout: withoutSlash) == ["/checkout/tmp/x", "/checkout/tmp/x"])
+    for bundle in [nil, resources] {
+        let home = AppPaths.dataDir(env: ["BTS_DATA_DIR": "~/x"], bundleResources: bundle, checkout: checkout).path
+        #expect(home == NSHomeDirectory() + "/x")
+    }
 }
 
 @Test func bundleResourcesCountOnlyInsideAnApp() {
