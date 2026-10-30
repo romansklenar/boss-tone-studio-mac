@@ -3,10 +3,6 @@ import CoreMIDI
 import Foundation
 import os
 
-struct CoreMIDIError: Error, CustomStringConvertible {
-    let description: String
-}
-
 /// `MidiBackend` on CoreMIDI, with ports named as python-rtmidi named them in 0.1.1: the page stored that name as the
 /// device's UID (ADR-0005), so a different one would send users back to the device picker. Names are taken as CoreMIDI
 /// holds them, though: python-rtmidi decoded them as MacRoman (`encoding='auto'`), so a device whose name has
@@ -61,7 +57,7 @@ final class CoreMIDIBackend: MidiBackend {
         disconnectInput()
         let sources = (0..<MIDIGetNumberOfSources()).map(MIDIGetSource)
         guard let source = sources.first(where: { Self.endpointName($0) == name }) else {
-            throw CoreMIDIError(description: "no MIDI source is named \(name)")
+            throw MessageError("no MIDI source is named \(name)")
         }
         // A new port and reassembler for every connection: a SysEx cut off by the last one must not run into this one.
         let session = InputSession(onMessage: onMessage)
@@ -92,7 +88,7 @@ final class CoreMIDIBackend: MidiBackend {
     func connectOutput(named name: String) throws {
         let destinations = (0..<MIDIGetNumberOfDestinations()).map(MIDIGetDestination)
         guard let destination = destinations.first(where: { Self.endpointName($0) == name }) else {
-            throw CoreMIDIError(description: "no MIDI destination is named \(name)")
+            throw MessageError("no MIDI destination is named \(name)")
         }
         state.withLock { $0.destination = destination }
     }
@@ -105,7 +101,7 @@ final class CoreMIDIBackend: MidiBackend {
         guard let destination = state.withLock({ $0.destination }) else { return }
         var batch: [[UInt32]] = []
         var bytes = Self.listHeaderBytes
-        for packet in Self.packets(umpWords(for: message)) {
+        for packet in umpPackets(for: message) {
             // Sized for the worst case, one event packet per UMP, so adding to the list cannot run out of room.
             let cost = Self.packetHeaderBytes + 4 * packet.count
             if bytes + cost > Self.maxListBytes {
@@ -148,18 +144,6 @@ final class CoreMIDIBackend: MidiBackend {
         return value.takeRetainedValue() as String
     }
 
-    /// The UMPs in `umpWords`' output: SysEx7 takes two words, everything else one.
-    private static func packets(_ words: [UInt32]) -> [[UInt32]] {
-        var packets: [[UInt32]] = []
-        var index = 0
-        while index < words.count {
-            let size = words[index] >> 28 == 0x3 ? 2 : 1
-            packets.append(Array(words[index..<min(index + size, words.count)]))
-            index += size
-        }
-        return packets
-    }
-
     private func send(_ packets: [[UInt32]], bytes: Int, to destination: MIDIEndpointRef) throws {
         // Never smaller than the struct itself, whose declared single packet the pointer is bound to.
         let size = max(bytes, MemoryLayout<MIDIEventList>.size)
@@ -169,7 +153,7 @@ final class CoreMIDIBackend: MidiBackend {
         var builder = UnsafeMutableMIDIEventListPointer(list, wordSize: size / 4, inProtocol: ._1_0)
         for packet in packets {
             guard builder.append(timestamp: 0, words: packet) != nil else {  // 0: now
-                throw CoreMIDIError(description: "a MIDI message did not fit its event list")
+                throw MessageError("a MIDI message did not fit its event list")
             }
         }
         try check(MIDISendEventList(outputPort, destination, list), "MIDISendEventList")
@@ -212,5 +196,5 @@ private final class InputSession: Sendable {
 }
 
 private func check(_ status: OSStatus, _ call: String) throws {
-    guard status == noErr else { throw CoreMIDIError(description: "\(call) failed (OSStatus \(status))") }
+    guard status == noErr else { throw MessageError("\(call) failed (OSStatus \(status))") }
 }

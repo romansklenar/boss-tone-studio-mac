@@ -1,38 +1,35 @@
 /// MIDI 1.0 messages as Universal MIDI Packets (MIDI 1.0 protocol), the format of CoreMIDI's event lists.
 ///
-/// Channel voice and system messages are one word, SysEx goes out as SysEx7 packets of up to six payload bytes. A
-/// SysEx that has no closing F7 is closed all the same: UMP cannot leave one open at the end of a message.
-public func umpWords(for message: [UInt8], group: UInt8 = 0) -> [UInt32] {
+/// One packet (UMP) per element: channel voice and system messages are one word, SysEx goes out as SysEx7 packets of
+/// two words with up to six payload bytes each. A SysEx that has no closing F7 is closed all the same: UMP cannot
+/// leave one open at the end of a message.
+public func umpPackets(for message: [UInt8], group: UInt8 = 0) -> [[UInt32]] {
     guard let status = message.first, status >= 0x80, status != 0xF7 else { return [] }
     let group = UInt32(group & 0x0F) << 24
     if status == 0xF0 {
-        return sysExWords(message.dropFirst(), group: group)
+        return sysExPackets(message.dropFirst(), group: group)
     }
     let length = dataLength(ofStatus: status)
     let data1 = length >= 1 && message.count > 1 ? UInt32(message[1]) : 0
     let data2 = length >= 2 && message.count > 2 ? UInt32(message[2]) : 0
     let type: UInt32 = status < 0xF0 ? 0x2 : 0x1
-    return [type << 28 | group | UInt32(status) << 16 | data1 << 8 | data2]
+    return [[type << 28 | group | UInt32(status) << 16 | data1 << 8 | data2]]
 }
 
-private func sysExWords(_ message: ArraySlice<UInt8>, group: UInt32) -> [UInt32] {
+private func sysExPackets(_ message: ArraySlice<UInt8>, group: UInt32) -> [[UInt32]] {
     let payload = message.last == 0xF7 ? message.dropLast() : message
-    let packets = max(1, (payload.count + 5) / 6)  // F0 F7 is one empty packet
-    var words: [UInt32] = []
-    words.reserveCapacity(packets * 2)
-    for packet in 0..<packets {
+    let count = max(1, (payload.count + 5) / 6)  // F0 F7 is one empty packet
+    return (0..<count).map { packet in
         let start = payload.startIndex + packet * 6
         let chunk = payload[start..<min(start + 6, payload.endIndex)]
         var bytes = [UInt32](repeating: 0, count: 6)
         for (index, byte) in chunk.enumerated() {
             bytes[index] = UInt32(byte)
         }
-        let status: UInt32 = packets == 1 ? 0 : packet == 0 ? 1 : packet == packets - 1 ? 3 : 2
+        let status: UInt32 = count == 1 ? 0 : packet == 0 ? 1 : packet == count - 1 ? 3 : 2
         let header: UInt32 = 0x3 << 28 | group | status << 20 | UInt32(chunk.count) << 16
-        words.append(header | bytes[0] << 8 | bytes[1])
-        words.append(bytes[2] << 24 | bytes[3] << 16 | bytes[4] << 8 | bytes[5])
+        return [header | bytes[0] << 8 | bytes[1], bytes[2] << 24 | bytes[3] << 16 | bytes[4] << 8 | bytes[5]]
     }
-    return words
 }
 
 /// Turns incoming packets back into whole MIDI 1.0 messages. Words may arrive in any slices: a packet cut off at

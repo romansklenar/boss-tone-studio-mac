@@ -135,7 +135,7 @@ private struct TestServer {
 
 @Test func aFailingCommandAnswers500WithItsMessage() async throws {
     let dispatcher = RecordingDispatcher()
-    dispatcher.fail(with: BridgeError(description: "refused\n[bts] forged"))
+    dispatcher.fail(with: MessageError("refused\n[bts] forged"))
     let server = try TestServer(dispatcher: dispatcher)
     defer { server.stop() }
     let response = try await server.client.command("/\(token)/$$fs_exec", ["file:///"])
@@ -197,6 +197,8 @@ private struct TestServer {
         #expect(response.status == 400, "\(body.prefix(10))")
         #expect(!response.text.isEmpty)
     }
+    let notStrings = try await server.client.command("/\(token)/$$app_x", body: Data(#"{"k": "v"}"#.utf8))
+    #expect(notStrings.text == "arguments must be a JSON array of strings")
     #expect(server.dispatcher.calls.isEmpty)
 }
 

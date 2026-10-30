@@ -2,13 +2,6 @@ import Darwin
 import Foundation
 import os
 
-/// The text is 0.1.1's Python bridge's. It carries a path the page chose, so a caller logs it through `escaped`.
-public struct FileAccessError: Error, Equatable, LocalizedError {
-    public let message: String
-
-    public var errorDescription: String? { message }
-}
-
 /// Which files the page may reach (`doc/bridge-protocol.md`, rule 5): the app's data and temp folders, plus exactly
 /// what the user picked in a file dialog. A picked file to open is readable only; a picked path to save is both, since
 /// the page writes a backup and may read it back. Dialog results arrive on the main thread and commands in the tasks
@@ -33,7 +26,10 @@ public final class FileAccess: Sendable {
     public func checkRead(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path),
             inAppFolder(canonical) || picked.withLock({ $0.opened.contains(canonical) || $0.saved.contains(canonical) })
-        else { throw FileAccessError(message: "\(path) was not chosen in a file dialog") }
+        else {
+            // 0.1.1's text, with the path as the page sent it: callers log it through `escaped`.
+            throw MessageError("\(path) was not chosen in a file dialog")
+        }
         return URL(fileURLWithPath: canonical)
     }
 
@@ -41,7 +37,10 @@ public final class FileAccess: Sendable {
     public func checkWrite(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path),
             inAppFolder(canonical) || picked.withLock({ $0.saved.contains(canonical) })
-        else { throw FileAccessError(message: "\(path) was not chosen in a save dialog") }
+        else {
+            // 0.1.1's text, with the path as the page sent it: callers log it through `escaped`.
+            throw MessageError("\(path) was not chosen in a save dialog")
+        }
         return URL(fileURLWithPath: canonical)
     }
 

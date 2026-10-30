@@ -23,12 +23,12 @@ private func withFolders<T>(_ body: (Folders) throws -> T) throws -> T {
     }
 }
 
-private func refusedToRead(_ path: String) -> FileAccessError {
-    FileAccessError(message: "\(path) was not chosen in a file dialog")
+private func refusedToRead(_ path: String) -> MessageError {
+    MessageError("\(path) was not chosen in a file dialog")
 }
 
-private func refusedToWrite(_ path: String) -> FileAccessError {
-    FileAccessError(message: "\(path) was not chosen in a save dialog")
+private func refusedToWrite(_ path: String) -> MessageError {
+    MessageError("\(path) was not chosen in a save dialog")
 }
 
 @Test func appFoldersArePermitted() throws {

@@ -164,10 +164,10 @@ public final class Router: Sendable {
             value = try JSONSerialization.jsonObject(with: body, options: .fragmentsAllowed)
         } catch {
             let reason = (error as NSError).userInfo[NSDebugDescriptionErrorKey] as? String
-            throw ArgumentsError(description: reason ?? error.localizedDescription)
+            throw MessageError(reason ?? error.localizedDescription)
         }
         guard let array = value as? [Any], array.allSatisfy({ $0 is String }) else {
-            throw ArgumentsError(description: "arguments must be a JSON array of strings")
+            throw MessageError("arguments must be a JSON array of strings")
         }
         return array.compactMap { $0 as? String }
     }
@@ -259,10 +259,6 @@ public final class Router: Sendable {
         }
         return text.replacingOccurrences(of: token, with: "<token>")
     }
-}
-
-struct ArgumentsError: Error, CustomStringConvertible {
-    let description: String
 }
 
 /// 0.1.1's `urllib.parse.unquote`, on bytes: valid `%XX` sequences decoded, anything else kept as it is.

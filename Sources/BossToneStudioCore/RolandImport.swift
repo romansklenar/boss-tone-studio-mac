@@ -36,7 +36,9 @@ public enum RolandImport {
     @discardableResult
     public static func importLibrarian(dataDir: URL, prefs: URL = RolandImport.prefs) throws -> String {
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: prefs), options: [], format: nil)
-        guard let roland = plist as? [String: Any] else { throw ImportError.notADictionary }
+        guard let roland = plist as? [String: Any] else {
+            throw MessageError("the settings file is not a property list dictionary")
+        }
         let store = try Storage2(dataDir: dataDir)
 
         let ids = try idList(store.read("ID_LIST"))
@@ -72,12 +74,6 @@ public enum RolandImport {
         }
         log(summary)
         return summary
-    }
-
-    private enum ImportError: Error, LocalizedError {
-        case notADictionary
-
-        var errorDescription: String? { "the settings file is not a property list dictionary" }
     }
 
     private struct IDList: Codable {

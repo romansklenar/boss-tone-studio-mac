@@ -133,12 +133,12 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
     ]
     try withBridge { bridge, _ throws in
         for (command, args) in wrong {
-            #expect(throws: BridgeError.self, "\(command) \(args)") { try bridge.dispatch(command, args) }
+            #expect(throws: MessageError.self, "\(command) \(args)") { try bridge.dispatch(command, args) }
         }
-        #expect(throws: BridgeError(description: "$$app_storage2 takes 1 to 2 arguments, got 3")) {
+        #expect(throws: MessageError("$$app_storage2 takes 1 to 2 arguments, got 3")) {
             try bridge.dispatch("app_storage2", ["a", "b", "c"])
         }
-        #expect(throws: BridgeError(description: "$$fs_path takes 1 argument, got 0")) {
+        #expect(throws: MessageError("$$fs_path takes 1 argument, got 0")) {
             try bridge.dispatch("fs_path", [])
         }
     }
@@ -272,12 +272,12 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
 @Test func readingSomethingThatIsNotAFileIsAnError() throws {
     try withBridge { bridge, _ throws in
         let missing = bridge.tempDir.path + "/missing.txt"
-        #expect(throws: BridgeError(description: "\(escaped(missing)) is not a file")) {
+        #expect(throws: MessageError("\(escaped(missing)) is not a file")) {
             try call(bridge, "fs_readString", missing)
         }
         let folder = bridge.tempDir.path + "/folder"
         try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
-        #expect(throws: BridgeError(description: "\(escaped(folder)) is not a file")) {
+        #expect(throws: MessageError("\(escaped(folder)) is not a file")) {
             try call(bridge, "fs_readString", folder)
         }
     }
@@ -293,8 +293,12 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             "/etc/hosts", secret.path, data.path + "/../outside/secret.txt", data.path + "/../outside/new.txt",
         ]
         for path in paths {
-            #expect(throws: FileAccessError.self, "\(path)") { try call(bridge, "fs_readString", path) }
-            #expect(throws: FileAccessError.self, "\(path)") { try call(bridge, "fs_writeString", path, "x") }
+            #expect(throws: MessageError("\(path) was not chosen in a file dialog"), "\(path)") {
+                try call(bridge, "fs_readString", path)
+            }
+            #expect(throws: MessageError("\(path) was not chosen in a save dialog"), "\(path)") {
+                try call(bridge, "fs_writeString", path, "x")
+            }
         }
         #expect(try readTextOrThrow(secret) == "secret")
         #expect(!FileManager.default.fileExists(atPath: outside.appendingPathComponent("new.txt").path))
@@ -305,7 +309,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
     let opened = Recorder<URL>()
     try withBridge(opened: opened) { bridge, _ throws in
         for target in ["/Applications/Calculator.app", "-aCalculator", "file:///etc/hosts", "", "ftp://example.com"] {
-            #expect(throws: BridgeError(description: "refusing to open \(escaped(target))")) {
+            #expect(throws: MessageError("refusing to open \(escaped(target))")) {
                 try call(bridge, "fs_exec", target)
             }
         }
@@ -315,7 +319,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         #expect(try call(bridge, "fs_exec", "HTTPS://www.roland.com/") == nil)  // a scheme has no letter case
         let expected = ["https://www.roland.com/support/", "http://example.com/a?b=c", "HTTPS://www.roland.com/"]
         #expect(opened.all.map(\.absoluteString) == expected)
-        #expect(throws: BridgeError(description: "refusing to open '-a\\nCalc'")) {  // escaped, as it reaches logs
+        #expect(throws: MessageError("refusing to open '-a\\nCalc'")) {  // escaped, as it reaches logs
             try call(bridge, "fs_exec", "-a\nCalc")
         }
     }
@@ -333,7 +337,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             "http://user@example.com/", "HTTP://127.0.0.1:8080/token/", "Https://localhost/",
         ]
         for target in refused {
-            #expect(throws: BridgeError(description: "refusing to open \(escaped(target))"), "\(target)") {
+            #expect(throws: MessageError("refusing to open \(escaped(target))"), "\(target)") {
                 try call(bridge, "fs_exec", target)
             }
         }
@@ -355,7 +359,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             #expect(try call(bridge, "fs_openfilename", "[\"tsl\"]") == nil)
             #expect(try call(bridge, "app_getevent") == "fs\(formFeed)openfilename\(formFeed)\(picked.path)")
             #expect(try call(bridge, "fs_readString", picked.path) == "liveset")
-            #expect(throws: FileAccessError.self) { try call(bridge, "fs_writeString", picked.path, "x") }
+            #expect(throws: MessageError.self) { try call(bridge, "fs_writeString", picked.path, "x") }
             #expect(try readTextOrThrow(picked) == "liveset")
             #expect(host.openRequests == [["tsl"]])
         }
@@ -370,7 +374,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         #expect(try call(bridge, "fs_openfilename", "[\"tsl\", \"alb\"]") == nil)
         #expect(host.openRequests == [[], [], ["tsl", "alb"]])
         for filter in ["tsl", "null", "{\"a\": 1}", "[1]"] {
-            #expect(throws: BridgeError(description: "invalid file filter \(escaped(filter))")) {
+            #expect(throws: MessageError("invalid file filter \(escaped(filter))")) {
                 try call(bridge, "fs_openfilename", filter)
             }
         }
@@ -403,7 +407,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
             #expect(try call(bridge, "fs_writeString", saved, "backup") == nil)
             #expect(try call(bridge, "fs_readString", saved) == "backup")
             let other = outside.appendingPathComponent("name").path
-            #expect(throws: FileAccessError.self) { try call(bridge, "fs_writeString", other, "x") }
+            #expect(throws: MessageError.self) { try call(bridge, "fs_writeString", other, "x") }
         }
     }
 }
@@ -454,7 +458,7 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
         for hasWindow in [true, false] {
             bridge.host = hasWindow ? host : nil
             for ext in refused {
-                #expect(throws: BridgeError(description: "refusing extension \(escaped(ext))"), "\(ext)") {
+                #expect(throws: MessageError("refusing extension \(escaped(ext))"), "\(ext)") {
                     try call(bridge, "fs_savefilename", "Backup", ext)
                 }
             }
