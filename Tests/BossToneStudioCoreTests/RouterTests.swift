@@ -133,18 +133,6 @@ private struct TestServer {
     #expect(response.text == "null")
 }
 
-@Test func badArgumentsAnswer400WithTheReason() async throws {
-    let server = try TestServer()
-    defer { server.stop() }
-    let path = "/\(token)/$$app_x"
-    let notStrings = try await server.client.command(path, body: Data(#"{"k": "v"}"#.utf8))
-    #expect(notStrings.status == 400)
-    #expect(notStrings.text == "arguments must be a JSON array of strings")
-    let invalid = try await server.client.command(path, body: Data("not json".utf8))
-    #expect(invalid.status == 400)
-    #expect(!invalid.text.isEmpty)
-}
-
 @Test func aFailingCommandAnswers500WithItsMessage() async throws {
     let dispatcher = RecordingDispatcher()
     dispatcher.fail(with: MessageError("refused\n[bts] forged"))
@@ -208,6 +196,8 @@ private struct TestServer {
         #expect(response.status == 400, "\(body.prefix(10))")
         #expect(!response.text.isEmpty)
     }
+    let notStrings = try await server.client.command("/\(token)/$$app_x", body: Data(#"{"k": "v"}"#.utf8))
+    #expect(notStrings.text == "arguments must be a JSON array of strings")
     #expect(server.dispatcher.calls.isEmpty)
 }
 
