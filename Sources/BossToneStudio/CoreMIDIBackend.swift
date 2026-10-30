@@ -8,8 +8,9 @@ import os
 /// holds them, though: python-rtmidi decoded them as MacRoman (`encoding='auto'`), so a device whose name has
 /// non-ASCII characters goes through the picker once.
 ///
-/// CoreMIDI calls the notification block and each input's receive block on threads of its own, never from inside the
-/// calls below, and no lock is held across a CoreMIDI call: the contract on `MidiBackend` holds.
+/// CoreMIDI calls the notification block and each input's receive block on threads of its own, and may call them while
+/// one of the calls below runs, or from inside it. No lock is held across a CoreMIDI call, and the setup-changed
+/// handler is called with none held: the contract on `MidiBackend` holds either way.
 final class CoreMIDIBackend: MidiBackend {
     private struct Input {
         let port: MIDIPortRef

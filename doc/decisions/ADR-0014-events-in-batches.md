@@ -21,4 +21,6 @@ from.
 - A poll costs one request when nothing happened and two when something did, whatever the number of events.
 - Events keep their order. A handler that throws ends `native.js`'s loop; the events after it wait in the script's queue
   for the next poll, as they waited in the bridge's before.
+- The script's queue lives in the page: if the page reloads before that next poll, the events left in it are lost,
+  where before they stayed in the bridge's queue.
 - Pushed events remain possible later; they would need a polling fallback for `--browser` mode.
