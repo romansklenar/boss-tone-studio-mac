@@ -8,7 +8,7 @@ ADR-0009 pinned Python, ruff and uv through mise and locked every package with h
 from source and the bundle shipped whatever `.venv` held. The native app
 ([ADR-0011](ADR-0011-native-swift-app.md)) uses only Apple's frameworks, so nothing is downloaded or locked; what is
 left to pin is the compiler. Apple's Command Line Tools ship Swift (6.4 today), the macOS SDK, Swift Testing and
-`swift format`, but neither Xcode nor XCTest. CI's macOS runner selects Xcode's Swift by default.
+`swift format`, but neither Xcode nor XCTest. CI's macOS runner defaults to Xcode's Swift.
 
 Pinning the exact toolchain through mise was tried and dropped: swift.org's macOS toolchain is 4.8 GB, and CI would
 download it on every macOS run.
