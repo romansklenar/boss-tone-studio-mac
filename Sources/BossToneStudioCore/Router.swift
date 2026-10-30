@@ -74,11 +74,13 @@ public final class Router: Sendable {
         if let requestOrigin = request.header("Origin"), requestOrigin != origin { return .error(403) }
         if let site = request.header("Sec-Fetch-Site"), site != "same-origin", site != "none" { return .error(403) }
 
-        if path.hasPrefix("$$") { return command(path, request) }
-        switch path {
-        case "proxy": return await proxied(request)
-        case "log": return pageLog(request)
-        default: return staticFile(path, request)
+        let target = Route(path)
+        if let answer = target.answer(to: request.method) { return answer }
+        switch target {
+        case .command(let route): return command(route, request)
+        case .proxy: return await proxied(request)
+        case .log: return pageLog(request)
+        case .file(let file): return staticFile(file)
         }
     }
 
@@ -95,8 +97,39 @@ public final class Router: Sendable {
 
     // MARK: routes
 
+    /// Where a path under the token leads. A `$$…` path is a command route whether or not its name is valid, so a
+    /// wrong method gets `405` before a malformed name gets `404`.
+    private enum Route {
+        case command(String)
+        case proxy
+        case log
+        case file(String)
+
+        init(_ path: String) {
+            switch path {
+            case _ where path.hasPrefix("$$"): self = .command(path)
+            case "proxy": self = .proxy
+            case "log": self = .log
+            default: self = .file(path)
+            }
+        }
+
+        /// The answer for a method the router implements (any other is a `501` before anything is read) that the
+        /// route's handler does not give; nil when the handler answers.
+        func answer(to method: String) -> HTTPResponse? {
+            switch (self, method) {
+            case (.command, "POST"), (.log, "POST"): nil
+            case (.command, _), (.log, _): .error(405)
+            case (.proxy, "GET"): nil
+            // The page's usage telemetry goes nowhere.
+            case (.proxy, "POST"), (.file, "POST"): HTTPResponse(status: 204)
+            case (.proxy, _): .error(405)
+            case (.file, _): nil
+            }
+        }
+    }
+
     private func command(_ route: String, _ request: HTTPRequest) -> HTTPResponse {
-        guard request.method == "POST" else { return .error(405) }
         guard Self.isCommandRoute(route) else { return .error(404) }
         // A cross-site form cannot send this type without a preflight.
         let mediaType = (request.header("Content-Type") ?? "").prefix { $0 != ";" }
@@ -140,11 +173,6 @@ public final class Router: Sendable {
     }
 
     private func proxied(_ request: HTTPRequest) async -> HTTPResponse {
-        switch request.method {
-        case "GET": break
-        case "POST": return HTTPResponse(status: 204)  // the page's usage telemetry to Roland goes nowhere
-        default: return .error(405)
-        }
         switch await proxy.fetch(Self.queryValue("url", in: request.query)) {
         case .response(let status, let contentType, let body):
             return HTTPResponse(status: status, contentType: contentType, body: body)
@@ -172,7 +200,6 @@ public final class Router: Sendable {
     /// Page errors, escaped and cut, so the page cannot forge log lines. They name the page's files by URL, so the
     /// token goes first: cutting first could leave part of it.
     private func pageLog(_ request: HTTPRequest) -> HTTPResponse {
-        guard request.method == "POST" else { return .error(405) }
         let body = redacted(String(decoding: request.body, as: UTF8.self))
         var text = ""
         text.unicodeScalars.append(contentsOf: body.unicodeScalars.prefix(Self.maxPageLogCharacters))
@@ -180,8 +207,7 @@ public final class Router: Sendable {
         return .text("")
     }
 
-    private func staticFile(_ path: String, _ request: HTTPRequest) -> HTTPResponse {
-        if request.method == "POST" { return HTTPResponse(status: 204) }  // the page's usage telemetry goes nowhere
+    private func staticFile(_ path: String) -> HTTPResponse {
         // A NUL would end the C string `realpath` sees, so `index.html%00.png` would name `index.html`.
         guard !path.unicodeScalars.contains("\0"), let file = realPath(root + "/" + path) else {
             return .error(404)
