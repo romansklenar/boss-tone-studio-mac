@@ -22,6 +22,7 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 ## Workflow
 
 - `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `docs/…`).
+- What a code review flags and skips is in [`REVIEW.md`](REVIEW.md); follow it when reviewing a pull request.
 - CI (`.github/workflows/ci.yml`) runs `make lint` on Ubuntu in a digest-pinned Swift container for every pull request,
   drafts included, and `make test` on macOS 26 only for pull requests ready for review; both run on pushes to `main`.
   The test job switches to the Command Line Tools first. Actions are pinned to commit SHAs. After a local Swift minor
@@ -41,7 +42,7 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 
 ## Conventions
 
-- Code, comments, docs and commit messages in English; talk to the user in Czech.
+- Code, comments, docs and commit messages in English.
 - Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend.
 - 120-character lines (`swift format`, `.swift-format`). Lean comments: say why, not what.
 - A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
