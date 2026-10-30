@@ -45,7 +45,10 @@ public struct Proxy: ProxyFetching {
         guard let parts = URLComponents(string: url, encodingInvalidCharacters: true),
             let scheme = parts.scheme?.lowercased(), scheme == "http" || scheme == "https",
             let host = parts.host?.lowercased(), allowedHosts.contains(host)
-        else { throw MessageError("refusing to proxy \(escaped(url))") }
+        else {
+            // Escaped here because the router logs a refusal as it is (`[bts] \(reason)`).
+            throw MessageError("refusing to proxy \(escaped(url))")
+        }
         var rebuilt = URLComponents()
         rebuilt.scheme = "https"
         rebuilt.host = host
