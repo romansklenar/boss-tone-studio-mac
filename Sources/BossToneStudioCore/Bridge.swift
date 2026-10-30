@@ -237,12 +237,14 @@ public final class Bridge: CommandDispatching {
         events.withLock { $0.isEmpty ? nil : $0.removeFirst() }
     }
 
-    /// Everything queued as a JSON array of event texts, `"[]"` when there is nothing.
+    /// Everything queued as a JSON array of event texts.
     private func popEvents() throws -> String {
         let batch = events.withLock { queue in
             defer { queue.removeAll() }
             return queue
         }
+        // The usual answer to a poll every 50 ms: no encoder for it.
+        guard !batch.isEmpty else { return "[]" }
         return String(decoding: try JSONEncoder().encode(batch), as: UTF8.self)
     }
 
