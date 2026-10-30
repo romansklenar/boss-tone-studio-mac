@@ -224,14 +224,11 @@ private func refusedToWrite(_ path: String) -> MessageError {
         let checked = try folders.access.checkWrite(path)
         try FileManager.default.removeItem(atPath: path)
         try FileManager.default.createSymbolicLink(atPath: path, withDestinationPath: secret.path)
-        do {
-            try folders.access.writeChecked("x", to: checked, asked: path)
-            // Written: the rename replaced the link itself, never what it points to.
-            let type = try FileManager.default.attributesOfItem(atPath: path)[.type] as? FileAttributeType
-            #expect(type == .typeRegular)
-        } catch let error as MessageError {
-            #expect(error == refusedToWrite(path))
-        }
+        // The rename replaces the link itself, never what it points to.
+        try folders.access.writeChecked("x", to: checked, asked: path)
+        let type = try FileManager.default.attributesOfItem(atPath: path)[.type] as? FileAttributeType
+        #expect(type == .typeRegular)
+        #expect(try String(contentsOfFile: path, encoding: .utf8) == "x")
         #expect(try String(contentsOf: secret, encoding: .utf8) == "secret")
     }
 }
