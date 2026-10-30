@@ -67,6 +67,9 @@ public final class FileAccess: Sendable {
         guard fstat(fd, &info) == 0 else { throw posixError(errno) }
         guard info.st_mode & S_IFMT == S_IFREG else { return nil }
         guard let opened = descriptorPath(fd), mayRead(opened) else { throw Self.refusedToRead(path) }
+        // `O_NONBLOCK` was for the open only: a file system that honours it for a regular file could answer EAGAIN.
+        let flags = fcntl(fd, F_GETFL)
+        guard flags >= 0, fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) == 0 else { throw posixError(errno) }
         return try decodeUTF8(readAll(fd), at: file.path)
     }
 
