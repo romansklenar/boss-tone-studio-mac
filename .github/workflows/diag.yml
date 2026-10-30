@@ -1,4 +1,4 @@
-# Temporary: find where Swift Testing lives on the runner's Command Line Tools 26.6. Removed before merge.
+# Temporary: find why Swift 6.3.3 from Command Line Tools 26.6 misses Swift Testing. Removed before merge.
 name: Diag
 on:
   push:
@@ -22,17 +22,33 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: steps.image.outputs.new
         name: Toolchain
+        continue-on-error: true
         run: |
           sudo xcode-select --switch /Library/Developer/CommandLineTools
           swift --version 2>&1 | head -1
-          find / \( -name 'Testing.framework' -o -name 'Testing.swiftmodule' -o -name 'libTestingMacros.dylib' \
-            -o -name '*TestingInterop*' \) -not -path '/System/*' -not -path '/Applications/Xcode*' 2>/dev/null
-          ls -R /Library/Developer/CommandLineTools/Library/Developer 2>&1 | head -30
-          ls /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins 2>&1
+          ls /Library/Developer/CommandLineTools/Library/Developer/Frameworks
+          ls /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins
       - if: steps.image.outputs.new
-        name: Test-target flags
+        name: Flags as the Makefile builds
+        continue-on-error: true
         run: |
-          swift build --build-tests -v 2>&1 | grep -oE -- '(-F|-I|-L|-plugin-path|-external-plugin-path) [^ ]+' \
-            | sort -u | head -30 || true
+          swift build --build-tests -v $(make -s -p -n test 2>/dev/null | sed -n 's/^SWIFT_FLAGS := //p') 2>&1 \
+            | grep -oE -- '(-F|-I|-L|-plugin-path|-external-plugin-path) [^ ]+' | sort -u | head -30
       - if: steps.image.outputs.new
-        run: make test 2>&1 | tail -5
+        name: make test
+        continue-on-error: true
+        run: make test 2>&1 | grep -E "error|Test run|Swift 6" | sort -u | head -10
+      - if: steps.image.outputs.new
+        name: make test with the framework path
+        continue-on-error: true
+        run: |
+          rm -rf .build
+          fw=/Library/Developer/CommandLineTools/Library/Developer/Frameworks
+          make test SWIFT_FLAGS="-Xswiftc -warnings-as-errors -Xswiftc -F -Xswiftc $fw -Xlinker -rpath -Xlinker $fw" \
+            2>&1 | grep -E "error|Test run|Swift 6" | sort -u | head -10
+      - if: steps.image.outputs.new
+        name: make test without the plugin-path workaround
+        continue-on-error: true
+        run: |
+          rm -rf .build
+          make test SWIFT_FLAGS="-Xswiftc -warnings-as-errors" 2>&1 | grep -E "error|Test run|Swift 6" | sort -u | head -10
