@@ -56,6 +56,7 @@ public final class Bridge: CommandDispatching {
     private static let table: [String: Command] = [
         "app_ready": Command { _, _ in nil },
         "app_getevent": Command(0...0) { bridge, _ in bridge.popEvent() },
+        "app_getevents": Command(0...0) { bridge, _ in try bridge.popEvents() },
         "app_storage": Command(0...1) { bridge, args in try bridge.appStorage(args.first) },
         "app_storage2": Command(1...2) { bridge, args in try bridge.appStorage2(args[0], args.dropFirst().first) },
         "app_control": Command { _, _ in nil },  // 'indicator start|stop', 'set_window_size:…'
@@ -156,7 +157,7 @@ public final class Bridge: CommandDispatching {
             log("unimplemented $$\(escaped(command, quoted: false)) \(pyList(args))")
             return nil
         }
-        if command != "app_getevent" { trace("->", "$$\(command)", args) }
+        if command != "app_getevent" && command != "app_getevents" { trace("->", "$$\(command)", args) }
         guard entry.arguments.contains(args.count) else {
             let (low, high) = (entry.arguments.lowerBound, entry.arguments.upperBound)
             let expected = low == high ? "\(high)" : "\(low) to \(high)"
@@ -165,9 +166,10 @@ public final class Bridge: CommandDispatching {
         return try entry.run(self, args)
     }
 
-    /// Queues an event for the page to poll. MIDI events take the same path from CoreMIDI's threads, possibly while the
-    /// controller holds its own lock, so it only appends under the queue's short lock: it never blocks on anything else
-    /// and never calls into the controller or the host. (BTS_TRACE=1 also prints a line, before taking the lock.)
+    /// Queues an event for the page to poll. MIDI events take the same path from CoreMIDI's threads, possibly from
+    /// inside a backend call on the controller's queue, so it only appends under the queue's short lock: it never
+    /// blocks on anything else and never calls into the controller or the host. (BTS_TRACE=1 also prints a line, before
+    /// taking the lock.)
     public func emit(_ prop: String, _ kind: String, _ args: [String]) {
         Self.enqueue(events, prop, kind, args)
     }
@@ -212,7 +214,7 @@ public final class Bridge: CommandDispatching {
     private static func makeTempDir() throws -> URL {
         let template = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bts-XXXXXX").path
         var characters = Array(template.utf8CString)
-        guard mkdtemp(&characters) != nil else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        guard mkdtemp(&characters) != nil else { throw posixError(errno) }
         let created = String(decoding: characters.dropLast().map(UInt8.init(bitPattern:)), as: UTF8.self)
         guard let resolved = FileAccess.canonical(created) else {
             throw MessageError("cannot resolve the temporary folder \(escaped(created))")
@@ -233,6 +235,17 @@ public final class Bridge: CommandDispatching {
 
     private func popEvent() -> String? {
         events.withLock { $0.isEmpty ? nil : $0.removeFirst() }
+    }
+
+    /// Everything queued as a JSON array of event texts.
+    private func popEvents() throws -> String {
+        let batch = events.withLock { queue in
+            defer { queue.removeAll() }
+            return queue
+        }
+        // The usual answer to a poll every 50 ms: no encoder for it.
+        guard !batch.isEmpty else { return "[]" }
+        return String(decoding: try JSONEncoder().encode(batch), as: UTF8.self)
     }
 
     private func appStorage(_ data: String?) throws -> String? {
@@ -266,17 +279,14 @@ public final class Bridge: CommandDispatching {
     }
 
     private func readString(_ path: String) throws -> String {
-        let file = try files.checkRead(path)
-        guard let text = try readTextOrThrow(file) else {
+        guard let text = try files.readText(path) else {
             throw MessageError("\(escaped(path)) is not a file")
         }
         return text
     }
 
     private func writeString(_ path: String, _ text: String) throws {
-        let file = try files.checkWrite(path)
-        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try writeAtomically(text, to: file)
+        try files.writeText(text, to: path)
     }
 
     private func openFileName(filterJSON: String?) throws {

@@ -13,7 +13,8 @@ Researched 2026-10-28, for: how long Roland's Intel-only MkII editor can keep ru
   of Rosetta stays after macOS 27, aimed at older, unmaintained games built on Intel frameworks
   ([MacRumors, 2025-06-10](https://www.macrumors.com/2025/06/10/apple-to-phase-out-rosetta-2/)). macOS 28 is expected in
   2027 (per the article, not Apple).
-- Forum reports ([MacRumors forum](https://forums.macrumors.com/threads/macos-27-2-stops-upgrades-from-removing-rosetta.2492923/))
+- Forum reports
+  ([MacRumors forum](https://forums.macrumors.com/threads/macos-27-2-stops-upgrades-from-removing-rosetta.2492923/))
   mention having to reinstall Rosetta after the 27.0 upgrade; one claim that it reinstalls itself contradicts Apple's
   note. Anecdotes only.
 

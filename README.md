@@ -239,8 +239,9 @@ How this project relates to each point:
 - **Web platform drift.** Roland's page relies on synchronous `XMLHttpRequest` (deprecated in browsers) and on
   WKWebView behaviour; a future WebKit could break it. The app uses only Apple's frameworks and toolchain, so a macOS
   or Command Line Tools update is what changes them; a release is re-tested with an amp.
-- **Partial bridge.** Only the commands the MkII app calls are implemented. A call to anything else throws in the page,
-  and the error is logged.
+- **Partial bridge.** Only the commands the MkII app calls are implemented, plus the bridge's own batch fetch of
+  events ([ADR-0014](doc/decisions/ADR-0014-events-in-batches.md)). A call to anything else throws in the page, and
+  the error is logged.
 - **Limited testing.** Two amps on macOS 27.2 with the native app (see Verified amplifiers); other MkII models and
   macOS 14–26 are untested.
 - **Signing.** The bundle is ad-hoc signed with the hardened runtime, not notarized. Built locally it opens normally;

@@ -6,8 +6,9 @@ use; Roland's HTML is never modified or committed — `make roland-assets` takes
 into `build/roland/` and `make app` bundles it.
 
 Start with [`doc/bridge-protocol.md`](doc/bridge-protocol.md) (the protocol and security rules — the source of truth
-for `Sources/`), then [`doc/decisions/`](doc/decisions/) and [`doc/research/`](doc/research/); status and verified amps
-are in the README.
+for `Sources/`), then [`doc/decisions/`](doc/decisions/), [`doc/design/`](doc/design/) and [`doc/plans/`](doc/plans/)
+(each release's design and how its work ran) and [`doc/research/`](doc/research/); status and verified amps are in the
+README.
 
 ## Commands
 

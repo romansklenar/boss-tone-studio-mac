@@ -13,10 +13,11 @@ loads. Its first branch applies whenever `window.$$app` exists, whatever the use
   `window.$$midi.send(…)` gets `a1, a2` when `a2` is defined, else `a1` when it is defined, else nothing. Its return
   value is used as is (no `decode`).
 - If `window.$$app.startevent` is defined, `native.js` switches to pushed events (`$event.trigger`). Otherwise the
-  default `$event.start` stays: `setInterval(pumpevent, 50)`, which calls `$$app_getevent` until it returns
-  `undefined`.
+  default `$event.start` stays: `setInterval(pumpevent, 50)`, which calls `$$app.getevent` until it returns
+  `undefined`. The injected script serves that from a queue of its own (see below), so a poll costs one request
+  when nothing happened and two when something did.
 
-An event from `$$app_getevent` is `prop\ftype\farg1\farg2…` (form-feed separated), dispatched to
+An event from `$$app.getevent` (or `$$app_getevent`) is `prop\ftype\farg1\farg2…` (form-feed separated), dispatched to
 `$native[prop].event[type](args…)`.
 
 The other branches (a `roland.quattro` user agent with `$$xhrport` → synchronous `GET /$$cmd;a1,a2` with typed
@@ -35,8 +36,10 @@ block defines:
   `POST /<token>/$$<command>` with `Content-Type: application/json` and the arguments as a JSON array of strings
   (`String(arg)`, as the URL transport would send them). The answer is the JSON-encoded result, and `null` becomes
   `undefined`. A `500` throws an `Error` with the bridge's message; any other status throws
-  `bridge answered HTTP <status>`. There is no `app_startevent` command, so events are polled. A call the bridge does
-  not implement throws a `TypeError` in the page, which the error listener logs.
+  `bridge answered HTTP <status>`. There is no `app_startevent` command, so events are polled: the script defines
+  `window.$$app.getevent` over a local queue, which it refills with `JSON.parse` of one `$$app_getevents` answer when
+  it is empty (ADR-0014). A call the bridge does not implement throws a `TypeError` in the page, which the error
+  listener logs.
 - a `window` `error` listener → `POST /<token>/log` (JS errors logged on the server).
 - a `$.ajaxPrefilter` that sends absolute URLs to `/<token>/proxy?url=…` (Tone Central, see below).
 
@@ -51,7 +54,8 @@ complete request.
 | Command | Behaviour |
 |---|---|
 | `app_ready`, `app_control` | no-op (`'indicator start/stop'`, `'set_window_size:{"mode":"min","width":1160}'`) |
-| `app_getevent` | pop one queued event, or `undefined` |
+| `app_getevent` | pop one queued event, or `undefined` (the injected script does not use it) |
+| `app_getevents` | pop every queued event: a JSON array of event texts as a string (`"[]"` when none); the bridge's own, `native.js` never calls it |
 | `app_storage(data?)` | no argument: read the whole JSON (empty if missing); with an argument: write (`storage.json`) |
 | `app_storage2(key, data?)` | per-key storage (`storage2/<key>`, percent-encoded); `data == ''` deletes; keys such as `ID_LIST`, `CONFIRM_FLAG`, `0`… |
 | `app_importfile`, `app_exportfile` | no-op (cloud import/export) |
@@ -92,10 +96,14 @@ Behaviour worth knowing:
 - Hot-plug: CoreMIDI's setup-changed notification → the port lists are compared → event `midi\fchanged` when they
   differ.
 - The page sends its MIDI queue one message at a time, paced by its own interval.
+- The bridge's connects, disconnects and sends run one at a time on a serial queue, with no lock held while CoreMIDI
+  is called: a send is never interleaved with another send or a disconnect, and has reached CoreMIDI before
+  `$$midi_send` answers (ADR-0015).
 - Closing the window: the shell sends the page `app\fcommand\fexit`; the page sends DT1 `7F 00 00 01 = 00` (editor
   communication mode off) and calls `$$app_exit` 500 ms later. The close button, Cmd-W, Cmd-Q and `SIGINT`/`SIGTERM` all
   go this way: closing is refused until then, the event is queued once and a 2 s fallback is armed. `$$app_exit`
-  disconnects MIDI and closes the window, which quits the app.
+  disconnects MIDI and closes the window, which quits the app. A quit (Cmd-Q, `SIGINT`/`SIGTERM`, the Dock, logout)
+  does not cancel meanwhile: the delegate answers `.terminateLater` and replies once the window has closed (ADR-0017).
 - Storage and file reads return the text as stored; a file that is not UTF-8 is an error.
 - The page's usage telemetry posts to `index.html` and, through the proxy, to Roland. As in 0.1.1, a POST to any path
   under the token other than `$$…` and `log`, whether a file is there or not, gets `204` and is forwarded nowhere.
@@ -167,9 +175,23 @@ The server can read and write files, so:
 5. `fs_readString` reaches the app's data and temp folders, a file the user picked in the open dialog during this
    session, and a path picked in the save dialog; `fs_writeString` only the folders and save-dialog paths. Paths are
    compared resolved (`..` and links), and a path that does not exist yet is resolved through its nearest existing
-   ancestor, so no link leads out of a folder; a dangling link at any level, and a NUL byte, are refused. The file is
-   then read or written at the resolved path. The save dialog's extension must be 1–10 ASCII letters and digits, since
-   it is appended to the picked path.
+   ancestor, so no link leads out of a folder; a dangling link at any level, and a NUL byte, are refused. The resolved
+   path is then opened without following a link in its last name (`O_NOFOLLOW`, a link there is refused) and without
+   waiting (`O_NONBLOCK`, cleared before reading), and where the descriptor leads (`F_GETPATH`) must pass the same
+   rule before a byte is read, so a link swapped in after the check is refused. For a file with several hard links
+   `F_GETPATH` may name another one, so the descriptor also passes when the checked path, looked up without following
+   a link at any level, names the same file (device and inode). Only a regular file is read: a missing path, a folder,
+   a FIFO, a socket or a device is not a file (an error to `fs_readString`). A write opens the target's folder the same
+   way, for search only (`O_SEARCH`, so a folder its owner may write but not list still takes a save), and checks the
+   folder's path plus the file name against the write set, with the same fallback for the folder. Missing folders are
+   made from the deepest existing one, opened and checked the same way (its path plus the missing names and the file
+   name), each by `mkdirat` through the descriptor of the one above and then opened with `O_NOFOLLOW`, so a folder
+   swapped for a link creates nothing where it leads. The write then creates a temporary file with a fixed-length name
+   through the folder's descriptor: for a new file with mode 0666 less the umask; in place of an existing one with mode
+   0600, then given that file's permission bits only (not setuid, setgid or sticky), so it is never readable by more
+   than the old file was. It renames the temporary file over the target, which replaces a link there instead of
+   following it (ADR-0016). The save dialog's extension must be 1–10 ASCII letters and digits, since it is appended to
+   the picked path.
 6. Only `http(s)` links to other machines leave for the default browser, since the page's own URLs carry the token;
    `fs_exec` and the window apply the same rule. Not passed on are links without a host or with userinfo, and links to
    `localhost` or `*.localhost`, to an IPv4 address in `127.0.0.0/8` or `0.0.0.0/8` in any spelling `inet_aton` accepts

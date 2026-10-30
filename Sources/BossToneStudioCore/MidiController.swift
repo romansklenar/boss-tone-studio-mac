@@ -4,10 +4,11 @@ import os
 /// What the controller needs from CoreMIDI; the real implementation lives in the app, so everything here is testable
 /// without a MIDI client. Implementations must be safe to call from any thread.
 ///
-/// The controller holds its own lock while it calls `connectInput`, `disconnectInput`, `connectOutput`,
-/// `disconnectOutput` and `send`. So an implementation must never call the setup-changed handler or an `onMessage`
-/// callback synchronously from inside those calls, nor while it holds a lock that `sourceNames()` or
-/// `destinationNames()` need: the handler lists the ports and then takes the controller's lock.
+/// The controller calls `connectInput`, `disconnectInput`, `connectOutput`, `disconnectOutput` and `send` one at a
+/// time, from a serial queue of its own, and holds no lock while it does. An implementation may report a setup change
+/// or an incoming message from inside those calls, but must not call the controller's connects, disconnects or `send`
+/// from them: those would wait for the queue they run on. Nor may it call the setup-changed handler while it holds a
+/// lock that `sourceNames()` or `destinationNames()` need: the handler lists the ports.
 public protocol MidiBackend: AnyObject, Sendable {
     func sourceNames() -> [String]
     func destinationNames() -> [String]
@@ -23,9 +24,9 @@ public protocol MidiBackend: AnyObject, Sendable {
     func onSetupChanged(_ handler: @escaping @Sendable () -> Void)
 }
 
-/// Called from CoreMIDI's threads, possibly while the controller holds its own lock. An implementation must return
-/// promptly: take only a short lock of its own (as `Bridge.emit` does, to append to its event queue), never block on
-/// anything else, and never call back into the controller.
+/// Called from CoreMIDI's threads, possibly from inside a backend call on the controller's queue. An implementation
+/// must return promptly: take only a short lock of its own (as `Bridge.emit` does, to append to its event queue), never
+/// block on anything else, and never call back into the controller.
 public typealias Emit = @Sendable (_ prop: String, _ kind: String, _ args: [String]) -> Void
 
 /// The MIDI side of Roland's `$native.midi`, as 0.1.1 did it: port lists in the page's endpoint shape, one open input
@@ -44,8 +45,11 @@ public final class MidiController: Sendable {
     private let backend: MidiBackend?
     private let emit: Emit
     private let output: @Sendable (String) -> Void
-    // Held across backend calls, as in 0.1.1: a send is never interleaved with another send or with a disconnect.
-    // The controller's own events are emitted after it is released.
+    // Every connect, disconnect and send runs here, as under 0.1.1's lock: a send is never interleaved with another
+    // send or with a disconnect. `sync`, so a failed connect is reported and a send reaches CoreMIDI before the caller
+    // answers the page; and not a lock, so the backend may report a setup change from inside a call.
+    private let queue = DispatchQueue(label: "bts.midi")
+    // Never held while the backend is called.
     private let state: OSAllocatedUnfairLock<State>
 
     /// A nil backend stands for a Mac without CoreMIDI: nothing is listed and every connect fails.
@@ -72,7 +76,7 @@ public final class MidiController: Sendable {
 
     public func connectInput(_ endpointJSON: String?) {
         let name = endpointJSON.flatMap(entityName(fromEndpointJSON:))
-        let failure = state.withLock { _ in
+        let failure = queue.sync {
             backend?.disconnectInput()
             return openPort(name, among: backend?.sourceNames() ?? []) { backend, name in
                 try backend.connectInput(named: name) { [emit] message in
@@ -85,25 +89,25 @@ public final class MidiController: Sendable {
 
     public func connectOutput(_ endpointJSON: String?) {
         let name = endpointJSON.flatMap(entityName(fromEndpointJSON:))
-        let failure = state.withLock { state in
-            state.outputOpen = false
+        let failure = queue.sync {
+            state.withLock { $0.outputOpen = false }
             backend?.disconnectOutput()
             let failure = openPort(name, among: backend?.destinationNames() ?? []) { backend, name in
                 try backend.connectOutput(named: name)
             }
-            state.outputOpen = failure == nil
+            state.withLock { $0.outputOpen = failure == nil }
             return failure
         }
         report(failure, of: name, endpointJSON)
     }
 
     public func disconnectInput() {
-        state.withLock { _ in backend?.disconnectInput() }
+        queue.sync { backend?.disconnectInput() }
     }
 
     public func disconnectOutput() {
-        state.withLock { state in
-            state.outputOpen = false
+        queue.sync {
+            state.withLock { $0.outputOpen = false }
             backend?.disconnectOutput()
         }
     }
@@ -116,8 +120,8 @@ public final class MidiController: Sendable {
     /// Without an open output this does nothing, and the hex is not checked either. Only bad hex throws: a message
     /// CoreMIDI fails to send is logged and the rest go out, as python-rtmidi's warnings had it in 0.1.1.
     public func send(_ hex: String) throws {
-        try state.withLock { state in
-            guard state.outputOpen, let backend else { return }
+        try queue.sync {
+            guard state.withLock({ $0.outputOpen }), let backend else { return }
             for message in splitMessages(try bytes(fromHex: hex)) {
                 do {
                     try backend.send(message)

@@ -41,6 +41,7 @@ final class FakeMidiBackend: MidiBackend {
         var sendError: (any Error)?
         var onMessage: (@Sendable ([UInt8]) -> Void)?
         var onSetupChanged: (@Sendable () -> Void)?
+        var reportsSetupChangeDuringCalls = false
     }
 
     private let state: OSAllocatedUnfairLock<State>
@@ -76,6 +77,16 @@ final class FakeMidiBackend: MidiBackend {
         state.withLock { $0.onMessage }?(message)
     }
 
+    /// From now on `connectInput`, `connectOutput` and `send` report a setup change before they return, which nothing
+    /// in CoreMIDI's contract rules out.
+    func reportSetupChangeDuringCalls() {
+        state.withLock { $0.reportsSetupChangeDuringCalls = true }
+    }
+
+    private func reportSetupChangeIfAsked() {
+        state.withLock { $0.reportsSetupChangeDuringCalls ? $0.onSetupChanged : nil }?()
+    }
+
     func sourceNames() -> [String] { state.withLock { $0.sources } }
     func destinationNames() -> [String] { state.withLock { $0.destinations } }
 
@@ -85,6 +96,7 @@ final class FakeMidiBackend: MidiBackend {
             if let error = $0.openError { throw error }
             $0.onMessage = onMessage
         }
+        reportSetupChangeIfAsked()
     }
 
     func disconnectInput() {
@@ -99,6 +111,7 @@ final class FakeMidiBackend: MidiBackend {
             $0.calls.append("connectOutput \(name)")
             if let error = $0.openError { throw error }
         }
+        reportSetupChangeIfAsked()
     }
 
     func disconnectOutput() {
@@ -111,6 +124,7 @@ final class FakeMidiBackend: MidiBackend {
             if let error = $0.sendError { throw error }
             $0.sent.append(message)
         }
+        reportSetupChangeIfAsked()
     }
 
     func onSetupChanged(_ handler: @escaping @Sendable () -> Void) {

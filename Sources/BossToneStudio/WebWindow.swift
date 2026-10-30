@@ -13,6 +13,8 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
     private let window: NSWindow
     private let webView: WKWebView
     private var closed = false
+    /// Called as the window closes, for a quit that waited for the close handshake.
+    var onClose: (() -> Void)?
 
     init(bridge: Bridge, page: URL, port: UInt16) {
         self.bridge = bridge
@@ -67,8 +69,8 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
 
     /// The page chose `suggestedName`, so it only fills the name field; the user picks the folder. For a type the Mac
     /// declares, the panel adds `ext` itself, so its question before replacing a file is about the file the page will
-    /// write. No app declares `.tsl` or `.alb`, and for such a dynamic type the panel adds the extension again to a name
-    /// that already ends with it (`name.tsl.tsl`), so it gets no type and saves the name as it stands.
+    /// write. No app declares `.tsl` or `.alb`, and for such a dynamic type the panel adds the extension again to a
+    /// name that already ends with it (`name.tsl.tsl`), so it gets no type and saves the name as it stands.
     nonisolated func chooseFileToSave(
         suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void
     ) {
@@ -97,6 +99,7 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
 
     func windowWillClose(_ notification: Notification) {
         closed = true
+        onClose?()
     }
 
     // MARK: WKUIDelegate

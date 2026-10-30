@@ -22,7 +22,7 @@ Write every review comment and suggestion in English.
 - **Toolchain:** a package dependency in `Package.swift`, an API newer than macOS 14 without an availability check, a
   deprecated API (warnings are errors), XCTest, or a test that creates a CoreMIDI client.
 - **Concurrency:** shared mutable state outside `OSAllocatedUnfairLock`, blocking the main thread, or calling into the
-  host or MIDI controller while holding a lock.
+  host, the MIDI controller or the MIDI backend (CoreMIDI) while holding a lock (ADR-0015).
 - **Comments and docs:**
   - comments that say what the code does instead of why;
   - comments or docs that no longer match the code;

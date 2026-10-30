@@ -8,7 +8,8 @@ private let tag = PageScript.nativeScriptTag
 private let commands = ["app_getevent", "midi_send"]
 
 private func page(around middle: String = tag) -> String {
-    "<!doctype html>\n<body oncontextmenu=\"return false\">\n<script src=\"js/lib/jquery.js\"></script>\n\(middle)\n</body>"
+    "<!doctype html>\n<body oncontextmenu=\"return false\">\n"
+        + "<script src=\"js/lib/jquery.js\"></script>\n\(middle)\n</body>"
 }
 
 // MARK: injection
@@ -27,6 +28,18 @@ private func page(around middle: String = tag) -> String {
     // Nothing else of Roland's page changes.
     let block = PageScript.preNative(token: "T0ken_-x", nonce: "N+once/==", commands: commands)
     #expect(injected.replacingOccurrences(of: block, with: "") == html)
+}
+
+@Test func theInjectedScriptServesGetEventFromALocalQueue() {
+    let script = PageScript.preNative(token: "T", nonce: "N", commands: commands)
+    #expect(script.contains("window.$$app.getevent = function () {"))
+    #expect(script.contains("if (next >= pending.length) {"))
+    #expect(script.contains("pending = JSON.parse(call('$$app_getevents', []));"))
+    #expect(script.contains("return next < pending.length ? pending[next++] : undefined;"))
+    #expect(!script.contains("shift()"))  // O(n) per event on a batch of up to 10,000
+    let forEach = script.range(of: ".forEach(function (command) {")
+    let override = script.range(of: "window.$$app.getevent = ")
+    #expect(forEach != nil && override != nil && forEach!.lowerBound < override!.lowerBound)
 }
 
 @Test func injectionRefusesAPageWithoutNativeJs() {
@@ -54,7 +67,8 @@ private func page(around middle: String = tag) -> String {
     #expect(script.contains(#"    if (/^https?:\/\//.test(options.url)) {"#))
     #expect(
         script.contains(
-            "    x.send(JSON.stringify(args.map(String)));  // String(): what native.js's own URL transport would send\n"
+            "    x.send(JSON.stringify(args.map(String)));"
+                + "  // String(): what native.js's own URL transport would send\n"
         ))
     #expect(
         script.contains(
