@@ -3,6 +3,30 @@
 Notable changes per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-31
+
+### Fixed
+
+- Logging out, restarting or shutting down no longer stops at the editor ("cancelled logout"): the app waits until the
+  page has taken the amp out of editor mode, at most about 2 s, and then quits (ADR-0017).
+- An export to `.tsl` or `.alb` is saved with one extension, not as `name.tsl.tsl`: for a file type no app on the Mac
+  declares, the save dialog saves the name as typed. A name typed without the extension gets it added afterwards, and
+  then without the dialog's question before replacing a file of that name.
+- The app runs from Xcode next to an installed copy, with its own data folder in the checkout (ADR-0013); a relative
+  `BTS_DATA_DIR` or `BTS_HTML_DIR` and a leading `~` work for a bare executable.
+
+### Changed
+
+- The page fetches every queued event in one request instead of one request per event (ADR-0014), and the MIDI
+  backend is called from a serial queue with no lock held (ADR-0015).
+- Verified with a KATANA-HEAD MkII on macOS 27.2.
+
+### Security
+
+- A file the page reads or writes is opened as a descriptor and checked where it really leads, so a link swapped in
+  after the check is not followed; a save replaces the file atomically through its folder, creates missing folders the
+  same way, and keeps the replaced file's permission bits without exposing its new content meanwhile (ADR-0016).
+
 ## [1.0.0] - 2026-10-29
 
 ### Added
@@ -86,6 +110,7 @@ First release.
 - A standalone `.app` built from Roland's installer download, checked against a pinned SHA-256.
 - Verified with a KATANA-HEAD MkII and a KATANA-ARTIST MkII on macOS 27.2.
 
+[1.0.1]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v1.0.1
 [1.0.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v1.0.0
 [0.1.1]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.1
 [0.1.0]: https://github.com/romansklenar/boss-tone-studio-mac/releases/tag/v0.1.0
