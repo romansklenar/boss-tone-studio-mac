@@ -21,21 +21,20 @@ public final class FileAccess: Sendable {
         self.tempDir = tempDir
     }
 
-    /// The canonical file to read: a check of the path only, internal so that no caller opens the file by name after
-    /// it. Read through `readText`, which opens the file without following a link and checks where the descriptor
-    /// leads, since a link swapped in after this check would otherwise be followed.
+    /// The canonical file to read, from the path alone: opening it by name afterwards would follow a link swapped in
+    /// since. `readText` opens it without following one and checks where the descriptor leads.
     func checkRead(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path), mayRead(canonical) else { throw Self.refusedToRead(path) }
         return URL(fileURLWithPath: canonical)
     }
 
-    /// As `checkRead`: write through `writeText`.
+    /// As `checkRead`, for `writeText`.
     func checkWrite(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path), mayWrite(canonical) else { throw Self.refusedToWrite(path) }
         return URL(fileURLWithPath: canonical)
     }
 
-    /// nil when the path is not a regular file (missing, a folder); throws the refusal, `StorageError.notUTF8` or a
+    /// nil when the path is not a regular file (missing, a folder, a socket); throws the refusal, `StorageError.notUTF8` or a
     /// `POSIXError`.
     public func readText(_ path: String) throws -> String? {
         try readChecked(checkRead(path), asked: path)
@@ -49,16 +48,16 @@ public final class FileAccess: Sendable {
     }
 
     /// `checkRead` again on what was opened: a link swapped in for the file since then fails to open (`O_NOFOLLOW`),
-    /// and one swapped in for a folder above it shows in the descriptor's path, or, when that path is another hard link
-    /// of the file, on the checked path. `O_NONBLOCK`, or a FIFO would wait for a writer before the check below could
-    /// turn it away.
+    /// and one swapped in for a folder above it shows in the descriptor's path, or, when that path names another hard
+    /// link of the file, as a link on the checked path. `O_NONBLOCK`, or a FIFO would wait for a writer before the
+    /// check below could turn it away.
     func readChecked(_ file: URL, asked path: String) throws -> String? {
         let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
         if fd < 0 {
             let code = errno
             if code == ENOENT || code == ENOTDIR { return nil }
             if code == ELOOP { throw Self.refusedToRead(path) }
-            // Some kinds of file refuse to open (a socket, a device): not a file, as when they opened.
+            // A socket or some devices refuse to open: not a file, as before reads went through a descriptor.
             var info = stat()
             if lstat(file.path, &info) == 0, info.st_mode & S_IFMT != S_IFREG { return nil }
             throw posixError(code)
@@ -99,9 +98,9 @@ public final class FileAccess: Sendable {
         let fd = openat(folder, temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)
         guard fd >= 0 else { throw posixError(errno) }
         var failure: Int32 = 0
-        // The rename replaces the file, so it would get the new file's mode: copy the old one's permission bits (not
-        // owner or extended attributes, which Foundation's atomic write did not keep either). Not setuid, setgid or
-        // sticky: a new content must not inherit them, and a non-root `fchmod` with the sticky bit fails.
+        // The rename gives the target the new file's mode: copy the old one's permission bits only. Not its owner or
+        // extended attributes (Foundation's atomic write kept neither), nor setuid, setgid or sticky: new content must
+        // not inherit those, and a non-root `fchmod` with the sticky bit fails.
         var existing = stat()
         if fstatat(folder, name, &existing, AT_SYMLINK_NOFOLLOW) == 0, existing.st_mode & S_IFMT == S_IFREG,
             fchmod(fd, existing.st_mode & 0o777) != 0

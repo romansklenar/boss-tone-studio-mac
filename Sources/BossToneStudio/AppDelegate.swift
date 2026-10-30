@@ -9,8 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let page: URL
     private let port: UInt16
     private var window: WebWindow?
-    /// Set while `applicationShouldTerminate` has answered `.terminateLater`: the page is still taking the amp out of
-    /// editor mode, and AppKit waits for our reply.
+    /// `applicationShouldTerminate` answered `.terminateLater`: AppKit waits for a reply while the page takes the amp
+    /// out of editor mode.
     private var terminateReplyOwed = false
 
     init(bridge: Bridge, page: URL, port: UInt16) {
@@ -40,7 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
-    /// The handshake is over and the window has gone: let the quit that was waiting for it finish.
+    /// The handshake is over and the window is closing: let the quit that was waiting for it finish.
     private func windowClosed() {
         guard terminateReplyOwed else { return }
         terminateReplyOwed = false
