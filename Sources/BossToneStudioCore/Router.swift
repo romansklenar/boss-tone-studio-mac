@@ -74,17 +74,13 @@ public final class Router: Sendable {
         if let requestOrigin = request.header("Origin"), requestOrigin != origin { return .error(403) }
         if let site = request.header("Sec-Fetch-Site"), site != "same-origin", site != "none" { return .error(403) }
 
-        let route = Route(path)
-        switch route.rule(for: request.method) {
-        case .notAllowed: return .error(405)
-        case .telemetry: return HTTPResponse(status: 204)
-        case .handle: break
-        }
-        switch route {
-        case .command(let name): return command(name, request)
+        let target = Route(path)
+        if let answer = target.answer(to: request.method) { return answer }
+        switch target {
+        case .command(let route): return command(route, request)
         case .proxy: return await proxied(request)
         case .log: return pageLog(request)
-        case .file(let path): return staticFile(path)
+        case .file(let file): return staticFile(file)
         }
     }
 
@@ -101,14 +97,6 @@ public final class Router: Sendable {
 
     // MARK: routes
 
-    /// What a route does with a method the router implements (any other is a `501` before anything is read).
-    private enum MethodRule {
-        case handle
-        /// The page's usage telemetry goes nowhere.
-        case telemetry
-        case notAllowed
-    }
-
     /// Where a path under the token leads. A `$$…` path is a command route whether or not its name is valid, so a
     /// wrong method gets `405` before a malformed name gets `404`.
     private enum Route {
@@ -118,25 +106,25 @@ public final class Router: Sendable {
         case file(String)
 
         init(_ path: String) {
-            if path.hasPrefix("$$") {
-                self = .command(path)
-                return
-            }
             switch path {
+            case _ where path.hasPrefix("$$"): self = .command(path)
             case "proxy": self = .proxy
             case "log": self = .log
             default: self = .file(path)
             }
         }
 
-        func rule(for method: String) -> MethodRule {
+        /// The answer for a method the router implements (any other is a `501` before anything is read) that the
+        /// route's handler does not give; nil when the handler answers.
+        func answer(to method: String) -> HTTPResponse? {
             switch (self, method) {
-            case (.command, "POST"), (.log, "POST"): .handle
-            case (.command, _), (.log, _): .notAllowed
-            case (.proxy, "GET"): .handle
-            case (.proxy, "POST"), (.file, "POST"): .telemetry
-            case (.proxy, _): .notAllowed
-            case (.file, _): .handle
+            case (.command, "POST"), (.log, "POST"): nil
+            case (.command, _), (.log, _): .error(405)
+            case (.proxy, "GET"): nil
+            // The page's usage telemetry goes nowhere.
+            case (.proxy, "POST"), (.file, "POST"): HTTPResponse(status: 204)
+            case (.proxy, _): .error(405)
+            case (.file, _): nil
             }
         }
     }
