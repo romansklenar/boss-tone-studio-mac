@@ -27,9 +27,13 @@ func readTextOrThrow(_ url: URL) throws -> String? {
         path.map { stat($0, &info) == 0 ? 0 : errno } ?? EINVAL
     }
     if status == ENOENT || status == ENOTDIR { return nil }
-    if status != 0 { throw POSIXError(POSIXErrorCode(rawValue: status) ?? .EIO) }
+    if status != 0 { throw posixError(status) }
     guard info.st_mode & S_IFMT == S_IFREG else { return nil }
     return try decodeUTF8(Data(contentsOf: url), at: url.path)
+}
+
+func posixError(_ code: Int32) -> POSIXError {
+    POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
 }
 
 /// The bytes as text, exactly: not `String(data:encoding:)`, which drops a leading BOM; invalid bytes come back as

@@ -223,10 +223,6 @@ private func writeAll(_ data: Data, to fd: Int32) -> Int32 {
     }
 }
 
-private func posixError(_ code: Int32) -> POSIXError {
-    POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
-}
-
 /// `realpath`: links, `.` and `..` resolved; nil when the path does not exist.
 func realPath(_ path: String) -> String? {
     guard let resolved = realpath(path, nil) else { return nil }

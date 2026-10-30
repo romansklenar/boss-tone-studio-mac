@@ -214,7 +214,7 @@ public final class Bridge: CommandDispatching {
     private static func makeTempDir() throws -> URL {
         let template = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bts-XXXXXX").path
         var characters = Array(template.utf8CString)
-        guard mkdtemp(&characters) != nil else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        guard mkdtemp(&characters) != nil else { throw posixError(errno) }
         let created = String(decoding: characters.dropLast().map(UInt8.init(bitPattern:)), as: UTF8.self)
         guard let resolved = FileAccess.canonical(created) else {
             throw MessageError("cannot resolve the temporary folder \(escaped(created))")
