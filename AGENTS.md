@@ -21,7 +21,8 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 
 ## Workflow
 
-- `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `docs/…`).
+- `main` only moves through reviewed pull requests; work happens on feature branches (`feat/…`, `fix/…`, `refactor/…`,
+  `docs/…`).
 - What a code review flags and skips is in [`REVIEW.md`](REVIEW.md); follow it when reviewing a pull request.
 - CI (`.github/workflows/ci.yml`) runs `make lint` on Ubuntu in a digest-pinned Swift container for every pull request,
   drafts included, and `make test` on macOS 26 only for pull requests ready for review; both run on pushes to `main`.
@@ -32,9 +33,10 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 ## Releases
 
 - Semantic Versioning. The version lives only in `VERSION`; `make app` copies it into the bundle's `Info.plist`.
-- A pull request with a user-visible change is its own release: it bumps the version and adds a dated entry for it to
-  `CHANGELOG.md` (no Unreleased section). After the merge, tag that `main` commit with an annotated tag
-  (`git tag -a vX.Y.Z -m vX.Y.Z`) and push it; fix the date in the PR if the merge slips to another day.
+- A release collects the pull requests merged since the last tag. Those leave `VERSION` and `CHANGELOG.md` alone; a
+  release pull request of its own bumps the version and adds a dated entry for all of them to `CHANGELOG.md` (no
+  Unreleased section). After its merge, tag that `main` commit with an annotated tag (`git tag -a vX.Y.Z -m vX.Y.Z`)
+  and push it; fix the date in the PR if the merge slips to another day.
 - Then publish a GitHub Release, without assets — never attach the built `.app`, it contains Roland's files:
   `make release-notes VERSION=x.y.z` writes its body (the version's changelog section with wrapped lines joined, then
   GitHub's generated notes) to `tmp/`, and `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file <it>`
@@ -43,7 +45,8 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 ## Conventions
 
 - Code, comments, docs and commit messages in English.
-- Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend.
+- Conventional Commits with a capital letter and a scope when one area fits (`Feat:`, `Fix(router):`, `Refactor(midi):`,
+  `Test:`, `Docs:`, `Chore:`), never amend.
 - 120-character lines (`swift format`, `.swift-format`). Lean comments: say why, not what.
 - A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
   consequences); research findings go to `doc/research/YYYY-MM-DD-<topic>.md`.
