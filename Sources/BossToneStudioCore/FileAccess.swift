@@ -57,6 +57,9 @@ public final class FileAccess: Sendable {
             let code = errno
             if code == ENOENT || code == ENOTDIR { return nil }
             if code == ELOOP { throw Self.refusedToRead(path) }
+            // Some kinds of file refuse to open (a socket, a device): not a file, as when they opened.
+            var info = stat()
+            if lstat(file.path, &info) == 0, info.st_mode & S_IFMT != S_IFREG { return nil }
             throw posixError(code)
         }
         defer { close(fd) }

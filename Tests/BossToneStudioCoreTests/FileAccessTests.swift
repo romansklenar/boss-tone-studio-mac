@@ -340,6 +340,29 @@ private func refusedToWrite(_ path: String) -> MessageError {
     }
 }
 
+@Test func aSocketThatRefusesToOpenReadsAsNoFile() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("s").path
+        let socketFD = socket(AF_UNIX, SOCK_STREAM, 0)
+        try #require(socketFD >= 0)
+        defer { close(socketFD) }
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        let capacity = MemoryLayout.size(ofValue: address.sun_path)
+        try #require(path.utf8.count < capacity, "the temporary folder's path is too long for a socket")
+        withUnsafeMutableBytes(of: &address.sun_path) { buffer in
+            buffer.copyBytes(from: path.utf8)
+        }
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(socketFD, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        try #require(bound == 0)
+        #expect(try folders.access.readText(path) == nil)
+    }
+}
+
 @Test func aNameAsLongAsTheSystemAllowsCanBeSaved() throws {
     try withFolders { folders throws in
         let path = folders.data.appendingPathComponent(String(repeating: "n", count: Int(NAME_MAX))).path
