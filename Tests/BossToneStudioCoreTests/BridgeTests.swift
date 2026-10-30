@@ -382,16 +382,6 @@ private func call(_ bridge: Bridge, _ command: String, _ args: String...) throws
     }
 }
 
-@Test func theSaveDialogGetsTheNameWithoutAnExtensionNoAppDeclares() {
-    // NSSavePanel would save `Backup.tsl` as `Backup.tsl.tsl` for a type no app declares.
-    #expect(saveDialogName("Backup.tsl", extension: "tsl", typeIsDeclared: false) == "Backup")
-    #expect(saveDialogName("Backup.TSL", extension: "tsl", typeIsDeclared: false) == "Backup")
-    #expect(saveDialogName("Lead+Warm OD v2.tsl", extension: "tsl", typeIsDeclared: false) == "Lead+Warm OD v2")
-    #expect(saveDialogName("Backup", extension: "tsl", typeIsDeclared: false) == "Backup")
-    #expect(saveDialogName("Backup.tsl", extension: "tsl", typeIsDeclared: true) == "Backup.tsl")
-    #expect(saveDialogName("Backup.json", extension: "json", typeIsDeclared: true) == "Backup.json")
-}
-
 @Test func saveDialogAppendsTheExtension() throws {
     try withTemporaryFolder { outside throws in
         let host = FakeHost(saveAnswer: "/x/name")

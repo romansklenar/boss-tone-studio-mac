@@ -11,18 +11,10 @@ public protocol BridgeHost: AnyObject, Sendable {
     /// `completion` gets the chosen path, or nil when the user cancelled. It must be called exactly once, from any
     /// thread, and may be called after this method has returned.
     func chooseFileToOpen(extensions: [String], completion: @escaping @Sendable (String?) -> Void)
-    /// The dialog should add `ext` (1–10 ASCII letters and digits) itself, so it asks before replacing the file that
-    /// will really be written; the bridge appends it to a path that still lacks it.
+    /// The dialog should add `ext` (1–10 ASCII letters and digits) itself where it can, so it asks before replacing the
+    /// file that will really be written; the bridge appends it to a path that still lacks it.
     func chooseFileToSave(
         suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void)
-}
-
-/// The save dialog's name field for `suggestedName`. NSSavePanel adds the extension a second time to a name that already
-/// ends with it when no app on this Mac declares the extension's type (`.tsl`, as a rule), so such a name goes in
-/// without it and the panel adds it once.
-public func saveDialogName(_ suggestedName: String, extension ext: String, typeIsDeclared: Bool) -> String {
-    guard !typeIsDeclared, suggestedName.lowercased().hasSuffix("." + ext.lowercased()) else { return suggestedName }
-    return String(suggestedName.dropLast(ext.count + 1))
 }
 
 public protocol CommandDispatching: Sendable {

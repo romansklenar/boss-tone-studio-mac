@@ -65,16 +65,17 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
         }
     }
 
-    /// The page chose `suggestedName`, so it only fills the name field; the user picks the folder. The panel adds `ext`
-    /// itself, so its question before replacing a file is about the file the page will write (`saveDialogName`).
+    /// The page chose `suggestedName`, so it only fills the name field; the user picks the folder. For a type the Mac
+    /// declares, the panel adds `ext` itself, so its question before replacing a file is about the file the page will
+    /// write. No app declares `.tsl` or `.alb`, and for such a dynamic type the panel adds the extension again to a name
+    /// that already ends with it (`name.tsl.tsl`), so it gets no type and saves the name as it stands.
     nonisolated func chooseFileToSave(
         suggestedName: String, extension ext: String, completion: @escaping @Sendable (String?) -> Void
     ) {
         DispatchQueue.main.async {
             let panel = NSSavePanel()
-            let type = UTType(filenameExtension: ext) ?? .data
-            panel.nameFieldStringValue = saveDialogName(suggestedName, extension: ext, typeIsDeclared: !type.isDynamic)
-            panel.allowedContentTypes = [type]
+            panel.nameFieldStringValue = suggestedName
+            if let type = UTType(filenameExtension: ext), !type.isDynamic { panel.allowedContentTypes = [type] }
             panel.canCreateDirectories = true
             self.present(panel, completion: completion)
         }

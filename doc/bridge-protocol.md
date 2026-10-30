@@ -61,7 +61,7 @@ complete request.
 | `fs_exec(url)` | open in the default browser — `http(s)://` only, never this Mac (Security, rule 6) |
 | `fs_readString(path)`, `fs_writeString(path, text)` | permitted paths only (see Security) |
 | `fs_openfilename('["tsl"]'?)` | asynchronous dialog → event `fs\fopenfilename\f<path>`, empty when cancelled; window only |
-| `fs_savefilename(name, ext)` | asynchronous dialog, `name.ext` in its name field (`name` alone when no app on the Mac declares `ext`'s type, or the dialog would add it twice) and `ext` as its file type, so the dialog adds the extension and asks before replacing that file → event `fs\fsavefilename\f<path>` (extension appended unless present); window only |
+| `fs_savefilename(name, ext)` | asynchronous dialog, `name.ext` in its name field and `ext` as its file type, so the dialog adds the extension and asks before replacing that file — unless no app on the Mac declares `ext`'s type (`tsl`, `alb`): then the dialog has no file type, since it would add the extension a second time, and saves the name as typed → event `fs\fsavefilename\f<path>` (extension appended unless present); window only |
 | `midi_inendpoints`, `midi_outendpoints` | JSON array of `{"MIDIEntityNameKey", "MIDIDeviceNameKey", "MIDIEndpointUIDKey"}`, all three the port name |
 | `midi_inconnect(json)`, `midi_outconnect(json)` | open the listed port named by `MIDIEntityNameKey`; failure → event `midi\fconnectfailed\f<json>` |
 | `midi_indisconnect`, `midi_outdisconnect` | close |
