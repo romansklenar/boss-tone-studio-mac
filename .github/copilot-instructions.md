@@ -1,12 +1,7 @@
 # Copilot instructions
 
 Follow `AGENTS.md` in the repository root. It describes the project, its commands and its conventions. These rules add
-what a code review needs.
-
-## Language
-
-- Write every review comment and suggestion in English. `AGENTS.md` says to talk to the user in Czech; that applies
-  to the local coding agent's chat, not to reviews, code, docs or commit messages.
+what a code review needs. Write every review comment and suggestion in English.
 
 ## What to flag
 

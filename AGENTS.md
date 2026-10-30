@@ -41,7 +41,7 @@ make release-notes VERSION=x.y.z   # a GitHub Release body in tmp/ (see Releases
 
 ## Conventions
 
-- Code, comments, docs and commit messages in English; talk to the user in Czech.
+- Code, comments, docs and commit messages in English.
 - Conventional Commits with a capital letter (`Feat:`, `Fix:`, `Docs:`, `Chore:`), never amend.
 - 120-character lines (`swift format`, `.swift-format`). Lean comments: say why, not what.
 - A new design decision gets a record in `doc/decisions/ADR-NNNN-<title>.md`, cited as `ADR-NNNN` (context, decision,
