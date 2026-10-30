@@ -44,8 +44,8 @@ a build that needs only the Swift toolchain from Apple's Command Line Tools. No 
 ## Constraints
 
 - Toolchain: the Command Line Tools only (Swift 6.4 and the macOS 27 SDK at the time). They include Swift Testing and
-  `swift format`, but no XCTest and no Xcode. CI's macOS runner uses Xcode's Swift, so `swift-tools-version` stays no
-  newer than the Swift that runner ships.
+  `swift format`, but no XCTest and no Xcode. CI switches its macOS runner to the Command Line Tools, so
+  `swift-tools-version` stays no newer than the Swift they ship there.
 - Swift is pinned to major version 6 only; an exact pin through mise was tried and dropped (ADR-0012).
 - Deployment target macOS 14 (`platforms: [.macOS(.v14)]`, `LSMinimumSystemVersion` 14.0), arm64 only.
 - No package dependencies: Apple's frameworks only (ADR-0012 lists them).
@@ -110,7 +110,8 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
 
 - AppKit, no nib: one window titled `BOSS TONE STUDIO for KATANA MkII (Apple Silicon)`, 1280×800, minimum 1160×700, a
   WKWebView on the default website data store.
-- Standard app menu (Quit), Edit menu (copy/paste/select all in text fields need it) and Window menu (Minimize, Close).
+- App menu (Hide, Quit), Edit menu (Undo, Redo, Cut, Copy, Paste, Select All; text fields need it) and Window menu
+  (Minimize, Close).
   Cmd-Q, Cmd-W, the close button and `SIGINT`/`SIGTERM` all go through the close handshake (`app\fcommand\fexit`, 2 s
   fallback, closes refused until `$$app_exit`); closing the window quits the app.
 - `alert()`/`confirm()`/`prompt()` shown as native sheets: Roland's page uses `alert()`.

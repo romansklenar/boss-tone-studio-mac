@@ -36,7 +36,8 @@ block defines:
   (`String(arg)`, as the URL transport would send them). The answer is the JSON-encoded result, and `null` becomes
   `undefined`. A `500` throws an `Error` with the bridge's message; any other status throws
   `bridge answered HTTP <status>`. There is no `app_startevent` command, so events are polled. A call the bridge does
-  not implement throws a `TypeError` in the page, which the error listener logs.
+  not implement throws a `TypeError` in the page, which the error listener logs; a request for one that reaches the
+  server anyway (from `curl`, say) answers `null` and is logged as `unimplemented`.
 - a `window` `error` listener → `POST /<token>/log` (JS errors logged on the server).
 - a `$.ajaxPrefilter` that sends absolute URLs to `/<token>/proxy?url=…` (Tone Central, see below).
 
@@ -57,7 +58,7 @@ complete request.
 | `app_importfile`, `app_exportfile` | no-op (cloud import/export) |
 | `app_exit` | disconnect MIDI, close the window |
 | `fs_separator` | `/` |
-| `fs_path('temporary' \| 'library')` | absolute path **with a trailing `/`** |
+| `fs_path('temporary' \| 'library')` | absolute path **with a trailing `/`**; any other argument `''` |
 | `fs_exec(url)` | open in the default browser — `http(s)://` only, never this Mac (Security, rule 6) |
 | `fs_readString(path)`, `fs_writeString(path, text)` | permitted paths only (see Security) |
 | `fs_openfilename('["tsl"]'?)` | asynchronous dialog → event `fs\fopenfilename\f<path>`, empty when cancelled; window only |
@@ -125,16 +126,16 @@ The server can read and write files, so:
 2. Everything lives under a per-launch token (24 random bytes, URL-safe base64), compared in constant time: the page
    `/<token>/index.html`, its files, the commands `/<token>/$$…`, `/<token>/proxy` and `/<token>/log`. Any other path
    gets `403`, so the server never gives the token away; the window opens the page with it, and `--browser` prints that
-   URL. Commands are POST only (GET → `405`), are named `$$<object>_<method>` in ASCII (`404` otherwise) and need
-   `Content-Type: application/json` (`415` otherwise), which no cross-site form can send without a preflight. A POST
-   under the token to anything but `$$…` or `log` is taken for the page's usage telemetry (to `index.html`, or to Roland
-   through the proxy): it is dropped with `204` and reaches nothing.
+   URL. Commands and `log` are POST only (GET and HEAD → `405`). Commands are named `$$<object>_<method>` in ASCII
+   (`404` otherwise) and need `Content-Type: application/json` (`415` otherwise), which no cross-site form can send
+   without a preflight. A POST under the token to anything but `$$…` or `log` is taken for the page's usage telemetry
+   (to `index.html`, or to Roland through the proxy): it is dropped with `204` and reaches nothing.
 3. A foreign `Origin` (anything but `http://127.0.0.1:P`) and any `Sec-Fetch-Site` outside {absent, `same-origin`,
    `none`} are rejected on every path under the token, the page under any spelling of its path (`/<token>/`,
    `/<token>/./index.html`, `/<token>/%69ndex.html`…) included. Static files are served only from inside the web app's
-   folder, after resolving the path. Every response forbids framing (`X-Frame-Options: DENY`, `frame-ancestors
-   'none'`) and content sniffing (`X-Content-Type-Options: nosniff`) and is not cached (`Cache-Control: no-store`), so
-   other websites can neither drive the bridge nor open or frame the editor.
+   folder, after resolving the path. Every response forbids framing (`X-Frame-Options: DENY`; the page's policy adds
+   `frame-ancestors 'none'`, rule 4) and content sniffing (`X-Content-Type-Options: nosniff`) and is not cached
+   (`Cache-Control: no-store`), so other websites can neither drive the bridge nor open or frame the editor.
 4. The page comes with a `Content-Security-Policy` header, its nonce new for every response (one directive per line
    here; the header separates them with `; `):
 
@@ -171,7 +172,7 @@ The server can read and write files, so:
    click, goes to the browser if the rule lets it and is dropped otherwise; `window.open` without a click does nothing.
    The window itself stays on `http://127.0.0.1:P`: a navigation anywhere else goes to the browser by the same rule or
    is dropped, and subframes load only `https` (the YouTube player) or `about:` URLs.
-7. The proxy fetches GET requests only (POST → `204`), from `api.roland.com`, `bosstonecentral.com` and
+7. The proxy fetches GET requests only (POST → `204`, HEAD → `405`), from `api.roland.com`, `bosstonecentral.com` and
    `www.youtube.com`. It rebuilds the URL from `https`, the host name, path and query, dropping userinfo, port and
    fragment, and holds every redirect to the same list and rebuilds it the same way; a refused URL or redirect → `403`,
    a failed fetch → `502`. A fetch times out after 20 s without data or 60 s in all, sends the User-Agent

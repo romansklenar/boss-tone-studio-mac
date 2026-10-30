@@ -16,8 +16,8 @@ forbids redistributing its software.
   at runtime the bundled copy is used unless `BTS_HTML_DIR` overrides it.
 - The app is named "BOSS TONE STUDIO for KATANA MkII (Apple Silicon)" and its icon is Roland's on a slate-grey
   background, to tell it from Roland's app.
-- Native code targets macOS 14 (`MACOSX_DEPLOYMENT_TARGET`), so the bundle should run on macOS 14–27 (tested on 27.2
-  only).
+- Native code targets macOS 14 (`MACOSX_DEPLOYMENT_TARGET` under PyInstaller, `platforms: [.macOS(.v14)]` in
+  `Package.swift` since ADR-0011), so the bundle should run on macOS 14–27 (tested on 27.2 only).
 - Nothing of Roland's is committed; the built app is for the builder's own use and is not distributed.
 
 ## Consequences
