@@ -182,10 +182,11 @@ The server can read and write files, so:
    `F_GETPATH` may name another one, so the descriptor also passes when the checked path, looked up without following
    a link at any level, names the same file (device and inode). Only a regular file is read: a missing path, a folder,
    a FIFO, a socket or a device is not a file (an error to `fs_readString`). A write opens the target's folder the same
-   way and checks the folder's path plus the file name against the write set, with the same fallback for the folder.
-   Missing folders are made from the deepest existing one, opened and checked the same way (its path plus the missing
-   names and the file name), each by `mkdirat` through the descriptor of the one above and then opened with
-   `O_NOFOLLOW`, so a folder swapped for a link creates nothing where it leads. The write then creates a temporary file
+   way, for search only (`O_SEARCH`, so a folder its owner may write but not list still takes a save), and checks the
+   folder's path plus the file name against the write set, with the same fallback for the folder. Missing folders are
+   made from the deepest existing one, opened and checked the same way (its path plus the missing names and the file
+   name), each by `mkdirat` through the descriptor of the one above and then opened with `O_NOFOLLOW`, so a folder
+   swapped for a link creates nothing where it leads. The write then creates a temporary file
    with a fixed-length name through the folder's descriptor: for a new file with mode 0666 less the umask; in place of
    an existing one with mode 0600, then given that file's permission bits only (not setuid, setgid or sticky), so it is
    never readable by more than the old file was. It renames the temporary file over the target, which replaces a link

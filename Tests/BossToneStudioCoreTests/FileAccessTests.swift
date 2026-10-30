@@ -300,6 +300,23 @@ private func refusedToWrite(_ path: String) -> MessageError {
     }
 }
 
+@Test func savingIntoAFolderItsOwnerMaySearchButNotList() throws {
+    try withFolders { folders throws in
+        let folder = folders.data.appendingPathComponent("drop")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        #expect(chmod(folder.path, 0o300) == 0)
+        defer { chmod(folder.path, 0o755) }
+        let file = folder.appendingPathComponent("f.txt").path
+        let below = folder.appendingPathComponent("new/f.txt").path
+        try folders.access.writeText("one", to: file)
+        try folders.access.writeText("two", to: file)
+        try folders.access.writeText("three", to: below)
+        #expect(chmod(folder.path, 0o755) == 0)
+        #expect(try folders.access.readText(file) == "two")
+        #expect(try folders.access.readText(below) == "three")
+    }
+}
+
 @Test func readingAndWritingKeepTheirAnswers() throws {
     try withFolders { folders throws in
         #expect(try folders.access.readText(folders.data.appendingPathComponent("missing.txt").path) == nil)

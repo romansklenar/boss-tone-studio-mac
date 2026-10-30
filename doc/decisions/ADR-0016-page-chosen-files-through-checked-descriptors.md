@@ -15,14 +15,15 @@ a folder above it, was followed to wherever it led; missing parent folders were 
   the same rule before a byte is read. For a file with several hard links `F_GETPATH` may name another one, so the
   descriptor also passes when the checked path, looked up without following a link at any level, names the same file
   (device and inode).
-- A write opens the target's folder the same way and checks the folder's path plus the file name against the write
-  set, with the same fallback for the folder. Missing folders are made from the deepest existing one, opened and
-  checked the same way (its path plus the missing names and the file name), each by `mkdirat` through the descriptor
-  of the one above and then opened with `O_NOFOLLOW`, never by path. The write creates a temporary file with a
-  fixed-length name through the folder's descriptor, writes it and renames it over the target, which replaces a link
-  there instead of following it. A new file gets mode 0666 less the umask, as Foundation's atomic write gave it; in
-  place of an existing file the temporary one starts at 0600 and is then given that file's permission bits (not
-  setuid, setgid or sticky, owner or extended attributes), so it is never readable by more than the old file was.
+- A write opens the target's folder the same way, for search only (`O_SEARCH`), and checks the folder's path plus the
+  file name against the write set, with the same fallback for the folder. Missing folders are made from the deepest
+  existing one, opened and checked the same way (its path plus the missing names and the file name), each by `mkdirat`
+  through the descriptor of the one above and then opened with `O_NOFOLLOW`, never by path. The write creates a
+  temporary file with a fixed-length name through the folder's descriptor, writes it and renames it over the target,
+  which replaces a link there instead of following it. A new file gets mode 0666 less the umask, as Foundation's atomic
+  write gave it; in place of an existing file the temporary one starts at 0600 and is then given that file's permission
+  bits (not setuid, setgid or sticky, owner or extended attributes), so it is never readable by more than the old file
+  was.
 - Only a regular file is read: a missing path, a folder, a FIFO, a socket or a device reads as no file, as before.
 - The bridge's answers and error texts stay as they were. Storage (`storage.json`, `storage2/`), whose paths the
   bridge names itself, keeps its path API.
@@ -33,4 +34,6 @@ a folder above it, was followed to wherever it led; missing parent folders were 
   write is still atomic and a failed one leaves the old file and no temporary file.
 - A target whose name is as long as the system allows can still be saved, since the temporary name does not grow with
   it.
-- The descriptor checks rely on Darwin's `F_GETPATH` and `AT_SYMLINK_NOFOLLOW_ANY`.
+- A folder its owner may write and search but not list still takes a save, as it did by name: opening it for reading
+  would need read permission.
+- The descriptor checks rely on Darwin's `F_GETPATH`, `AT_SYMLINK_NOFOLLOW_ANY` and `O_SEARCH`.

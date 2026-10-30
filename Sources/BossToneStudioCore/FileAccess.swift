@@ -110,7 +110,8 @@ public final class FileAccess: Sendable {
     /// without following a link: by name, a folder swapped for a link since `checkWrite` would get folders made
     /// wherever the link leads. The deepest existing folder must pass `checkWrite` before anything is made in it.
     private func openFolder(of file: URL, asked path: String) throws -> Int32 {
-        let flags = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        // Search, not read: saving by name never needed to list the folder, so one its owner may not list still works.
+        let flags = O_SEARCH | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
         var existing = file.deletingLastPathComponent()
         var missing: [String] = []
         var folder = open(existing.path, flags)
