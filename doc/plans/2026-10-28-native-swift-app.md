@@ -44,7 +44,7 @@ What each task delivered, and what its review changed:
 The final review added tests for near misses of the token and for the proxy's timeout and User-Agent, made two
 timer-based tests deterministic, and had `fs_exec` refuse links back to this Mac. Left open: while the page answers the
 close handshake, the app cancels a logout or shutdown once (`.terminateCancel`); deferring the reply instead needs a
-check with an amp.
+check with an amp. 1.0.1 defers it ([ADR-0017](../decisions/ADR-0017-quitting-waits-with-terminate-later.md)).
 
 ## Risks the plan singled out
 
