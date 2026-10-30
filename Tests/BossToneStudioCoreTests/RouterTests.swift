@@ -220,6 +220,65 @@ private struct TestServer {
     }
 }
 
+// MARK: methods per route
+
+/// One cell of the (route × method) matrix of doc/bridge-protocol.md › Security.
+private struct MethodCase: Sendable, CustomTestStringConvertible {
+    let route: String
+    let method: String
+    let status: Int
+
+    var testDescription: String { "\(method) \(route) -> \(status)" }
+
+    /// `path` is what follows the token; a POST to a command carries the JSON it needs.
+    var path: String {
+        switch route {
+        case "command": "$$app_storage2"
+        case "bad command": "$$app"
+        case "proxy": "proxy?url=x"
+        case "log": "log"
+        case "file": "js/lib/native.js"
+        default: "index.html"
+        }
+    }
+
+    static let all: [MethodCase] = {
+        let routes: [(String, [String: Int])] = [
+            ("command", ["GET": 405, "HEAD": 405, "POST": 200]),
+            ("bad command", ["GET": 405, "HEAD": 405, "POST": 404]),
+            ("proxy", ["GET": 200, "HEAD": 405, "POST": 204]),
+            ("log", ["GET": 405, "HEAD": 405, "POST": 200]),
+            ("file", ["GET": 200, "HEAD": 200, "POST": 204]),
+            ("page", ["GET": 200, "HEAD": 200, "POST": 204]),
+        ]
+        return routes.flatMap { route, statuses in
+            ["GET", "HEAD", "POST", "PUT", "DELETE"].map {
+                MethodCase(route: route, method: $0, status: statuses[$0] ?? 501)
+            }
+        }
+    }()
+}
+
+@Test(arguments: MethodCase.all) private func eachRouteAnswersEachMethodAsTheMatrixSays(_ cell: MethodCase) async throws
+{
+    let proxy = StubProxy { _ in .response(status: 200, contentType: "text/plain", body: Data()) }
+    let server = try TestServer(proxy: proxy)
+    defer { server.stop() }
+    let target = "/\(token)/\(cell.path)"
+    let status =
+        cell.route == "command" || cell.route == "bad command"
+        ? (cell.method == "POST"
+            ? try await server.client.command(target).status
+            : try await server.client.status(cell.method, target))
+        : try await server.client.status(cell.method, target, body: cell.method == "POST" ? Data("x".utf8) : nil)
+    #expect(status == cell.status)
+    // A method the server does not implement is refused before the Host is even read.
+    if cell.status == 501 {
+        let foreign = [("Host", "evil.example:\(server.port)")]
+        #expect(try await server.client.status(cell.method, target, headers: foreign) == 501)
+    }
+}
+
 // MARK: Host, token, origin
 
 @Test func otherMethodsAreNotImplemented() async throws {
