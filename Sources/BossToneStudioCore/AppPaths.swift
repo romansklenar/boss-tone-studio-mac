@@ -10,12 +10,10 @@ public enum AppPaths {
         fileURLWithPath: "/Applications/BOSS/KATANA MkII/BOSS TONE STUDIO for KATANA MkII.app/Contents/Resources/html",
         isDirectory: true)
 
-    /// `BTS_DATA_DIR`, else `~/Library/Application Support/<appName>`. A relative `BTS_DATA_DIR` is taken from the
-    /// checkout, not the working directory: Xcode runs the app from elsewhere and expands no build settings in a
-    /// package scheme's environment. `make` runs it from the checkout, so nothing changes there.
-    public static func dataDir(env: [String: String], checkout: URL) -> URL {
-        if let custom = env["BTS_DATA_DIR"], !custom.isEmpty {
-            return URL(fileURLWithPath: custom, isDirectory: true, relativeTo: checkout).absoluteURL
+    /// `BTS_DATA_DIR`, else `~/Library/Application Support/<appName>`.
+    public static func dataDir(env: [String: String], bundleResources: URL?, checkout: URL) -> URL {
+        if let custom = folder(named: "BTS_DATA_DIR", env: env, bundleResources: bundleResources, checkout: checkout) {
+            return custom
         }
         return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support", isDirectory: true)
@@ -35,8 +33,8 @@ public enum AppPaths {
     }
 
     static func htmlDir(env: [String: String], bundleResources: URL?, checkout: URL, installed: URL) -> URL {
-        if let custom = env["BTS_HTML_DIR"], !custom.isEmpty {
-            return URL(fileURLWithPath: custom, isDirectory: true)
+        if let custom = folder(named: "BTS_HTML_DIR", env: env, bundleResources: bundleResources, checkout: checkout) {
+            return custom
         }
         let candidates = [
             bundleResources?.appendingPathComponent("roland-html", isDirectory: true),
@@ -44,6 +42,17 @@ public enum AppPaths {
             installed,
         ].compactMap { $0 }
         return candidates.first(where: hasIndex) ?? candidates[0]
+    }
+
+    /// The folder an environment variable names. A bare executable takes a relative one from the checkout, since Xcode
+    /// runs it from DerivedData and expands no build settings in a package scheme (ADR-0013). A `.app` takes it from the
+    /// working directory: `checkout` is baked in at build time and may not exist on this Mac.
+    private static func folder(named name: String, env: [String: String], bundleResources: URL?, checkout: URL) -> URL?
+    {
+        guard let custom = env[name], !custom.isEmpty else { return nil }
+        guard bundleResources == nil else { return URL(fileURLWithPath: custom, isDirectory: true) }
+        let base = URL(fileURLWithPath: checkout.path, isDirectory: true)
+        return URL(fileURLWithPath: custom, isDirectory: true, relativeTo: base).absoluteURL
     }
 
     public static func hasIndex(_ folder: URL) -> Bool {
