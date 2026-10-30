@@ -41,7 +41,9 @@ MIDI message (`<- midi.message`) is logged.
 | No errors | no `[js]` or `[bts] … failed` lines |
 
 Then try in the window: export a liveset to `.tsl` and import it back, an All Data Backup, deleting a patch and a
-liveset (they must stay deleted after reopening), Tone Central, and closing with Cmd-Q, Cmd-W and the close button; any
+liveset (they must stay deleted after reopening), Tone Central, and closing with Cmd-Q, Cmd-W and the close button.
+A quit from outside, as at logout, must wait for the handshake instead of being cancelled:
+`osascript -e 'quit app "BOSS TONE STUDIO for KATANA MkII (Apple Silicon)"'` ends with the clean close above. Any
 `alert()` of the page shows as a sheet — import a `.tsl` whose JSON lacks the page's header (any `{"name":"x"}` file
 named `*.tsl`) to trigger one. Check that a web link opens in the default browser and that nothing opens a new window;
 with `BTS_TRACE=1`, `location.href = 'http://localhost:' + location.port + '/'` in the Web Inspector's console must open
