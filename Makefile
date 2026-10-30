@@ -2,10 +2,16 @@
 
 SWIFT_SOURCES := $(wildcard Package.swift Sources Tests packaging/make-icon.swift)
 SWIFT_FLAGS := -Xswiftc -warnings-as-errors
+TEST_FLAGS = $(SWIFT_FLAGS)
 # Command Line Tools' build system sometimes leaves the Swift Testing macro plugin out of the compiler call after a
 # clean build (swiftlang/swift-build#1870, fixed upstream, not yet in the CLT release); drop this once a CLT has it.
 ifeq ($(shell xcode-select -p 2>/dev/null),/Library/Developer/CommandLineTools)
 SWIFT_FLAGS += -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
+# SwiftPM 6.3 (Command Line Tools 26.6, on GitHub's macOS 26 image) passes Swift Testing's folder only as -I, so
+# `import Testing` fails, and gives the test bundle no rpath to it. Tests only: a shipped app must not load from here.
+CLT_DEVELOPER := /Library/Developer/CommandLineTools/Library/Developer
+TEST_FLAGS += -Xswiftc -F -Xswiftc $(CLT_DEVELOPER)/Frameworks \
+	-Xlinker -rpath -Xlinker $(CLT_DEVELOPER)/Frameworks -Xlinker -rpath -Xlinker $(CLT_DEVELOPER)/usr/lib
 endif
 # Must match AppPaths.appName and packaging/Info.plist.
 APP_NAME   ?= BOSS TONE STUDIO for KATANA MkII (Apple Silicon)
@@ -102,7 +108,7 @@ release-notes:
 	@packaging/release-notes.sh "$(VERSION)" "tmp/release-notes-v$(VERSION).md"
 
 test: swift-version
-	@swift test $(SWIFT_FLAGS)
+	@swift test $(TEST_FLAGS)
 
 lint: swift-version
 	@swift format lint --strict --recursive --parallel $(SWIFT_SOURCES)

@@ -43,3 +43,7 @@ download it on every macOS run.
   Tools' swift-format reports its version as `main`, so `make lint` cannot check it).
 - Draft pull requests get no macOS test run, so `make check` runs locally before one is marked ready.
 - The `-plugin-path` workaround comes out by hand once a Command Line Tools release has the upstream fix.
+- The runner's Command Line Tools can also move back: GitHub's macOS 26 image of 2026-10-26 went from 27.0 (Swift 6.4)
+  to 26.6 (Swift 6.3.3), whose SwiftPM hands Swift Testing's folder to the compiler without `-F` and gives the test
+  bundle no rpath to it. `make test` adds both with the Command Line Tools, and only `make test`, so no build of the
+  app points into the developer tools.
