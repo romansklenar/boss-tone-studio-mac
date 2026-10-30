@@ -136,6 +136,16 @@ private func withFixture(_ body: (Fixture) throws -> Void) throws {
     }
 }
 
+@Test func aSettingsFileThatIsNotADictionaryIsAnError() throws {
+    try withFixture { fixture in
+        try PropertyListSerialization.data(fromPropertyList: ["a", "b"], format: .binary, options: 0)
+            .write(to: fixture.prefs)
+        #expect(throws: MessageError("the settings file is not a property list dictionary")) {
+            try RolandImport.importLibrarian(dataDir: fixture.dataDir, prefs: fixture.prefs)
+        }
+    }
+}
+
 @Test func importOnceSurvivesAnUnreadablePlist() throws {
     try withFixture { fixture in
         try Data("not a plist".utf8).write(to: fixture.prefs)
