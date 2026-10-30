@@ -134,9 +134,8 @@ differ; the table ticks only what ran with each amp, and `–` marks what did no
 
 | Amplifier | Identity Reply (model code) | Connects | Reads patches | Amp → app | App → amp | Librarian / files | Closing (editor mode off) | Date |
 |---|---|---|---|---|---|---|---|---|
-| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | – | ✅ | 2026-10-29 |
+| KATANA-HEAD MkII | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-30 |
 | KATANA-ARTIST MkII | `41 33 03 … 09` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-29 |
-| KATANA-HEAD MkII (1.0.1) | `41 33 03 … 08` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 2026-10-30 |
 
 What ran with the KATANA-ARTIST MkII, over two launches:
 
@@ -146,14 +145,14 @@ What ran with the KATANA-ARTIST MkII, over two launches:
 - Tone Central's liveset details and adding a liveset; a web link opened in the default browser.
 - It closed cleanly through the handshake both times.
 
-What ran with the KATANA-HEAD MkII, in one launch:
+What ran with the KATANA-HEAD MkII on 1.0.0, in one launch (2026-10-29):
 
 - It reconnected without the device picker and read its current patch on connect; MIDI worked both ways.
 - The page's `alert` showed (an invalid `.tsl` import).
 - Unplugging and replugging it reconnected it (`midi.changed`, a new Identity Reply).
 - It closed cleanly through the handshake.
 
-What ran with the KATANA-HEAD MkII on 1.0.1, over several launches:
+What ran with the KATANA-HEAD MkII on 1.0.1, over several launches (2026-10-30):
 
 - Edits and Librarian transfers both ways; a `.tsl` saved and reopened under a name with Czech diacritics; saving over
   a file asked before replacing it.
