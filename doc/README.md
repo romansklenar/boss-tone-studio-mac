@@ -6,7 +6,7 @@
   with one.
 - [Decisions](decisions/) — why the project is built the way it is, one record per decision (`ADR-NNNN-title.md`, cited
   as `ADR-NNNN`).
-- [Design](design/) and [plans](plans/) — the design of the native Swift app as built in 1.0.0, and how its
-  implementation was split and run.
+- [Design](design/) and [plans](plans/) — the design of the native Swift app as built in 1.0.0 and of the 1.0.1
+  hardening, and how their implementation was split and run.
 - [Research](research/) — dated findings (`YYYY-MM-DD-topic.md`): Rosetta on macOS 27, Gen 3 vs MkII presets,
   existing converters, other MkII editors, the Linux port.
