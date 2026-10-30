@@ -186,12 +186,12 @@ The server can read and write files, so:
    folder's path plus the file name against the write set, with the same fallback for the folder. Missing folders are
    made from the deepest existing one, opened and checked the same way (its path plus the missing names and the file
    name), each by `mkdirat` through the descriptor of the one above and then opened with `O_NOFOLLOW`, so a folder
-   swapped for a link creates nothing where it leads. The write then creates a temporary file
-   with a fixed-length name through the folder's descriptor: for a new file with mode 0666 less the umask; in place of
-   an existing one with mode 0600, then given that file's permission bits only (not setuid, setgid or sticky), so it is
-   never readable by more than the old file was. It renames the temporary file over the target, which replaces a link
-   there instead of following it (ADR-0016). The save dialog's extension must be 1–10 ASCII letters and digits, since
-   it is appended to the picked path.
+   swapped for a link creates nothing where it leads. The write then creates a temporary file with a fixed-length name
+   through the folder's descriptor: for a new file with mode 0666 less the umask; in place of an existing one with mode
+   0600, then given that file's permission bits only (not setuid, setgid or sticky), so it is never readable by more
+   than the old file was. It renames the temporary file over the target, which replaces a link there instead of
+   following it (ADR-0016). The save dialog's extension must be 1–10 ASCII letters and digits, since it is appended to
+   the picked path.
 6. Only `http(s)` links to other machines leave for the default browser, since the page's own URLs carry the token;
    `fs_exec` and the window apply the same rule. Not passed on are links without a host or with userinfo, and links to
    `localhost` or `*.localhost`, to an IPv4 address in `127.0.0.0/8` or `0.0.0.0/8` in any spelling `inet_aton` accepts
