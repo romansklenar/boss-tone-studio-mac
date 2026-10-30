@@ -34,10 +34,13 @@ public enum PageScript {
                   return call('$$' + command, Array.prototype.slice.call(arguments));
                 };
               });
-              var pending = [];
+              var pending = [], next = 0;
               window.$$app.getevent = function () {
-                if (!pending.length) pending = JSON.parse(call('$$app_getevents', []));
-                return pending.length ? pending.shift() : undefined;
+                if (next >= pending.length) {
+                  pending = JSON.parse(call('$$app_getevents', []));
+                  next = 0;
+                }
+                return next < pending.length ? pending[next++] : undefined;
               };
               window.addEventListener('error', function (e) {
                 var x = new XMLHttpRequest();

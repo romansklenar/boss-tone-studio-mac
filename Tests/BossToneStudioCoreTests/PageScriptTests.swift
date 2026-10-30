@@ -32,8 +32,10 @@ private func page(around middle: String = tag) -> String {
 @Test func theInjectedScriptServesGetEventFromALocalQueue() {
     let script = PageScript.preNative(token: "T", nonce: "N", commands: commands)
     #expect(script.contains("window.$$app.getevent = function () {"))
-    #expect(script.contains("if (!pending.length) pending = JSON.parse(call('$$app_getevents', []));"))
-    #expect(script.contains("return pending.length ? pending.shift() : undefined;"))
+    #expect(script.contains("if (next >= pending.length) {"))
+    #expect(script.contains("pending = JSON.parse(call('$$app_getevents', []));"))
+    #expect(script.contains("return next < pending.length ? pending[next++] : undefined;"))
+    #expect(!script.contains("shift()"))  // O(n) per event on a batch of up to 10,000
     let forEach = script.range(of: ".forEach(function (command) {")
     let override = script.range(of: "window.$$app.getevent = ")
     #expect(forEach != nil && override != nil && forEach!.lowerBound < override!.lowerBound)
