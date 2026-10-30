@@ -4,3 +4,7 @@ dist/
 .claude/settings.local.json
 .build/
 .ok/
+# Xcode keeps its per-user state here; the shared scheme in .swiftpm/xcode/xcshareddata is committed.
+xcuserdata/
+.swiftpm/configuration/
+.swiftpm/xcode/package.xcworkspace/

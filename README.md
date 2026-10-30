@@ -89,6 +89,11 @@ make app install    # build the standalone .app and copy it to ~/Applications
 make help           # every target
 ```
 
+Xcode opens the folder as a Swift package. Its shared `BossToneStudio` scheme runs the window with `BTS_DATA_DIR`
+set to `tmp/xcode` in the checkout, so it runs next to an installed copy, which holds the real data folder. Startup
+errors appear in Xcode's console (⇧⌘C). The scheme's `--browser` and `BTS_TRACE=1` are off; turn them on under
+Edit Scheme → Run. With two copies open, both talk to the amp, so quit the installed one first.
+
 On the first launch the app offers a device picker — choose **KATANA** (not "KATANA DAW CTRL"). It reconnects on its
 own after that.
 

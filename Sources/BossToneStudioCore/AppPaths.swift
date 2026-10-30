@@ -10,10 +10,12 @@ public enum AppPaths {
         fileURLWithPath: "/Applications/BOSS/KATANA MkII/BOSS TONE STUDIO for KATANA MkII.app/Contents/Resources/html",
         isDirectory: true)
 
-    /// `BTS_DATA_DIR`, else `~/Library/Application Support/<appName>`.
-    public static func dataDir(env: [String: String]) -> URL {
+    /// `BTS_DATA_DIR`, else `~/Library/Application Support/<appName>`. A relative `BTS_DATA_DIR` is taken from the
+    /// checkout, not the working directory: Xcode runs the app from elsewhere and expands no build settings in a
+    /// package scheme's environment. `make` runs it from the checkout, so nothing changes there.
+    public static func dataDir(env: [String: String], checkout: URL) -> URL {
         if let custom = env["BTS_DATA_DIR"], !custom.isEmpty {
-            return URL(fileURLWithPath: custom, isDirectory: true)
+            return URL(fileURLWithPath: custom, isDirectory: true, relativeTo: checkout).absoluteURL
         }
         return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support", isDirectory: true)

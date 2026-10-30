@@ -92,16 +92,16 @@ func onTerminationSignals(_ handler: @escaping @MainActor @Sendable (Int32) -> V
 
 let arguments = CommandLine.arguments.dropFirst()
 let environment = ProcessInfo.processInfo.environment
-let dataDir = AppPaths.dataDir(env: environment)
+// The checkout this was built from, where `make roland-assets` puts Roland's web app.
+let checkout = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+    .deletingLastPathComponent()
+let dataDir = AppPaths.dataDir(env: environment, checkout: checkout)
 // Held, and so locked, until the process exits: one process per data folder.
 let dataDirLock = lockDataDir(dataDir)
 
 if arguments.contains("--import-roland") { importRoland(into: dataDir, locked: dataDirLock != nil) }
 guard dataDirLock != nil else { fail("Another instance already uses \(dataDir.path).") }
 
-// The checkout this was built from, where `make roland-assets` puts Roland's web app.
-let checkout = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-    .deletingLastPathComponent()
 let resources = AppPaths.bundleResources(bundleURL: Bundle.main.bundleURL, resourceURL: Bundle.main.resourceURL)
 let html = AppPaths.htmlDir(env: environment, bundleResources: resources, checkout: checkout)
 guard AppPaths.hasIndex(html) else {
