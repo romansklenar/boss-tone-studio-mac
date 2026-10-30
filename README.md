@@ -89,6 +89,12 @@ make app install    # build the standalone .app and copy it to ~/Applications
 make help           # every target
 ```
 
+Xcode opens the folder as a Swift package. Its shared `BossToneStudio` scheme runs the window with `BTS_DATA_DIR`
+set to `tmp/xcode` in the checkout, apart from the real data folder, so an open installed copy does not stop it.
+Startup errors appear in Xcode's console (⇧⌘C). The scheme's `--browser` and `BTS_TRACE=1` are off; turn them on under
+Edit Scheme → Run. The data-folder lock then no longer keeps the two apart: with both open, both put the amp into
+editor mode and overwrite each other's edits, so quit the installed one before working with the amp.
+
 On the first launch the app offers a device picker — choose **KATANA** (not "KATANA DAW CTRL"). It reconnects on its
 own after that.
 
@@ -107,7 +113,8 @@ quarantine flag (download, AirDrop), open it once with right-click → Open.
 
 Data (settings, livesets) lives in `~/Library/Application Support/BOSS TONE STUDIO for KATANA MkII (Apple Silicon)/`,
 apart from Roland's app, in the same folder and file formats as 0.1.x. `BTS_HTML_DIR` and `BTS_DATA_DIR` override the
-paths.
+paths. A relative one is taken from the working directory in a `.app`, and from the checkout when the bare executable
+runs ([ADR-0013](doc/decisions/ADR-0013-xcode-as-an-optional-way-to-run.md)).
 
 ### Coming from Roland's app
 

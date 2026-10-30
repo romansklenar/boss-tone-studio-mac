@@ -11,9 +11,9 @@ public enum AppPaths {
         isDirectory: true)
 
     /// `BTS_DATA_DIR`, else `~/Library/Application Support/<appName>`.
-    public static func dataDir(env: [String: String]) -> URL {
-        if let custom = env["BTS_DATA_DIR"], !custom.isEmpty {
-            return URL(fileURLWithPath: custom, isDirectory: true)
+    public static func dataDir(env: [String: String], bundleResources: URL?, checkout: URL) -> URL {
+        if let custom = folder(named: "BTS_DATA_DIR", env: env, bundleResources: bundleResources, checkout: checkout) {
+            return custom
         }
         return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support", isDirectory: true)
@@ -26,15 +26,15 @@ public enum AppPaths {
         bundleURL.pathExtension == "app" ? resourceURL : nil
     }
 
-    /// `BTS_HTML_DIR` as it is; else the first of the bundle's `roland-html`, the checkout's `build/roland/html` and
-    /// Roland's installed app that has an `index.html`, else the first of them (the caller reports it missing).
+    /// `BTS_HTML_DIR`; else the first of the bundle's `roland-html`, the checkout's `build/roland/html` and Roland's
+    /// installed app that has an `index.html`, else the first of them (the caller reports it missing).
     public static func htmlDir(env: [String: String], bundleResources: URL?, checkout: URL) -> URL {
         htmlDir(env: env, bundleResources: bundleResources, checkout: checkout, installed: rolandHTML)
     }
 
     static func htmlDir(env: [String: String], bundleResources: URL?, checkout: URL, installed: URL) -> URL {
-        if let custom = env["BTS_HTML_DIR"], !custom.isEmpty {
-            return URL(fileURLWithPath: custom, isDirectory: true)
+        if let custom = folder(named: "BTS_HTML_DIR", env: env, bundleResources: bundleResources, checkout: checkout) {
+            return custom
         }
         let candidates = [
             bundleResources?.appendingPathComponent("roland-html", isDirectory: true),
@@ -42,6 +42,19 @@ public enum AppPaths {
             installed,
         ].compactMap { $0 }
         return candidates.first(where: hasIndex) ?? candidates[0]
+    }
+
+    /// The folder an environment variable names. A bare executable takes a relative one from the checkout, since Xcode
+    /// runs it from DerivedData and expands no build settings in a package scheme (ADR-0013). A `.app` takes it from
+    /// the working directory: `checkout` is baked in at build time and may not exist on this Mac. A leading `~` is
+    /// expanded, since a scheme or `env` passes it as is and it would otherwise name a folder `~` in the checkout.
+    private static func folder(named name: String, env: [String: String], bundleResources: URL?, checkout: URL) -> URL?
+    {
+        guard let value = env[name], !value.isEmpty else { return nil }
+        let custom = (value as NSString).expandingTildeInPath
+        guard bundleResources == nil else { return URL(fileURLWithPath: custom, isDirectory: true) }
+        let base = URL(fileURLWithPath: checkout.path, isDirectory: true)
+        return URL(fileURLWithPath: custom, isDirectory: true, relativeTo: base).absoluteURL
     }
 
     public static func hasIndex(_ folder: URL) -> Bool {
