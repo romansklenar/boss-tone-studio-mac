@@ -13,7 +13,7 @@ same behaviour, data and protocol, and addresses ADR-0003's known weak points.
 
 Fifteen tasks, each implemented and then reviewed on its own, with a round of fixes wherever a review found an
 important issue; then a review of the whole branch and one more round of fixes. Tasks 1–13 ran unattended, Task 14 was
-Roman's session with the amps, and Task 15 followed it. Until Task 15 the Python app stayed in the tree, runnable, as
+a session by hand with the amps, and Task 15 followed it. Until Task 15 the Python app stayed in the tree, runnable, as
 the reference behaviour.
 
 ## Tasks
@@ -38,7 +38,7 @@ What each task delivered, and what its review changed:
     blocked.
 12. **Bundle, icon, signing.**
 13. **Documents.**
-14. **Amp run** (Roman), with both amps; the README's Verified amplifiers records which checks ran with each.
+14. **Amp run**, by hand with both amps; the README's Verified amplifiers records which checks ran with each.
 15. **Python removed** — every Python test mapped to a Swift one (43 of 43) before the Python code went.
 
 The final review added tests for near misses of the token and for the proxy's timeout and User-Agent, made two

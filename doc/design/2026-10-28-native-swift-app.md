@@ -215,7 +215,7 @@ ADR-0003 records each fix and the residual risks.
    request is ready for review.
 2. The built `.app` (`BTS_TRACE=1`, a copy of the data folder) ran with the KATANA-ARTIST MkII and the KATANA-HEAD
    MkII. The checks of `doc/testing.md` › With an amp were split between the two amps, as the README's Verified
-   amplifiers records, and Roman confirmed the window checks.
+   amplifiers records, and the window checks were confirmed by hand.
 3. The bundle is 14 MB, 13 MB of which is Roland's web app, signed ad hoc with the hardened runtime.
 4. Every Python test has a Swift Testing counterpart. `bts/`, `tests/`, `mise.toml`, `pyproject.toml`,
    `requirements*.txt`, `packaging/app.spec` and `packaging/make_icon.py` are removed; README, AGENTS.md, `doc/` and
