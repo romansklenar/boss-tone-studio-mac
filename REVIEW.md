@@ -1,7 +1,6 @@
-# Copilot instructions
+# Review instructions
 
-Follow `AGENTS.md` in the repository root. It describes the project, its commands and its conventions. These rules add
-what a code review needs. Write every review comment and suggestion in English.
+Write every review comment and suggestion in English.
 
 ## What to flag
 
