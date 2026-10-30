@@ -133,9 +133,21 @@ private struct TestServer {
     #expect(response.text == "null")
 }
 
+@Test func badArgumentsAnswer400WithTheReason() async throws {
+    let server = try TestServer()
+    defer { server.stop() }
+    let path = "/\(token)/$$app_x"
+    let notStrings = try await server.client.command(path, body: Data(#"{"k": "v"}"#.utf8))
+    #expect(notStrings.status == 400)
+    #expect(notStrings.text == "arguments must be a JSON array of strings")
+    let invalid = try await server.client.command(path, body: Data("not json".utf8))
+    #expect(invalid.status == 400)
+    #expect(!invalid.text.isEmpty)
+}
+
 @Test func aFailingCommandAnswers500WithItsMessage() async throws {
     let dispatcher = RecordingDispatcher()
-    dispatcher.fail(with: BridgeError(description: "refused\n[bts] forged"))
+    dispatcher.fail(with: MessageError("refused\n[bts] forged"))
     let server = try TestServer(dispatcher: dispatcher)
     defer { server.stop() }
     let response = try await server.client.command("/\(token)/$$fs_exec", ["file:///"])

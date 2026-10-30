@@ -11,11 +11,6 @@ public protocol ProxyFetching: Sendable {
     func fetch(_ url: String) async -> ProxyResult
 }
 
-/// A URL the proxy will not fetch; the text is safe to log (page-chosen parts go through `escaped`).
-public struct ProxyRefusal: Error, CustomStringConvertible, Sendable {
-    public let description: String
-}
-
 /// Fetches Tone Central's remote resources for the page; Roland's servers send no CORS headers, so the page can't.
 ///
 /// Only the hosts Tone Central uses are reachable, over HTTPS, and redirects are held to the same list, so the proxy
@@ -50,14 +45,14 @@ public struct Proxy: ProxyFetching {
         guard let parts = URLComponents(string: url, encodingInvalidCharacters: true),
             let scheme = parts.scheme?.lowercased(), scheme == "http" || scheme == "https",
             let host = parts.host?.lowercased(), allowedHosts.contains(host)
-        else { throw ProxyRefusal(description: "refusing to proxy \(escaped(url))") }
+        else { throw MessageError("refusing to proxy \(escaped(url))") }
         var rebuilt = URLComponents()
         rebuilt.scheme = "https"
         rebuilt.host = host
         rebuilt.percentEncodedPath = parts.percentEncodedPath
         rebuilt.percentEncodedQuery = parts.percentEncodedQuery
         guard let checked = rebuilt.url, checked.host == host else {
-            throw ProxyRefusal(description: "refusing to proxy \(escaped(url))")
+            throw MessageError("refusing to proxy \(escaped(url))")
         }
         return checked
     }

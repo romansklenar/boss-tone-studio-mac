@@ -45,7 +45,7 @@ public final class HTTPServer: Sendable {
             state.listener = listener
             return true
         }
-        guard started else { throw ServerError(description: "the server was already started") }
+        guard started else { throw MessageError("the server was already started") }
 
         let settled = DispatchSemaphore(value: 0)
         // The handler records the outcome only: capturing the listener would make a cycle that outlives `stop()`.
@@ -74,8 +74,8 @@ public final class HTTPServer: Sendable {
             return port
         }
         stop()
-        if case .failure(let error) = result { throw ServerError(description: "cannot listen on 127.0.0.1: \(error)") }
-        throw ServerError(description: "cannot listen on 127.0.0.1: no port within 10 s")
+        if case .failure(let error) = result { throw MessageError("cannot listen on 127.0.0.1: \(error)") }
+        throw MessageError("cannot listen on 127.0.0.1: no port within 10 s")
     }
 
     /// Connections whose receive loop has not ended yet.
@@ -151,10 +151,6 @@ public final class HTTPServer: Sendable {
             connection.send(content: data, completion: .contentProcessed { continuation.resume(returning: $0 == nil) })
         }
     }
-}
-
-private struct ServerError: Error, CustomStringConvertible {
-    let description: String
 }
 
 /// Cancels a connection unless disarmed in time: one timer per connection, moved on by every `arm`. The firing handler

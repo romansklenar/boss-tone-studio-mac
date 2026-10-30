@@ -3,10 +3,6 @@ import CoreMIDI
 import Foundation
 import os
 
-struct CoreMIDIError: Error, CustomStringConvertible {
-    let description: String
-}
-
 /// `MidiBackend` on CoreMIDI, with ports named as python-rtmidi named them in 0.1.1: the page stored that name as the
 /// device's UID (ADR-0005), so a different one would send users back to the device picker. Names are taken as CoreMIDI
 /// holds them, though: python-rtmidi decoded them as MacRoman (`encoding='auto'`), so a device whose name has
@@ -61,7 +57,7 @@ final class CoreMIDIBackend: MidiBackend {
         disconnectInput()
         let sources = (0..<MIDIGetNumberOfSources()).map(MIDIGetSource)
         guard let source = sources.first(where: { Self.endpointName($0) == name }) else {
-            throw CoreMIDIError(description: "no MIDI source is named \(name)")
+            throw MessageError("no MIDI source is named \(name)")
         }
         // A new port and reassembler for every connection: a SysEx cut off by the last one must not run into this one.
         let session = InputSession(onMessage: onMessage)
@@ -92,7 +88,7 @@ final class CoreMIDIBackend: MidiBackend {
     func connectOutput(named name: String) throws {
         let destinations = (0..<MIDIGetNumberOfDestinations()).map(MIDIGetDestination)
         guard let destination = destinations.first(where: { Self.endpointName($0) == name }) else {
-            throw CoreMIDIError(description: "no MIDI destination is named \(name)")
+            throw MessageError("no MIDI destination is named \(name)")
         }
         state.withLock { $0.destination = destination }
     }
@@ -169,7 +165,7 @@ final class CoreMIDIBackend: MidiBackend {
         var builder = UnsafeMutableMIDIEventListPointer(list, wordSize: size / 4, inProtocol: ._1_0)
         for packet in packets {
             guard builder.append(timestamp: 0, words: packet) != nil else {  // 0: now
-                throw CoreMIDIError(description: "a MIDI message did not fit its event list")
+                throw MessageError("a MIDI message did not fit its event list")
             }
         }
         try check(MIDISendEventList(outputPort, destination, list), "MIDISendEventList")
@@ -212,5 +208,5 @@ private final class InputSession: Sendable {
 }
 
 private func check(_ status: OSStatus, _ call: String) throws {
-    guard status == noErr else { throw CoreMIDIError(description: "\(call) failed (OSStatus \(status))") }
+    guard status == noErr else { throw MessageError("\(call) failed (OSStatus \(status))") }
 }

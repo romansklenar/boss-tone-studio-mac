@@ -24,13 +24,6 @@ public protocol CommandDispatching: Sendable {
     func dispatch(_ command: String, _ args: [String]) throws -> String?
 }
 
-/// The text is the `500` body. Anything the page chose in it goes through `escaped`.
-public struct BridgeError: Error, CustomStringConvertible, Equatable, LocalizedError {
-    public let description: String
-
-    public var errorDescription: String? { description }
-}
-
 /// The `$native` commands BOSS TONE STUDIO for KATANA MkII calls, as 0.1.1's Python bridge implemented them:
 /// storage, files, dialogs, MIDI, an event queue the page polls, and the close handshake.
 public final class Bridge: CommandDispatching {
@@ -137,7 +130,7 @@ public final class Bridge: CommandDispatching {
     ) throws {
         storage2 = try Storage2(dataDir: dataDir)
         guard let resolvedData = FileAccess.canonical(dataDir.path) else {
-            throw BridgeError(description: "cannot resolve the data folder \(escaped(dataDir.path))")
+            throw MessageError("cannot resolve the data folder \(escaped(dataDir.path))")
         }
         self.dataDir = URL(fileURLWithPath: resolvedData, isDirectory: true)
         tempDir = try Self.makeTempDir()
@@ -167,8 +160,8 @@ public final class Bridge: CommandDispatching {
         guard entry.arguments.contains(args.count) else {
             let (low, high) = (entry.arguments.lowerBound, entry.arguments.upperBound)
             let expected = low == high ? "\(high)" : "\(low) to \(high)"
-            throw BridgeError(
-                description: "$$\(command) takes \(expected) argument\(high == 1 ? "" : "s"), got \(args.count)")
+            throw MessageError(
+                "$$\(command) takes \(expected) argument\(high == 1 ? "" : "s"), got \(args.count)")
         }
         return try entry.run(self, args)
     }
@@ -223,7 +216,7 @@ public final class Bridge: CommandDispatching {
         guard mkdtemp(&characters) != nil else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         let created = String(decoding: characters.dropLast().map(UInt8.init(bitPattern:)), as: UTF8.self)
         guard let resolved = FileAccess.canonical(created) else {
-            throw BridgeError(description: "cannot resolve the temporary folder \(escaped(created))")
+            throw MessageError("cannot resolve the temporary folder \(escaped(created))")
         }
         return URL(fileURLWithPath: resolved, isDirectory: true)
     }
@@ -268,7 +261,7 @@ public final class Bridge: CommandDispatching {
     /// back to this Mac (`isWebLinkOffThisMac`, the window's rule as well).
     private func exec(_ url: String) throws {
         guard let target = URL(string: url), isWebLinkOffThisMac(target) else {
-            throw BridgeError(description: "refusing to open \(escaped(url))")
+            throw MessageError("refusing to open \(escaped(url))")
         }
         openURL(target)
     }
@@ -276,7 +269,7 @@ public final class Bridge: CommandDispatching {
     private func readString(_ path: String) throws -> String {
         let file = try files.checkRead(path)
         guard let text = try readTextOrThrow(file) else {
-            throw BridgeError(description: "\(escaped(path)) is not a file")
+            throw MessageError("\(escaped(path)) is not a file")
         }
         return text
     }
@@ -291,7 +284,7 @@ public final class Bridge: CommandDispatching {
         var extensions: [String] = []
         if let filterJSON, !filterJSON.isEmpty {
             guard let decoded = try? JSONDecoder().decode([String].self, from: Data(filterJSON.utf8)) else {
-                throw BridgeError(description: "invalid file filter \(escaped(filterJSON))")
+                throw MessageError("invalid file filter \(escaped(filterJSON))")
             }
             extensions = decoded
         }
@@ -305,7 +298,7 @@ public final class Bridge: CommandDispatching {
     private func saveFileName(_ name: String, extension ext: String) throws {
         // Appended to the chosen path, so it must not hold a "/".
         let isPlain = (1...10).contains(ext.utf8.count) && ext.utf8.allSatisfy(Self.isASCIIAlphanumeric)
-        guard isPlain else { throw BridgeError(description: "refusing extension \(escaped(ext))") }
+        guard isPlain else { throw MessageError("refusing extension \(escaped(ext))") }
         guard let host = hostForDialog("savefilename") else { return }
         host.chooseFileToSave(suggestedName: "\(name).\(ext)", extension: ext) { [weak self] picked in
             guard let self else { return }

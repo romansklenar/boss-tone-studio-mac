@@ -40,7 +40,7 @@ private let plain = "text/plain; charset=utf-8"
         "api.roland.com/x",
         "", " ",
     ] {
-        #expect(throws: ProxyRefusal.self, "\(url) must be refused") { try Proxy.checkedURL(url) }
+        #expect(throws: MessageError.self, "\(url) must be refused") { try Proxy.checkedURL(url) }
     }
 }
 
