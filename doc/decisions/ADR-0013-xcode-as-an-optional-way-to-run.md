@@ -14,14 +14,15 @@ honoured), and an absolute path holds on one Mac only.
 
 - Commit a shared `BossToneStudio` scheme with `BTS_DATA_DIR=tmp/xcode`. Xcode stays optional: building, testing and CI
   need only the Command Line Tools ([ADR-0012](ADR-0012-swift-toolchain-without-dependencies.md)).
-- A bare executable takes a relative `BTS_DATA_DIR` or `BTS_HTML_DIR` from the checkout it was built from. A `.app` takes
-  it from the working directory, since the checkout's path is baked in at build time and may not exist on that Mac.
+- A bare executable takes a relative `BTS_DATA_DIR` or `BTS_HTML_DIR` from the checkout it was built from. A `.app`
+  takes it from the working directory: the checkout's path is baked in at build time and may not exist on that Mac.
 
 ## Consequences
 
 - `make run` behaves as before, since it runs from the checkout. A bare executable started from another folder no longer
   follows that folder for a relative path.
-- A leading `~` is not expanded, as before: a scheme should not use one.
+- A leading `~` is expanded. A scheme passes it as is, so it would otherwise name a folder `~` in the checkout, outside
+  `tmp/` and so not ignored by git.
 - The data-folder lock no longer stops an Xcode run next to an installed copy. Both windows then talk to the amp and
   overwrite each other's edits, so the README says to quit the installed one first.
 - Xcode's builds go to DerivedData, outside the repository's `.build`.

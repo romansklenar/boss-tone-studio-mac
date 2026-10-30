@@ -90,10 +90,10 @@ make help           # every target
 ```
 
 Xcode opens the folder as a Swift package. Its shared `BossToneStudio` scheme runs the window with `BTS_DATA_DIR`
-set to `tmp/xcode` in the checkout, so it runs next to an installed copy, which holds the real data folder. Startup
-errors appear in Xcode's console (⇧⌘C). The scheme's `--browser` and `BTS_TRACE=1` are off; turn them on under
-Edit Scheme → Run. The data-folder lock does not protect this setup: with two copies open, both put the amp into editor
-mode and overwrite each other's edits, so quit the installed one first.
+set to `tmp/xcode` in the checkout, apart from the real data folder, so an open installed copy does not stop it.
+Startup errors appear in Xcode's console (⇧⌘C). The scheme's `--browser` and `BTS_TRACE=1` are off; turn them on under
+Edit Scheme → Run. The data-folder lock then no longer keeps the two apart: with both open, both put the amp into
+editor mode and overwrite each other's edits, so quit the installed one before working with the amp.
 
 On the first launch the app offers a device picker — choose **KATANA** (not "KATANA DAW CTRL"). It reconnects on its
 own after that.

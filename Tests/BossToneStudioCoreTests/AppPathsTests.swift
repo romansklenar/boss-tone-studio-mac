@@ -66,6 +66,10 @@ import Testing
     #expect(paths(bundle: resources, checkout: checkout) == ["\(workingDirectory)/tmp/x", "\(workingDirectory)/tmp/x"])
     let withoutSlash = URL(fileURLWithPath: "/checkout", isDirectory: false)
     #expect(paths(bundle: nil, checkout: withoutSlash) == ["/checkout/tmp/x", "/checkout/tmp/x"])
+    for bundle in [nil, resources] {
+        let home = AppPaths.dataDir(env: ["BTS_DATA_DIR": "~/x"], bundleResources: bundle, checkout: checkout).path
+        #expect(home == NSHomeDirectory() + "/x")
+    }
 }
 
 @Test func bundleResourcesCountOnlyInsideAnApp() {

@@ -26,8 +26,8 @@ public enum AppPaths {
         bundleURL.pathExtension == "app" ? resourceURL : nil
     }
 
-    /// `BTS_HTML_DIR` as it is; else the first of the bundle's `roland-html`, the checkout's `build/roland/html` and
-    /// Roland's installed app that has an `index.html`, else the first of them (the caller reports it missing).
+    /// `BTS_HTML_DIR`; else the first of the bundle's `roland-html`, the checkout's `build/roland/html` and Roland's
+    /// installed app that has an `index.html`, else the first of them (the caller reports it missing).
     public static func htmlDir(env: [String: String], bundleResources: URL?, checkout: URL) -> URL {
         htmlDir(env: env, bundleResources: bundleResources, checkout: checkout, installed: rolandHTML)
     }
@@ -45,11 +45,13 @@ public enum AppPaths {
     }
 
     /// The folder an environment variable names. A bare executable takes a relative one from the checkout, since Xcode
-    /// runs it from DerivedData and expands no build settings in a package scheme (ADR-0013). A `.app` takes it from the
-    /// working directory: `checkout` is baked in at build time and may not exist on this Mac.
+    /// runs it from DerivedData and expands no build settings in a package scheme (ADR-0013). A `.app` takes it from
+    /// the working directory: `checkout` is baked in at build time and may not exist on this Mac. A leading `~` is
+    /// expanded, since a scheme or `env` passes it as is and it would otherwise name a folder `~` in the checkout.
     private static func folder(named name: String, env: [String: String], bundleResources: URL?, checkout: URL) -> URL?
     {
-        guard let custom = env[name], !custom.isEmpty else { return nil }
+        guard let value = env[name], !value.isEmpty else { return nil }
+        let custom = (value as NSString).expandingTildeInPath
         guard bundleResources == nil else { return URL(fileURLWithPath: custom, isDirectory: true) }
         let base = URL(fileURLWithPath: checkout.path, isDirectory: true)
         return URL(fileURLWithPath: custom, isDirectory: true, relativeTo: base).absoluteURL
