@@ -49,9 +49,10 @@ public final class FileAccess: Sendable {
     }
 
     /// `checkRead` again on what was opened: a link swapped in for the file since then fails to open (`O_NOFOLLOW`),
-    /// and one swapped in for a folder above it shows in the descriptor's path.
+    /// and one swapped in for a folder above it shows in the descriptor's path. `O_NONBLOCK`, or a FIFO would wait for
+    /// a writer before the check below could turn it away.
     func readChecked(_ file: URL, asked path: String) throws -> String? {
-        let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
         if fd < 0 {
             let code = errno
             if code == ENOENT || code == ENOTDIR { return nil }

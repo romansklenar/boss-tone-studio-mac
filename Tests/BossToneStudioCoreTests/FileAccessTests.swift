@@ -319,3 +319,11 @@ private func refusedToWrite(_ path: String) -> MessageError {
         #expect(try folders.access.readText(path) == "new")
     }
 }
+
+@Test func aFIFOReadsAsNoFileWithoutWaitingForAWriter() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("pipe").path
+        #expect(mkfifo(path, 0o600) == 0)
+        #expect(try folders.access.readText(path) == nil)
+    }
+}
