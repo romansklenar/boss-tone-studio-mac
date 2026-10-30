@@ -8,7 +8,8 @@ private let tag = PageScript.nativeScriptTag
 private let commands = ["app_getevent", "midi_send"]
 
 private func page(around middle: String = tag) -> String {
-    "<!doctype html>\n<body oncontextmenu=\"return false\">\n<script src=\"js/lib/jquery.js\"></script>\n\(middle)\n</body>"
+    "<!doctype html>\n<body oncontextmenu=\"return false\">\n"
+        + "<script src=\"js/lib/jquery.js\"></script>\n\(middle)\n</body>"
 }
 
 // MARK: injection
@@ -66,7 +67,8 @@ private func page(around middle: String = tag) -> String {
     #expect(script.contains(#"    if (/^https?:\/\//.test(options.url)) {"#))
     #expect(
         script.contains(
-            "    x.send(JSON.stringify(args.map(String)));  // String(): what native.js's own URL transport would send\n"
+            "    x.send(JSON.stringify(args.map(String)));"
+                + "  // String(): what native.js's own URL transport would send\n"
         ))
     #expect(
         script.contains(
