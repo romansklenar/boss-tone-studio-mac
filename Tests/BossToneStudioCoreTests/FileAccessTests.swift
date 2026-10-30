@@ -320,6 +320,18 @@ private func refusedToWrite(_ path: String) -> MessageError {
     }
 }
 
+@Test func savingOverASetuidFileKeepsOnlyItsPermissionBits() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("tool").path
+        try Data("old".utf8).write(to: URL(fileURLWithPath: path))
+        #expect(chmod(path, 0o4755) == 0)
+        // Empty: a write would make the system clear the setuid bit, so nothing would show.
+        try folders.access.writeText("", to: path)
+        let mode = try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions] as? Int
+        #expect(mode == 0o755)
+    }
+}
+
 @Test func aFIFOReadsAsNoFileWithoutWaitingForAWriter() throws {
     try withFolders { folders throws in
         let path = folders.data.appendingPathComponent("pipe").path

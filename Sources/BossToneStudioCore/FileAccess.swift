@@ -88,10 +88,12 @@ public final class FileAccess: Sendable {
         let fd = openat(folder, temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)
         guard fd >= 0 else { throw posixError(errno) }
         var failure: Int32 = 0
-        // The rename replaces the file, so it would take the new file's mode: keep the old one's, as a save in place.
+        // The rename replaces the file, so it would get the new file's mode: copy the old one's permission bits (not
+        // owner or extended attributes, which Foundation's atomic write did not keep either). Not setuid, setgid or
+        // sticky: a new content must not inherit them, and a non-root `fchmod` with the sticky bit fails.
         var existing = stat()
         if fstatat(folder, name, &existing, AT_SYMLINK_NOFOLLOW) == 0, existing.st_mode & S_IFMT == S_IFREG,
-            fchmod(fd, existing.st_mode & 0o7777) != 0
+            fchmod(fd, existing.st_mode & 0o777) != 0
         {
             failure = errno
         }
