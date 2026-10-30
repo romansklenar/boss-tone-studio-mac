@@ -183,6 +183,33 @@ private func controller(
     #expect(midi == nil)
 }
 
+@Test func aSetupChangeReportedFromInsideABackendCallDoesNotDeadlock() throws {
+    let backend = FakeMidiBackend()
+    let events = Recorder<Event>()
+    let midi = controller(backend, events)
+    backend.reportSetupChangeDuringCalls()
+    midi.connectOutput(endpointsJSON(["KATANA"]).trimmingBrackets)
+    try midi.send("F07EF7")
+    midi.connectInput(endpointsJSON(["KATANA"]).trimmingBrackets)
+    #expect(backend.sent == [[0xF0, 0x7E, 0xF7]])
+    #expect(!events.all.contains { $0.kind == "connectfailed" })
+}
+
+@Test func messagesOfOneSendAreNotInterleavedWithAnotherSend() throws {
+    let backend = FakeMidiBackend()
+    let midi = controller(backend, Recorder<Event>())
+    midi.connectOutput(endpointsJSON(["KATANA"]).trimmingBrackets)
+    DispatchQueue.concurrentPerform(iterations: 8) { i in try? midi.send("903C0\(i)803C0\(i)") }
+
+    let sent = backend.sent
+    try #require(sent.count == 16)
+    for pair in stride(from: 0, to: sent.count, by: 2) {
+        #expect(sent[pair].first == 0x90)
+        #expect(sent[pair + 1] == [0x80, 0x3C, sent[pair][2]])
+    }
+    #expect(Set(sent.map { $0[2] }) == Set(0..<8))
+}
+
 @Test func withoutCoreMIDIListsAreEmptyAndConnectsFail() throws {
     let events = Recorder<Event>()
     let midi = controller(nil, events)

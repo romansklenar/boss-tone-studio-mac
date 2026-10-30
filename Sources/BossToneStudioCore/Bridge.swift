@@ -165,9 +165,10 @@ public final class Bridge: CommandDispatching {
         return try entry.run(self, args)
     }
 
-    /// Queues an event for the page to poll. MIDI events take the same path from CoreMIDI's threads, possibly while the
-    /// controller holds its own lock, so it only appends under the queue's short lock: it never blocks on anything else
-    /// and never calls into the controller or the host. (BTS_TRACE=1 also prints a line, before taking the lock.)
+    /// Queues an event for the page to poll. MIDI events take the same path from CoreMIDI's threads, possibly from
+    /// inside a backend call on the controller's queue, so it only appends under the queue's short lock: it never
+    /// blocks on anything else and never calls into the controller or the host. (BTS_TRACE=1 also prints a line, before
+    /// taking the lock.)
     public func emit(_ prop: String, _ kind: String, _ args: [String]) {
         Self.enqueue(events, prop, kind, args)
     }

@@ -73,7 +73,7 @@ final class CoreMIDIBackend: MidiBackend {
             close(input)
             throw error
         }
-        // Empty since the disconnect above: the controller makes these calls one at a time, under its lock.
+        // Empty since the disconnect above: the controller makes these calls one at a time, from its serial queue.
         state.withLock { $0.input = input }
     }
 
