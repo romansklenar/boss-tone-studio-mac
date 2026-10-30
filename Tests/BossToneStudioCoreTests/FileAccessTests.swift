@@ -307,3 +307,15 @@ private func refusedToWrite(_ path: String) -> MessageError {
         #expect(try FileManager.default.contentsOfDirectory(atPath: twin.deletingLastPathComponent().path) == ["f.txt"])
     }
 }
+
+@Test func savingOverAFileKeepsItsPermissions() throws {
+    try withFolders { folders throws in
+        let path = folders.data.appendingPathComponent("private.json").path
+        try Data("old".utf8).write(to: URL(fileURLWithPath: path))
+        #expect(chmod(path, 0o600) == 0)
+        try folders.access.writeText("new", to: path)
+        let mode = try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions] as? Int
+        #expect(mode == 0o600)
+        #expect(try folders.access.readText(path) == "new")
+    }
+}

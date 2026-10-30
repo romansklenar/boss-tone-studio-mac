@@ -85,7 +85,15 @@ public final class FileAccess: Sendable {
         let temporary = ".\(name).\(UUID().uuidString).tmp"
         let fd = openat(folder, temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)
         guard fd >= 0 else { throw posixError(errno) }
-        var failure = writeAll(Data(text.utf8), to: fd)
+        var failure: Int32 = 0
+        // The rename replaces the file, so it would take the new file's mode: keep the old one's, as a save in place.
+        var existing = stat()
+        if fstatat(folder, name, &existing, AT_SYMLINK_NOFOLLOW) == 0, existing.st_mode & S_IFMT == S_IFREG,
+            fchmod(fd, existing.st_mode & 0o7777) != 0
+        {
+            failure = errno
+        }
+        if failure == 0 { failure = writeAll(Data(text.utf8), to: fd) }
         if close(fd) != 0, failure == 0 { failure = errno }
         if failure == 0, renameat(folder, temporary, folder, name) != 0 { failure = errno }
         if failure != 0 {
