@@ -1,4 +1,4 @@
-# Temporary: find where Swift Testing lives on the runner's Command Line Tools. Removed before merge.
+# Temporary: find where Swift Testing lives on the runner's Command Line Tools 26.6. Removed before merge.
 name: Diag
 on:
   push:
@@ -10,25 +10,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        n: [1, 2, 3, 4]
+        n: [1, 2, 3, 4, 5, 6, 7, 8]
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: sudo xcode-select --switch /Library/Developer/CommandLineTools
-      - name: Toolchain
+      - name: Image
+        id: image
         run: |
-          echo "image $ImageVersion"
-          xcode-select -p
+          echo "image $ImageVersion; CLT $(pkgutil --pkg-info=com.apple.pkg.CLTools_Executables | sed -n 's/^version: //p')"
+          case "$ImageVersion" in 20261026*) echo "new=1" >> "$GITHUB_OUTPUT" ;; esac
+      - if: steps.image.outputs.new
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: steps.image.outputs.new
+        name: Toolchain
+        run: |
+          sudo xcode-select --switch /Library/Developer/CommandLineTools
           swift --version 2>&1 | head -1
-          pkgutil --pkg-info=com.apple.pkg.CLTools_Executables | grep version
-          ls /Applications | grep -i xcode
-          find /Library/Developer/CommandLineTools \( -name 'Testing.framework' -o -name 'Testing.swiftmodule' \
-            -o -name '*TestingInterop*' -o -name 'libTestingMacros*' -o -name 'XCTest.framework' \) 2>/dev/null
-          ls /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing 2>&1
-          ls /Library/Developer/CommandLineTools/Library/Developer 2>&1
-      - name: Test-target flags
+          find / \( -name 'Testing.framework' -o -name 'Testing.swiftmodule' -o -name 'libTestingMacros.dylib' \
+            -o -name '*TestingInterop*' \) -not -path '/System/*' -not -path '/Applications/Xcode*' 2>/dev/null
+          ls -R /Library/Developer/CommandLineTools/Library/Developer 2>&1 | head -30
+          ls /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins 2>&1
+      - if: steps.image.outputs.new
+        name: Test-target flags
         run: |
-          swift build --build-tests -Xswiftc -warnings-as-errors -v 2>&1 \
-            | grep -oE -- '(-F|-I|-L|-Xlinker -rpath -Xlinker|-plugin-path|-external-plugin-path|-sdk) [^ ]+' \
-            | sort -u | head -40 || true
-      - run: make test 2>&1 | tail -5
+          swift build --build-tests -v 2>&1 | grep -oE -- '(-F|-I|-L|-plugin-path|-external-plugin-path) [^ ]+' \
+            | sort -u | head -30 || true
+      - if: steps.image.outputs.new
+        run: make test 2>&1 | tail -5
