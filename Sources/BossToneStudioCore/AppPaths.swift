@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where the app keeps its data and finds Roland's web app, as 0.1.1 chose them.
+/// Where the app keeps its data and finds Roland's web app: 0.1.1's places, unless the environment names others.
 public enum AppPaths {
     /// Also the bundle's name and the data folder's: users of 0.1.x keep their Librarian.
     public static let appName = "BOSS TONE STUDIO for KATANA MkII (Apple Silicon)"
@@ -44,10 +44,9 @@ public enum AppPaths {
         return candidates.first(where: hasIndex) ?? candidates[0]
     }
 
-    /// The folder an environment variable names. A bare executable takes a relative one from the checkout, since Xcode
-    /// runs it from DerivedData and expands no build settings in a package scheme (ADR-0013). A `.app` takes it from
-    /// the working directory: `checkout` is baked in at build time and may not exist on this Mac. A leading `~` is
-    /// expanded, since a scheme or `env` passes it as is and it would otherwise name a folder `~` in the checkout.
+    /// The folder an environment variable names, `~` expanded, since a scheme passes it as is. A relative one follows
+    /// the checkout in a bare executable, which Xcode runs from DerivedData, and the working directory in a `.app`,
+    /// whose baked-in checkout may not exist on this Mac (ADR-0013).
     private static func folder(named name: String, env: [String: String], bundleResources: URL?, checkout: URL) -> URL?
     {
         guard let value = env[name], !value.isEmpty else { return nil }

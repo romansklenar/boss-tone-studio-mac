@@ -92,7 +92,8 @@ func onTerminationSignals(_ handler: @escaping @MainActor @Sendable (Int32) -> V
 
 let arguments = CommandLine.arguments.dropFirst()
 let environment = ProcessInfo.processInfo.environment
-// The checkout this was built from, where `make roland-assets` puts Roland's web app.
+// The checkout this was built from: where `make roland-assets` puts Roland's web app, and what a relative
+// `BTS_DATA_DIR` or `BTS_HTML_DIR` follows outside a `.app`.
 let checkout = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent()
 let resources = AppPaths.bundleResources(bundleURL: Bundle.main.bundleURL, resourceURL: Bundle.main.resourceURL)

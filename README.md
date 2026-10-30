@@ -152,10 +152,10 @@ What ran with the KATANA-HEAD MkII, in one launch:
 - Unplugging and replugging it reconnected it (`midi.changed`, a new Identity Reply).
 - It closed cleanly through the handshake.
 
-Not tied to an amp: Roman closed the app once with Cmd-Q and once with the window's close button (which run used which
-is not recorded), and confirmed in the window that copy and paste work in text fields and that right click opens no
-context menu. The traces showed editor mode on after connecting and off before `$$app_exit`, no `[js]` or `failed`
-lines, and no refused request but SoundCloud's, by design.
+Not tied to an amp: the app was closed once with Cmd-Q and once with the window's close button (which run used which
+is not recorded), and a check in the window confirmed that copy and paste work in text fields and that right click
+opens no context menu. The traces showed editor mode on after connecting and off before `$$app_exit`, no `[js]` or
+`failed` lines, and no refused request but SoundCloud's, by design.
 
 The same two amps were checked with the 0.1.x Python shell on 2026-10-28 (the HEAD MkII with 0.1.0, the ARTIST MkII
 again with 0.1.1).

@@ -57,7 +57,7 @@ complete request.
 | `app_importfile`, `app_exportfile` | no-op (cloud import/export) |
 | `app_exit` | disconnect MIDI, close the window |
 | `fs_separator` | `/` |
-| `fs_path('temporary' \| 'library')` | absolute path **with a trailing `/`** |
+| `fs_path('temporary' \| 'library')` | absolute path **with a trailing `/`**; any other argument `''` |
 | `fs_exec(url)` | open in the default browser — `http(s)://` only, never this Mac (Security, rule 6) |
 | `fs_readString(path)`, `fs_writeString(path, text)` | permitted paths only (see Security) |
 | `fs_openfilename('["tsl"]'?)` | asynchronous dialog → event `fs\fopenfilename\f<path>`, empty when cancelled; window only |
@@ -67,6 +67,9 @@ complete request.
 | `midi_indisconnect`, `midi_outdisconnect` | close |
 | `midi_send(HEX)` | hex without spaces → bytes → split into whole messages (sysex `F0…F7`) → Universal MIDI Packets → send; a message CoreMIDI fails to send is logged, not raised |
 | `midi_panel` | no-op |
+
+A command request that passes the server's checks (Security, rule 2) but names a command missing from this table, sent
+with `curl`, say, is answered with `null` and logged as `unimplemented`.
 
 Behaviour worth knowing:
 
@@ -125,10 +128,11 @@ The server can read and write files, so:
 2. Everything lives under a per-launch token (24 random bytes, URL-safe base64), compared in constant time: the page
    `/<token>/index.html`, its files, the commands `/<token>/$$…`, `/<token>/proxy` and `/<token>/log`. Any other path
    gets `403`, so the server never gives the token away; the window opens the page with it, and `--browser` prints that
-   URL. Commands are POST only (GET → `405`), are named `$$<object>_<method>` in ASCII (`404` otherwise) and need
-   `Content-Type: application/json` (`415` otherwise), which no cross-site form can send without a preflight. A POST
-   under the token to anything but `$$…` or `log` is taken for the page's usage telemetry (to `index.html`, or to Roland
-   through the proxy): it is dropped with `204` and reaches nothing.
+   URL. Commands and `log` take POST, `proxy` GET, the page and its files GET and HEAD; any other GET or HEAD gets
+   `405`. A POST anywhere else under the token is taken for the page's usage telemetry (to `index.html`, or to Roland
+   through the proxy): it is dropped with `204` and reaches nothing. Commands are named `$$<object>_<method>` in ASCII
+   (`404` otherwise) and need `Content-Type: application/json` (`415` otherwise), which no cross-site form can send
+   without a preflight.
 3. A foreign `Origin` (anything but `http://127.0.0.1:P`) and any `Sec-Fetch-Site` outside {absent, `same-origin`,
    `none`} are rejected on every path under the token, the page under any spelling of its path (`/<token>/`,
    `/<token>/./index.html`, `/<token>/%69ndex.html`…) included. Static files are served only from inside the web app's

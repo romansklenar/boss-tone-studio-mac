@@ -11,7 +11,8 @@ The 0.1.x app worked, but it was a 38 MB bundle carrying its own Python, and bui
 Python, python-rtmidi compiled from source and PyInstaller.
 [ADR-0001](../decisions/ADR-0001-python-shell-around-rolands-web-app.md) kept a native shell (WKWebView + embedded
 HTTP server + CoreMIDI) as the later step. This is that step: the same app for the user, with a much smaller bundle and
-a build that needs only the Swift toolchain from Apple's Command Line Tools. No Xcode, no third-party packages.
+a build that needs only the Swift toolchain from Apple's Command Line Tools. Xcode is not needed
+([ADR-0013](../decisions/ADR-0013-xcode-as-an-optional-way-to-run.md) makes it an option), and no third-party packages.
 
 ## Goals
 
@@ -44,8 +45,8 @@ a build that needs only the Swift toolchain from Apple's Command Line Tools. No 
 ## Constraints
 
 - Toolchain: the Command Line Tools only (Swift 6.4 and the macOS 27 SDK at the time). They include Swift Testing and
-  `swift format`, but no XCTest and no Xcode. CI's macOS runner uses Xcode's Swift, so `swift-tools-version` stays no
-  newer than the Swift that runner ships.
+  `swift format`, but no XCTest and no Xcode. CI tests with them too (ADR-0012), so `swift-tools-version` must not
+  exceed the runner's Swift.
 - Swift is pinned to major version 6 only; an exact pin through mise was tried and dropped (ADR-0012).
 - Deployment target macOS 14 (`platforms: [.macOS(.v14)]`, `LSMinimumSystemVersion` 14.0), arm64 only.
 - No package dependencies: Apple's frameworks only (ADR-0012 lists them).
@@ -110,9 +111,9 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
 
 - AppKit, no nib: one window titled `BOSS TONE STUDIO for KATANA MkII (Apple Silicon)`, 1280×800, minimum 1160×700, a
   WKWebView on the default website data store.
-- Standard app menu (Quit), Edit menu (copy/paste/select all in text fields need it) and Window menu (Minimize, Close).
-  Cmd-Q, Cmd-W, the close button and `SIGINT`/`SIGTERM` all go through the close handshake (`app\fcommand\fexit`, 2 s
-  fallback, closes refused until `$$app_exit`); closing the window quits the app.
+- App menu (Hide, Quit), Edit menu (Undo, Redo, Cut, Copy, Paste, Select All, which text fields need) and Window menu
+  (Minimize, Close). Cmd-Q, Cmd-W, the close button and `SIGINT`/`SIGTERM` all go through the close handshake
+  (`app\fcommand\fexit`, 2 s fallback, closes refused until `$$app_exit`); closing the window quits the app.
 - `alert()`/`confirm()`/`prompt()` shown as native sheets: Roland's page uses `alert()`.
 - File dialogs: `NSOpenPanel`/`NSSavePanel` sheets on the main thread, answered asynchronously through `fs` events; the
   name the page suggests only fills the save panel's name field, and the panel adds the page's extension itself, so it
@@ -126,8 +127,9 @@ is returned as stored, where 0.1.1 turned CR and CRLF into LF. A temp folder `bt
 `--browser` (serve only, print the URL), `--import-roland` (import and exit, refused while the folder is locked),
 `BTS_DATA_DIR`, `BTS_HTML_DIR`, `BTS_TRACE=1`. Log lines keep their prefixes and shapes (`[bts]`, `[trace] -> $$…`,
 `[trace] <- midi.message …`, `[js] …`), so the trace checklist in `doc/testing.md` still applies. The web app comes from
-`BTS_HTML_DIR` as given when it is set, else from the first of the bundle's `roland-html` (inside a `.app` only), the
-checkout's `build/roland/html` and Roland's installed app that has an `index.html`.
+`BTS_HTML_DIR` when it is set (a relative path resolved as in
+[ADR-0013](../decisions/ADR-0013-xcode-as-an-optional-way-to-run.md)), else from the first of the bundle's `roland-html`
+(inside a `.app` only), the checkout's `build/roland/html` and Roland's installed app that has an `index.html`.
 
 ### Security: 0.1.1's rules plus the ADR-0003 follow-ups
 
@@ -213,7 +215,7 @@ ADR-0003 records each fix and the residual risks.
    request is ready for review.
 2. The built `.app` (`BTS_TRACE=1`, a copy of the data folder) ran with the KATANA-ARTIST MkII and the KATANA-HEAD
    MkII. The checks of `doc/testing.md` › With an amp were split between the two amps, as the README's Verified
-   amplifiers records, and Roman confirmed the window checks.
+   amplifiers records, and the window checks were confirmed by hand.
 3. The bundle is 14 MB, 13 MB of which is Roland's web app, signed ad hoc with the hardened runtime.
 4. Every Python test has a Swift Testing counterpart. `bts/`, `tests/`, `mise.toml`, `pyproject.toml`,
    `requirements*.txt`, `packaging/app.spec` and `packaging/make_icon.py` are removed; README, AGENTS.md, `doc/` and
