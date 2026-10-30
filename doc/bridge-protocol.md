@@ -99,7 +99,8 @@ Behaviour worth knowing:
 - Closing the window: the shell sends the page `app\fcommand\fexit`; the page sends DT1 `7F 00 00 01 = 00` (editor
   communication mode off) and calls `$$app_exit` 500 ms later. The close button, Cmd-W, Cmd-Q and `SIGINT`/`SIGTERM` all
   go this way: closing is refused until then, the event is queued once and a 2 s fallback is armed. `$$app_exit`
-  disconnects MIDI and closes the window, which quits the app.
+  disconnects MIDI and closes the window, which quits the app. A quit (Cmd-Q, `SIGINT`/`SIGTERM`, the Dock, logout)
+  does not cancel meanwhile: the delegate answers `.terminateLater` and replies once the window has closed.
 - Storage and file reads return the text as stored; a file that is not UTF-8 is an error.
 - The page's usage telemetry posts to `index.html` and, through the proxy, to Roland. As in 0.1.1, a POST to any path
   under the token other than `$$…` and `log`, whether a file is there or not, gets `204` and is forwarded nowhere.

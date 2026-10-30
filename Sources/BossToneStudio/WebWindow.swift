@@ -13,6 +13,8 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
     private let window: NSWindow
     private let webView: WKWebView
     private var closed = false
+    /// Called once the window has closed, for a quit that waited for the close handshake.
+    var onClose: (() -> Void)?
 
     init(bridge: Bridge, page: URL, port: UInt16) {
         self.bridge = bridge
@@ -97,6 +99,7 @@ final class WebWindow: NSObject, BridgeHost, NSWindowDelegate, WKUIDelegate, WKN
 
     func windowWillClose(_ notification: Notification) {
         closed = true
+        onClose?()
     }
 
     // MARK: WKUIDelegate
