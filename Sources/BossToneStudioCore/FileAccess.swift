@@ -21,16 +21,16 @@ public final class FileAccess: Sendable {
         self.tempDir = tempDir
     }
 
-    /// The canonical file to read: a check of the path only. Read through `readText`, which opens the file without
-    /// following a link and checks where the descriptor leads, since a link swapped in after this check would
-    /// otherwise be followed.
-    public func checkRead(_ path: String) throws -> URL {
+    /// The canonical file to read: a check of the path only, internal so that no caller opens the file by name after
+    /// it. Read through `readText`, which opens the file without following a link and checks where the descriptor
+    /// leads, since a link swapped in after this check would otherwise be followed.
+    func checkRead(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path), mayRead(canonical) else { throw Self.refusedToRead(path) }
         return URL(fileURLWithPath: canonical)
     }
 
     /// As `checkRead`: write through `writeText`.
-    public func checkWrite(_ path: String) throws -> URL {
+    func checkWrite(_ path: String) throws -> URL {
         guard let canonical = Self.canonical(path), mayWrite(canonical) else { throw Self.refusedToWrite(path) }
         return URL(fileURLWithPath: canonical)
     }
