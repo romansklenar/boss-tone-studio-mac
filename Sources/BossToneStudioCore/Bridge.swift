@@ -160,8 +160,7 @@ public final class Bridge: CommandDispatching {
         guard entry.arguments.contains(args.count) else {
             let (low, high) = (entry.arguments.lowerBound, entry.arguments.upperBound)
             let expected = low == high ? "\(high)" : "\(low) to \(high)"
-            throw MessageError(
-                "$$\(command) takes \(expected) argument\(high == 1 ? "" : "s"), got \(args.count)")
+            throw MessageError("$$\(command) takes \(expected) argument\(high == 1 ? "" : "s"), got \(args.count)")
         }
         return try entry.run(self, args)
     }

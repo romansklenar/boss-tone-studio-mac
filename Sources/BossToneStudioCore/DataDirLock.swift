@@ -21,8 +21,7 @@ public final class DataDirLock: Sendable {
             try FileManager.default.createDirectory(
                 at: lockFile.deletingLastPathComponent(), withIntermediateDirectories: true)
         } catch {
-            throw MessageError(
-                "cannot create the folder of \(lockFile.path): \(error.localizedDescription)")
+            throw MessageError("cannot create the folder of \(lockFile.path): \(error.localizedDescription)")
         }
         // Not inherited by child processes, which would keep the folder locked after this one quits.
         let descriptor = lockFile.withUnsafeFileSystemRepresentation { path in
