@@ -42,9 +42,7 @@ public final class FileAccess: Sendable {
 
     /// Creates missing parent folders, then replaces the file atomically.
     public func writeText(_ text: String, to path: String) throws {
-        let file = try checkWrite(path)
-        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try writeChecked(text, to: file, asked: path)
+        try writeChecked(text, to: checkWrite(path), asked: path)
     }
 
     /// `checkRead` again on what was opened: a link swapped in for the file since then fails to open (`O_NOFOLLOW`),
@@ -80,18 +78,11 @@ public final class FileAccess: Sendable {
     /// and a link swapped in for the target is replaced, not followed.
     func writeChecked(_ text: String, to file: URL, asked path: String) throws {
         let name = file.lastPathComponent
-        let folder = open(file.deletingLastPathComponent().path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-        if folder < 0 {
-            let code = errno
-            if code == ELOOP || code == ENOTDIR { throw Self.refusedToWrite(path) }
-            throw posixError(code)
-        }
+        let folder = try openFolder(of: file, asked: path)
         defer { close(folder) }
-        let opened = descriptorPath(folder).map { URL(fileURLWithPath: $0).appendingPathComponent(name).path }
-        guard
-            opened.map(mayWrite) == true
-                || (mayWrite(file.path) && isFile(folder, at: file.deletingLastPathComponent().path))
-        else { throw Self.refusedToWrite(path) }
+        guard mayWrite(through: folder, at: file.deletingLastPathComponent(), then: [name]) else {
+            throw Self.refusedToWrite(path)
+        }
 
         // A fixed length, so a target whose name is as long as the system allows still gets one.
         let temporary = ".bts-\(UUID().uuidString).tmp"
@@ -114,6 +105,48 @@ public final class FileAccess: Sendable {
             unlinkat(folder, temporary, 0)
             throw posixError(failure)
         }
+    }
+
+    /// The target's folder, missing ones created as by `mkdir -p` but each through the descriptor of the one above and
+    /// without following a link: by name, a folder swapped for a link since `checkWrite` would get folders made
+    /// wherever the link leads. The deepest existing folder must pass `checkWrite` before anything is made in it.
+    private func openFolder(of file: URL, asked path: String) throws -> Int32 {
+        let flags = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        var existing = file.deletingLastPathComponent()
+        var missing: [String] = []
+        var folder = open(existing.path, flags)
+        while folder < 0 {
+            let code = errno
+            if code == ELOOP || code == ENOTDIR { throw Self.refusedToWrite(path) }
+            guard code == ENOENT, existing.path != "/" else { throw posixError(code) }
+            missing.insert(existing.lastPathComponent, at: 0)
+            existing.deleteLastPathComponent()
+            folder = open(existing.path, flags)
+        }
+        if !missing.isEmpty, !mayWrite(through: folder, at: existing, then: missing + [file.lastPathComponent]) {
+            close(folder)
+            throw Self.refusedToWrite(path)
+        }
+        for name in missing {
+            // EEXIST: made meanwhile by someone else, which the open below checks like any other folder.
+            let made = mkdirat(folder, name, 0o777) == 0 || errno == EEXIST
+            let next = made ? openat(folder, name, flags) : -1
+            let code = errno
+            close(folder)
+            if next < 0 { throw code == ELOOP || code == ENOTDIR ? Self.refusedToWrite(path) : posixError(code) }
+            folder = next
+        }
+        return folder
+    }
+
+    /// Whether the folder descriptor, followed by `names`, leads to a path `checkWrite` passes. When `F_GETPATH` names
+    /// another spelling, the descriptor still passes if it is the checked folder, reached through no link.
+    private func mayWrite(through folder: Int32, at checked: URL, then names: [String]) -> Bool {
+        func below(_ start: String) -> String {
+            names.reduce(URL(fileURLWithPath: start)) { $0.appendingPathComponent($1) }.path
+        }
+        return descriptorPath(folder).map { mayWrite(below($0)) } == true
+            || (mayWrite(below(checked.path)) && isFile(folder, at: checked.path))
     }
 
     public func allowOpen(_ path: String) {

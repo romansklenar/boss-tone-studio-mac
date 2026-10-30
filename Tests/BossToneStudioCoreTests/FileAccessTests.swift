@@ -255,6 +255,38 @@ private func refusedToWrite(_ path: String) -> MessageError {
     }
 }
 
+@Test func aFolderSwappedForALinkBeforeMissingFoldersAreCreatedIsRefused() throws {
+    try withFolders { folders throws in
+        let a = folders.data.appendingPathComponent("a")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        let path = a.appendingPathComponent("b/c/f.txt").path
+        let checked = try folders.access.checkWrite(path)
+        try FileManager.default.removeItem(at: a)
+        try FileManager.default.createSymbolicLink(atPath: a.path, withDestinationPath: folders.outside.path)
+        #expect(throws: refusedToWrite(path)) { try folders.access.writeChecked("x", to: checked, asked: path) }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folders.outside.path).isEmpty)
+    }
+}
+
+@Test func aFolderHigherUpSwappedForALinkBeforeMissingFoldersAreCreatedIsRefused() throws {
+    try withFolders { folders throws in
+        // The deepest existing folder opens through the link: where its descriptor leads tells.
+        let b = folders.data.appendingPathComponent("a/b")
+        let twin = folders.outside.appendingPathComponent("a/b")
+        for folder in [b, twin] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
+        let path = b.appendingPathComponent("c/d/f.txt").path
+        let checked = try folders.access.checkWrite(path)
+        let a = folders.data.appendingPathComponent("a")
+        try FileManager.default.removeItem(at: a)
+        try FileManager.default.createSymbolicLink(
+            atPath: a.path, withDestinationPath: folders.outside.appendingPathComponent("a").path)
+        #expect(throws: refusedToWrite(path)) { try folders.access.writeChecked("x", to: checked, asked: path) }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: twin.path).isEmpty)
+    }
+}
+
 @Test func aFailedWriteLeavesTheOldFileAndNoTemporaryFile() throws {
     try withFolders { folders throws in
         let path = folders.data.appendingPathComponent("f.txt").path
