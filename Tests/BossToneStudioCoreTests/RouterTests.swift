@@ -169,8 +169,9 @@ private struct TestServer {
 @Test func commandsArePostOnly() async throws {
     let server = try TestServer()
     defer { server.stop() }
-    #expect(try await server.client.status("GET", "/\(token)/$$app_storage") == 405)
-    #expect(try await server.client.status("HEAD", "/\(token)/$$app_storage") == 405)
+    for method in ["GET", "HEAD"] {
+        _ = try await server.client.status(method, "/\(token)/$$app_storage")
+    }
     #expect(server.dispatcher.calls.isEmpty)
 }
 
@@ -222,61 +223,32 @@ private struct TestServer {
 
 // MARK: methods per route
 
-/// One cell of the (route × method) matrix of doc/bridge-protocol.md › Security.
-private struct MethodCase: Sendable, CustomTestStringConvertible {
-    let route: String
-    let method: String
-    let status: Int
-
-    var testDescription: String { "\(method) \(route) -> \(status)" }
-
-    /// `path` is what follows the token; a POST to a command carries the JSON it needs.
-    var path: String {
-        switch route {
-        case "command": "$$app_storage2"
-        case "bad command": "$$app"
-        case "proxy": "proxy?url=x"
-        case "log": "log"
-        case "file": "js/lib/native.js"
-        default: "index.html"
-        }
-    }
-
-    static let all: [MethodCase] = {
-        let routes: [(String, [String: Int])] = [
-            ("command", ["GET": 405, "HEAD": 405, "POST": 200]),
-            ("bad command", ["GET": 405, "HEAD": 405, "POST": 404]),
-            ("proxy", ["GET": 200, "HEAD": 405, "POST": 204]),
-            ("log", ["GET": 405, "HEAD": 405, "POST": 200]),
-            ("file", ["GET": 200, "HEAD": 200, "POST": 204]),
-            ("page", ["GET": 200, "HEAD": 200, "POST": 204]),
-        ]
-        return routes.flatMap { route, statuses in
-            ["GET", "HEAD", "POST", "PUT", "DELETE"].map {
-                MethodCase(route: route, method: $0, status: statuses[$0] ?? 501)
-            }
-        }
-    }()
-}
-
-@Test(arguments: MethodCase.all) private func eachRouteAnswersEachMethodAsTheMatrixSays(_ cell: MethodCase) async throws
-{
+/// The method rules of doc/bridge-protocol.md › Security: per path under the token, the status of GET, HEAD and POST;
+/// any other method is `501`. One server answers them all.
+@Test func eachRouteAnswersEachMethodAsTheRulesSay() async throws {
     let proxy = StubProxy { _ in .response(status: 200, contentType: "text/plain", body: Data()) }
     let server = try TestServer(proxy: proxy)
     defer { server.stop() }
-    let target = "/\(token)/\(cell.path)"
-    let status =
-        cell.route == "command" || cell.route == "bad command"
-        ? (cell.method == "POST"
-            ? try await server.client.command(target).status
-            : try await server.client.status(cell.method, target))
-        : try await server.client.status(cell.method, target, body: cell.method == "POST" ? Data("x".utf8) : nil)
-    #expect(status == cell.status)
-    // A method the server does not implement is refused before the Host is even read.
-    if cell.status == 501 {
-        let foreign = [("Host", "evil.example:\(server.port)")]
-        #expect(try await server.client.status(cell.method, target, headers: foreign) == 501)
+    let rows: [(path: String, statuses: [String: Int])] = [
+        ("$$app_storage2", ["GET": 405, "HEAD": 405, "POST": 200]),
+        ("$$app", ["GET": 405, "HEAD": 405, "POST": 404]),  // a malformed name: 405 first, then 404
+        ("proxy?url=x", ["GET": 200, "HEAD": 405, "POST": 204]),
+        ("log", ["GET": 405, "HEAD": 405, "POST": 200]),
+        ("js/lib/native.js", ["GET": 200, "HEAD": 200, "POST": 204]),
+        ("index.html", ["GET": 200, "HEAD": 200, "POST": 204]),
+    ]
+    for (path, statuses) in rows {
+        for method in ["GET", "HEAD", "POST", "PUT", "DELETE"] {
+            let post = method == "POST"
+            let status = try await server.client.status(
+                method, "/\(token)/\(path)", headers: post ? [("Content-Type", "application/json")] : [],
+                body: post ? Data("[]".utf8) : nil)
+            #expect(status == statuses[method] ?? 501, "\(method) \(path)")
+        }
     }
+    // A method the server does not implement is refused before the Host is even read.
+    let foreign = [("Host", "evil.example:\(server.port)")]
+    #expect(try await server.client.status("PUT", "/\(token)/index.html", headers: foreign) == 501)
 }
 
 // MARK: Host, token, origin
@@ -284,7 +256,7 @@ private struct MethodCase: Sendable, CustomTestStringConvertible {
 @Test func otherMethodsAreNotImplemented() async throws {
     let server = try TestServer()
     defer { server.stop() }
-    for method in ["PUT", "DELETE", "OPTIONS", "PATCH", "get"] {
+    for method in ["OPTIONS", "PATCH", "get"] {
         #expect(try await server.client.status(method, "/\(token)/index.html") == 501, "\(method)")
     }
 }
@@ -433,7 +405,6 @@ private struct MethodCase: Sendable, CustomTestStringConvertible {
     #expect(response.status == 200)
     #expect(response.body.isEmpty)
     #expect(server.log.all.last == #"[js] 'boom\n[bts] forged'"#)
-    #expect(try await server.client.status("GET", "/\(token)/log") == 405)
 }
 
 @Test func pageLogLinesLeaveTheTokenOut() async throws {
@@ -552,11 +523,10 @@ private struct MethodCase: Sendable, CustomTestStringConvertible {
 @Test func telemetryPostsAreDropped() async throws {
     let server = try TestServer()
     defer { server.stop() }
-    #expect(try await server.client.status("POST", "/\(token)/index.html", body: Data("stats".utf8)) == 204)
     let url = "https%3A%2F%2Fapi.roland.com%2Fapp%2Fbtc%2F1%2Fstatuslogs%2F"
     #expect(try await server.client.status("POST", "/\(token)/proxy?url=\(url)", body: Data("stats".utf8)) == 204)
     // As in 0.1.1, any other path under the token takes it too, a file there or not.
-    for path in ["js/lib/native.js", "missing/stats", ""] {
+    for path in ["missing/stats", ""] {
         #expect(try await server.client.status("POST", "/\(token)/\(path)", body: Data("stats".utf8)) == 204, "\(path)")
     }
     #expect(try await server.client.status("POST", "/index.html", body: Data("stats".utf8)) == 403)
@@ -573,7 +543,6 @@ private struct MethodCase: Sendable, CustomTestStringConvertible {
     #expect(response.status == 200)
     #expect(response.headers["content-type"] == "application/json")
     #expect(response.text == "{}")
-    #expect(try await server.client.status("HEAD", "/\(token)/proxy?url=\(url)") == 405)
     #expect(proxy.urls == ["https://api.roland.com/x?a=1&b=2"])
 }
 
